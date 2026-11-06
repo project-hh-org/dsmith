@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
+import path from "node:path";
 import type { AgentMeta } from "./model.js";
+import { MONOREPO_ROOT } from "./paths.js";
 
 export type { AgentMeta } from "./model.js";
 
@@ -8,15 +11,48 @@ export const PASS_ENV: readonly string[] = ["HOME", "PATH", "LANG", "LC_ALL", "T
 
 const FORBIDDEN_ENV = /^CLAUDE|^CLAUDECODE/;
 
-/** PASS_ENV ∪ extra 중 env에 있는 것만. extra에 CLAUDE* 이름이 있으면 Error. */
-export function agentEnv(extra: string[], env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+function isUnder(root: string, target: string): boolean {
+  const rel = path.relative(root, target);
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
+}
+
+/**
+ * PATH에서 모노레포 아래 항목(benchmarks/node_modules/.bin, 루트 node_modules/.bin 등)을 뺀다. 심볼릭 링크는 실제 경로로도 확인한다.
+ * 상대 경로·빈 항목은 cwd에 따라 뜻이 달라지므로 함께 뺀다. 시스템·node·claude 디렉터리는 그대로 남는다.
+ */
+export function sanitizePath(value: string, root: string = MONOREPO_ROOT): string {
+  const realRoot = (() => {
+    try {
+      return realpathSync(root);
+    } catch {
+      return root;
+    }
+  })();
+  return value
+    .split(path.delimiter)
+    .filter((entry) => {
+      if (entry === "" || !path.isAbsolute(entry)) return false;
+      if (isUnder(root, entry)) return false;
+      try {
+        const real = realpathSync(entry);
+        if (isUnder(realRoot, real) || isUnder(root, real)) return false;
+      } catch {
+        // 없는 디렉터리 — 문자열 검사만으로 충분
+      }
+      return true;
+    })
+    .join(path.delimiter);
+}
+
+/** PASS_ENV ∪ extra 중 env에 있는 것만(PATH는 모노레포 경로를 뺀다). extra에 CLAUDE* 이름이 있으면 Error. */
+export function agentEnv(extra: string[], env: NodeJS.ProcessEnv = process.env, root: string = MONOREPO_ROOT): Record<string, string> {
   for (const name of extra) {
     if (FORBIDDEN_ENV.test(name)) throw new Error(`환경 변수 ${name} 은(는) 에이전트에 넘길 수 없습니다 — CLAUDE* 계열은 부모 세션을 물려받습니다(결정 6)`);
   }
   const out: Record<string, string> = {};
   for (const name of [...PASS_ENV, ...extra]) {
     const v = env[name];
-    if (v !== undefined) out[name] = v;
+    if (v !== undefined) out[name] = name === "PATH" ? sanitizePath(v, root) : v;
   }
   return out;
 }
@@ -149,9 +185,29 @@ export function parseAgentMeta(stdout: string): AgentMeta | null {
   }
   for (let i = candidates.length - 1; i >= 0; i -= 1) {
     const c = candidates[i];
-    if (isRecord(c) && (c.type === "result" || typeof c.total_cost_usd === "number")) return metaOf(c);
+    if (isRecord(c) && (c.type === "result" || typeof c.total_cost_usd === "number")) {
+      const meta = metaOf(c);
+      const mcp = countMcpToolCalls(candidates);
+      if (mcp !== null) meta.mcpToolCalls = mcp;
+      return meta;
+    }
   }
   return null;
+}
+
+/** stream-json(system·assistant·user 줄이 있음)일 때 assistant의 `mcp__*` tool_use 수. 호출 기록이 없는 형식이면 null. */
+function countMcpToolCalls(candidates: unknown[]): number | null {
+  let stream = false;
+  let calls = 0;
+  for (const c of candidates) {
+    if (!isRecord(c)) continue;
+    if (c.type === "system" || c.type === "assistant" || c.type === "user") stream = true;
+    if (c.type !== "assistant" || !isRecord(c.message) || !Array.isArray(c.message.content)) continue;
+    for (const block of c.message.content) {
+      if (isRecord(block) && block.type === "tool_use" && typeof block.name === "string" && block.name.startsWith("mcp__")) calls += 1;
+    }
+  }
+  return stream ? calls : null;
 }
 
 /** 명령 첫 단어 + " --version"(10초 제한, 같은 정리된 env). 첫 줄 trim, 실패면 null. */

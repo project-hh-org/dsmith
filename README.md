@@ -123,22 +123,25 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 
 - `baseline`: dsmith 연결 없음. `audit → init --all`을 거친 같은 베이스에서 `.dsmith/`·AGENTS.md DS 섹션·MCP·슬래시 명령만 뺀 복사본
 - `dsmith`: 같은 베이스에 `install` + `ai`를 끝낸 복사본
+- 두 조건 모두 `init --all`이 만든 `design-system/`(토큰·프리셋·Badge 스캐폴드)를 갖고 있다. 의도된 설계이고, 두 조건의 차이는 AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`뿐이다.
 - 두 조건은 같은 베이스·같은 채점 기준(토큰·DS 컴포넌트·정책 스냅샷)·같은 에이전트 명령·같은 환경 변수로 돈다. 프롬프트는 stdin으로 넘기므로 `codex exec`처럼 stdin으로 프롬프트를 받는 명령이면 다른 에이전트로도 돌릴 수 있다(실측은 `claude -p`만 했다).
 
 ### 실행
 
 ```
 pnpm -r build
-pnpm bench -- --repo legacy-demo --agent "claude -p --output-format stream-json --verbose --model sonnet --max-turns 20 --max-budget-usd 0.5 --permission-mode acceptEdits --allowedTools mcp__dsmith --setting-sources project --no-session-persistence"
+pnpm bench --repo legacy-demo --agent "claude -p --output-format stream-json --verbose --model sonnet --max-turns 20 --max-budget-usd 0.5 --permission-mode acceptEdits --allowedTools mcp__dsmith --setting-sources project --no-session-persistence"
 pnpm bench:replay                                                # 미리 받은 산출물을 채점만(네트워크·에이전트 없음)
-pnpm bench:report -- --in results/<날짜>-legacy-demo.json        # 결과 JSON → 마크다운 보고서 + README 줄
+pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 JSON → 마크다운 보고서 + README 줄
 ```
 
-실행은 레포 원본이 아니라 `os.tmpdir()` 아래 임시 복사본에서 하고, 채점 코드(`benchmarks/`)는 복사본에 넣지 않는다. 에이전트에는 `CLAUDE*` 환경 변수를 넘기지 않는 정리된 환경을 준다. 에이전트 출력에 채점 코드 경로가 보이면 그 실행에 `harnessPathSeen`을 표시하고 보고서에 경고를 쓴다. 결과 JSON·보고서·산출물은 `benchmarks/results/`에 남고, 산출물을 `bench:replay`와 같은 방식으로 다시 채점하면 같은 숫자가 나온다. 자세한 옵션과 폴더 구조는 [benchmarks/README.md](benchmarks/README.md).
+명령은 저장소 루트에서 실행한다. `--`는 붙여도 되고 안 붙여도 되며, 상대 경로(`--out`·`--record`·`--replay`·`--in`)는 명령을 실행한 폴더 기준이다. `--max-total-usd`(기본 8)와 `--max-failures`(기본 6)를 넘으면 새 실행을 시작하지 않고 `status: "aborted"`로 부분 결과를 저장한 뒤 종료 코드 1로 끝난다. 결과 JSON은 실행마다 갱신한다.
+
+실행은 레포 원본이 아니라 `os.tmpdir()` 아래 임시 복사본에서 하고, 채점 코드(`benchmarks/`)는 복사본에 넣지 않는다. 에이전트에는 `CLAUDE*` 환경 변수를 넘기지 않고 모노레포 경로를 뺀 PATH를 주는 정리된 환경을 준다. 에이전트 출력에 채점 코드 경로가 보이면 그 실행에 `harnessPathSeen`을 표시하고 보고서에 경고를 쓴다. 결과 JSON·보고서·산출물은 `benchmarks/results/`에 남고, 산출물을 `--replay`로 다시 채점하면 같은 숫자가 나온다. 보고서는 dsmith 조건의 MCP 도구 호출 수와 permission denial 수도 센다. 자세한 옵션과 폴더 구조는 [benchmarks/README.md](benchmarks/README.md).
 
 ### 지표
 
-- 토큰 준수율 = `token / (token + hardcoded)` — 에이전트가 새로 쓴 스타일 값 중 토큰을 가리킨 비율. Tailwind 기본 스케일 클래스(`p-4`, `bg-blue-100`)는 분모에서 빼고 별도 행으로 센다
+- 토큰 준수율 = `token / (token + hardcoded)` — 에이전트가 새로 쓴 스타일 값 중 토큰을 가리킨 비율. 보고서와 README 줄에는 `12.5% (1/8)`처럼 분자/분모를 함께 쓴다. Tailwind 기본 스케일 클래스(`p-4`, `bg-blue-100`)는 분모에서 빼고 별도 행으로 센다. 변수·상수에 담은 className은 dynamic으로만 세며 준수율 분모에 들어가지 않는다
 - 토큰 사용률 = `token / (token + hardcoded + tailwind 기본 스케일)`
 - `knownToken` — token 중 베이스의 토큰 이름·프리셋 키를 실제로 가리킨 것(지어낸 변수 `var(--made-up)`는 제외)
 - DS 외 컴포넌트 — `prefer-ds-component` finding 수. 이 밖에 DS 컴포넌트 사용, deprecated, 파싱 실패, 기대 파일 없음을 센다
@@ -149,7 +152,7 @@ pnpm bench:report -- --in results/<날짜>-legacy-demo.json        # 결과 JSON
 - 프롬프트 수와 반복 횟수가 작은 단일 측정이다. 에이전트 출력은 비결정적이고 유의성 검정을 하지 않았으므로 "이번 실행에서 이렇게 나왔다"까지만 말한다.
 - 채점은 dsmith 자신의 규칙 엔진이고, `dsmith` 조건의 에이전트는 같은 엔진(`lint_snippet`)을 쓸 수 있다. 같은 기준에 맞추도록 돕는 효과를 잰 것이지 독립 평가가 아니다.
 - 렌더링·타입 검사는 하지 않았다. 코드가 화면에서 맞게 보이는지, `tokens.css`를 불러오는지는 측정 밖이다.
-- `bench:replay`가 쓰는 산출물은 합성이다. 그 숫자는 채점 파이프라인 검증용이며 성능 근거가 아니다.
+- `bench:replay`가 쓰는 산출물은 합성이다. 그 숫자는 채점 파이프라인 검증용이며 성능 근거가 아니다. 실제 실행의 산출물을 `--replay`로 다시 채점한 보고서에는 산출물 폴더의 `meta.json`에 기록된 출처(agent)가 표시된다.
 
 ## 지원하는 스타일링 방식
 

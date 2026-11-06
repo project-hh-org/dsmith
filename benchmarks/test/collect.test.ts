@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Base } from "../src/base.js";
-import { collectChanges, readReplay, writeOutputs } from "../src/collect.js";
+import { assertReplayDir, collectChanges, readReplay, readReplaySource, writeOutputs, writeReplayMeta } from "../src/collect.js";
 import { scoreRun } from "../src/score.js";
 import { cleanupTmps, git, tmpDir } from "./helpers.js";
 
@@ -138,5 +138,46 @@ describe("writeOutputs / readReplay", () => {
     await writeOutputs(out, "baseline", "01-form", 1, [{ file: "b.ts", status: "added", before: null, after: "2" }], run);
     expect(fs.existsSync(path.join(out, "baseline/01-form/1/files/a.ts"))).toBe(false);
     expect(fs.existsSync(path.join(out, "baseline/01-form/1/files/b.ts"))).toBe(true);
+  });
+});
+
+describe("replay 루트 검사 · meta.json", () => {
+  it("없는 디렉터리·파일·조건 디렉터리 없는 폴더는 Error, 조건 디렉터리가 하나라도 있으면 통과", async () => {
+    const missing = path.join(tmpDir("dsmith-bench-rr-"), "nope");
+    await expect(assertReplayDir(missing, ["baseline", "dsmith"])).rejects.toThrow(/replay 디렉터리가 없습니다/);
+
+    const file = tmpDir("dsmith-bench-rr-");
+    write(file, "f.txt", "x");
+    await expect(assertReplayDir(path.join(file, "f.txt"), ["baseline"])).rejects.toThrow(/디렉터리가 아닙니다/);
+
+    const empty = tmpDir("dsmith-bench-rr-");
+    write(empty, "meta.json", "{}");
+    await expect(assertReplayDir(empty, ["baseline", "dsmith"])).rejects.toThrow(/조건 디렉터리\(baseline, dsmith\)가 하나도 없습니다/);
+
+    const ok = tmpDir("dsmith-bench-rr-");
+    fs.mkdirSync(path.join(ok, "dsmith"));
+    await expect(assertReplayDir(ok, ["baseline", "dsmith"])).resolves.toBeUndefined();
+    await expect(assertReplayDir(ok, ["baseline"])).rejects.toThrow(/조건 디렉터리/);
+  });
+
+  it("meta.json의 source를 읽는다 — 없거나 깨졌거나 모르는 값이면 unknown", async () => {
+    const dir = tmpDir("dsmith-bench-meta-");
+    expect(await readReplaySource(dir)).toBe("unknown");
+    await writeReplayMeta(dir, { source: "agent", repo: "legacy-demo", date: "2026-11-01", agentVersion: "2.1.318" });
+    expect(await readReplaySource(dir)).toBe("agent");
+    expect(JSON.parse(fs.readFileSync(path.join(dir, "meta.json"), "utf-8"))).toEqual({ version: 1, source: "agent", repo: "legacy-demo", date: "2026-11-01", agentVersion: "2.1.318" });
+    write(dir, "meta.json", "{broken");
+    expect(await readReplaySource(dir)).toBe("unknown");
+    write(dir, "meta.json", JSON.stringify({ source: "magic" }));
+    expect(await readReplaySource(dir)).toBe("unknown");
+    write(dir, "meta.json", JSON.stringify({ source: "synthetic" }));
+    expect(await readReplaySource(dir)).toBe("synthetic");
+  });
+
+  it("run.json의 harness-error 상태도 읽는다", async () => {
+    const out = tmpDir("dsmith-bench-out-");
+    write(out, "baseline/01-form/1/run.json", JSON.stringify({ status: "harness-error", exitCode: null }));
+    const r = await readReplay(out, { dir: tmpDir("dsmith-bench-base-fake-") } as Base, "baseline", "01-form", 1);
+    expect(r.run.status).toBe("harness-error");
   });
 });

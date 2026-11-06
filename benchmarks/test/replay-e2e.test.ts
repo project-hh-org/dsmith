@@ -5,7 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CLI_BIN, MONOREPO_ROOT } from "../src/base.js";
-import { renderReport } from "../src/report.js";
+import { renderReport, reportFromFile } from "../src/report.js";
+import type { BenchResult } from "../src/model.js";
 import { mdPathOf, parseBenchArgs, planBench, runBench, summaryLines, type BenchArgs } from "../src/run.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -45,14 +46,15 @@ describe("replay (합성 산출물, 네트워크·에이전트 없음)", () => {
       runs: 3, okRuns: 3, failedRuns: 0, missingExpected: 0, harnessPathSeen: 0,
       token: 1, knownToken: 0, hardcoded: 4, replaceable: 2, tailwindDefault: 46, dynamic: 1,
       nonDs: 1, deprecated: 0, dsComponentUses: 0, parseFailed: 0, files: 3,
-      compliance: 0.2, tokenShareAll: 0.0196, costUsd: null, turns: null,
+      compliance: 0.2, tokenShareAll: 0.0196, costUsd: null, turns: null, mcpToolCalls: null, permissionDenials: null,
     });
     expect(ds).toEqual({
       runs: 3, okRuns: 3, failedRuns: 0, missingExpected: 0, harnessPathSeen: 0,
       token: 20, knownToken: 19, hardcoded: 1, replaceable: 1, tailwindDefault: 0, dynamic: 1,
       nonDs: 0, deprecated: 0, dsComponentUses: 4, parseFailed: 0, files: 3,
-      compliance: 0.9524, tokenShareAll: 0.9524, costUsd: null, turns: null,
+      compliance: 0.9524, tokenShareAll: 0.9524, costUsd: null, turns: null, mcpToolCalls: null, permissionDenials: null,
     });
+    expect(r1).toMatchObject({ status: "complete", abortReason: null, replaySource: "synthetic" });
     // 불변식
     expect(base.compliance!).toBeLessThan(ds.compliance!);
     expect(ds.token - ds.knownToken).toBe(1); // 지어낸 var(--color-brand) 하나
@@ -64,6 +66,40 @@ describe("replay (합성 산출물, 네트워크·에이전트 없음)", () => {
     expect(r.runs).toHaveLength(1);
     expect(r.runs[0]).toMatchObject({ prompt: "02-modal", status: "missing" });
     expect(r.aggregate.dsmith).toMatchObject({ runs: 1, okRuns: 0, failedRuns: 1, missingExpected: 1, token: 0, compliance: null });
+  }, 60_000);
+
+  it("replay 디렉터리가 없거나 조건 디렉터리가 없으면 Error(missing으로 뭉개지 않는다)", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dsmith-bench-e2e-rr-"));
+    try {
+      await expect(runBench(args(["--replay", path.join(dir, "nope"), "--prompts", "06-badge", "--date", "2026-11-01"]))).rejects.toThrow(/replay 디렉터리가 없습니다/);
+      await expect(runBench(args(["--replay", dir, "--prompts", "06-badge", "--date", "2026-11-01"]))).rejects.toThrow(/조건 디렉터리/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("CLI: 없는 replay 경로는 종료 코드 2와 메시지", () => {
+    const cli = path.join(MONOREPO_ROOT, "benchmarks/dist/run.js");
+    const r = spawnSync(process.execPath, [cli, "--replay", "definitely/not/here", "--prompts", "06-badge"], { cwd: os.tmpdir(), encoding: "utf-8" });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain("replay 디렉터리가 없습니다");
+    expect(r.stdout).toBe("");
+  }, 60_000);
+
+  it("CLI: pnpm 인자 모양(`-- --`, `--` 없음)과 --replay-set, 상대 경로(INIT_CWD)가 모두 같은 결과", () => {
+    const cli = path.join(MONOREPO_ROOT, "benchmarks/dist/run.js");
+    const common = ["--repo", "legacy-demo", "--prompts", "06-badge", "--date", "2026-11-01"];
+    const run = (argv: string[], env: Record<string, string> = {}) =>
+      spawnSync(process.execPath, [cli, ...argv], { cwd: os.tmpdir(), encoding: "utf-8", env: { ...process.env, ...env } });
+    const set = run(["--", "--", ...common, "--replay-set", "legacy-demo"]);
+    const plain = run([...common, "--replay-set", "legacy-demo"]);
+    const rel = run([...common, "--replay", "benchmarks/replay/legacy-demo"], { INIT_CWD: MONOREPO_ROOT });
+    expect(set.status).toBe(0);
+    expect(plain.stdout).toBe(set.stdout);
+    expect(rel.status).toBe(0);
+    expect(rel.stdout).toBe(set.stdout);
+    // 같은 repo인데 INIT_CWD가 다르면 상대 경로가 달라져 실패한다(= INIT_CWD를 실제로 쓴다)
+    expect(run([...common, "--replay", "benchmarks/replay/legacy-demo"], { INIT_CWD: os.tmpdir() }).status).toBe(2);
   }, 60_000);
 
   it("알 수 없는 프롬프트 id는 Error", async () => {
@@ -102,6 +138,7 @@ describe("replay (합성 산출물, 네트워크·에이전트 없음)", () => {
   it("--dry-run 계획: 아무것도 실행하지 않고 수만 센다", async () => {
     const lines = await planBench(args(["--agent", "node x.mjs", "--repeat", "2", "--prompts", "06-badge,12-pagination", "--date", "2026-11-01", "--dry-run"]));
     expect(lines.join("\n")).toContain("실행 수: 8");
+    expect(lines.join("\n")).toContain("중단 기준: 누적 $8 초과 또는 실패 6개 이상");
     expect(lines.join("\n")).toContain("agents-md");
     expect(lines.join("\n")).toContain("2026-11-01-legacy-demo.json");
     // 프롬프트는 id 순으로 센다
@@ -119,6 +156,8 @@ interface FakeEnv {
   hasBenchmarksDir: boolean;
   mcp: { mcpServers: { dsmith: { command: string; args: string[] } } } | null;
   claudeEnvKeys: number;
+  path: string;
+  dsmithOnPath: boolean;
 }
 
 describe("가짜 에이전트 e2e (--agent)", () => {
@@ -193,6 +232,9 @@ describe("가짜 에이전트 e2e (--agent)", () => {
         expect(path.relative(MONOREPO_ROOT, e.cwd).startsWith("..")).toBe(true);
         expect(e.hasBenchmarksDir).toBe(false);
         expect(e.claudeEnvKeys).toBe(0);
+        // 에이전트 PATH에는 모노레포(benchmarks/node_modules/.bin 등)가 없고 dsmith bin도 보이지 않는다
+        expect(e.dsmithOnPath).toBe(false);
+        expect(e.path.split(path.delimiter).filter((d) => d !== "" && !path.relative(MONOREPO_ROOT, d).startsWith(".."))).toEqual([]);
       }
       expect(b.cwd).not.toBe(d.cwd);
     }
@@ -209,10 +251,29 @@ describe("가짜 에이전트 e2e (--agent)", () => {
     expect(result.aggregate.baseline).toMatchObject({ runs: 2, okRuns: 2, nonDs: 2, hardcoded: 2, token: 0, dsComponentUses: 0, costUsd: 0.002, turns: 2 });
     expect(result.aggregate.dsmith).toMatchObject({ runs: 2, nonDs: 0, hardcoded: 0, token: 4, knownToken: 4, dsComponentUses: 2, compliance: 1 });
 
-    // 기록한 산출물을 --replay로 다시 채점하면 같은 집계
+    // MCP 호출·permission denial 집계(가짜 에이전트: dsmith 조건만 mcp__dsmith__* 2회)
+    expect(result.runs.filter((r) => r.condition === "baseline").map((r) => r.agentMeta?.mcpToolCalls)).toEqual([0, 0]);
+    expect(result.runs.filter((r) => r.condition === "dsmith").map((r) => r.agentMeta?.mcpToolCalls)).toEqual([2, 2]);
+    expect(result.aggregate.baseline).toMatchObject({ mcpToolCalls: 0, permissionDenials: 0 });
+    expect(result.aggregate.dsmith).toMatchObject({ mcpToolCalls: 4, permissionDenials: 0 });
+    expect(result).toMatchObject({ status: "complete", abortReason: null });
+    expect(result).not.toHaveProperty("replaySource");
+
+    // 산출물 루트의 meta.json이 출처를 기록한다
+    expect(JSON.parse(fs.readFileSync(path.join(record, "meta.json"), "utf-8"))).toMatchObject({ version: 1, source: "agent", repo: "legacy-demo", date: "2026-11-01" });
+
+    // 기록한 산출물을 --replay로 다시 채점하면 같은 집계 — 출처는 agent
     const again = await runBench(args(["--replay", record, "--prompts", "06-badge,01-form", "--date", "2026-11-01"]));
     expect(again.mode).toBe("replay");
+    expect(again.replaySource).toBe("agent");
+    expect(renderReport(again)).toContain("실제 에이전트 실행의 산출물을 다시 채점한 결과(replay)다");
+    expect(renderReport(again)).not.toContain("합성 산출물");
     expect(again.aggregate).toEqual(result.aggregate);
+
+    // 실제 실행 결과 JSON을 bench:report --in 으로 다시 렌더링해도 mode는 agent이고 README 줄이 나온다
+    const reported = reportFromFile(["--", "--", "--in", out], {});
+    expect(reported.line).toMatch(/^벤치마크\(프롬프트 2개 × 조건 2, .*, 2026-11-01\): 토큰 준수율 0\.0% \(0\/2\) → 100\.0% \(4\/4\), DS 외 컴포넌트 2 → 0 — benchmarks\/results\/result\.md$/);
+    expect(fs.readFileSync(reported.mdFile, "utf-8")).toBe(renderReport(result));
     expect(again.runs.map((r) => r.score)).toEqual(result.runs.map((r) => r.score));
 
     // keep: false → 복사본·템플릿·베이스가 남지 않는다
@@ -248,6 +309,76 @@ describe("가짜 에이전트 e2e (--agent)", () => {
     } finally {
       delete process.env.FAKE_AGENT_SLEEP_MS;
     }
+    expect(leftovers()).toEqual([]);
+  }, 120_000);
+
+  it("누적 비용이 --max-total-usd를 넘으면 새 실행을 시작하지 않고 aborted로 부분 결과를 남긴다", async () => {
+    const out = path.join(outRoot, "budget/result.json");
+    process.env.FAKE_AGENT_COST = "0.4";
+    const lines: string[] = [];
+    let r;
+    try {
+      // 계획 4개(2프롬프트 × 2조건). 0.4 → 0.8 > 0.5 에서 멈춘다 = 2개 실행
+      r = await runBench(fakeArgs(out, ["--max-total-usd", "0.5", "--pass-env", "FAKE_AGENT_COST"]), (l) => lines.push(l));
+    } finally {
+      delete process.env.FAKE_AGENT_COST;
+    }
+    expect(r.runs).toHaveLength(2);
+    expect(r.status).toBe("aborted");
+    expect(r.abortReason).toBe("누적 비용 $0.8 > 한도 $0.5");
+    expect(lines.some((l) => l.includes("중단: 누적 비용"))).toBe(true);
+    // 디스크의 결과도 같고, 보고서에 경고가 있으며, README 줄은 만들지 않는다
+    const disk = JSON.parse(fs.readFileSync(out, "utf-8")) as BenchResult;
+    expect(disk).toEqual(JSON.parse(JSON.stringify(r)));
+    expect(fs.readFileSync(path.join(path.dirname(out), "result.md"), "utf-8")).toContain("계획한 실행 4개 중 2개만 집계했다");
+    expect(reportFromFile(["--in", out], {}).line).toBeNull();
+    expect(leftovers()).toEqual([]);
+  }, 120_000);
+
+  it("실패 실행이 --max-failures에 닿으면 멈춘다(agent-error·timeout·harness-error 모두 실패)", async () => {
+    const out = path.join(outRoot, "failures/result.json");
+    process.env.FAKE_AGENT_EXIT = "3";
+    let r;
+    try {
+      r = await runBench(fakeArgs(out, ["--max-failures", "2", "--pass-env", "FAKE_AGENT_EXIT"]));
+    } finally {
+      delete process.env.FAKE_AGENT_EXIT;
+    }
+    expect(r.runs.map((x) => x.status)).toEqual(["agent-error", "agent-error"]);
+    expect(r).toMatchObject({ status: "aborted", abortReason: "실패 실행 2개 ≥ 한도 2개" });
+    expect(JSON.parse(fs.readFileSync(out, "utf-8")).status).toBe("aborted");
+    expect(leftovers()).toEqual([]);
+  }, 120_000);
+
+  it("실행마다 결과 JSON을 원자적으로 갱신한다 — 중간 저장본은 읽을 수 있고 aborted, 끝나면 complete", async () => {
+    const out = path.join(outRoot, "partial/result.json");
+    const snapshots: BenchResult[] = [];
+    const final = await runBench(fakeArgs(out), (l) => {
+      if (l.startsWith("중간 저장")) snapshots.push(JSON.parse(fs.readFileSync(out, "utf-8")) as BenchResult);
+    });
+    expect(snapshots.map((s) => s.runs.length)).toEqual([1, 2, 3, 4]);
+    expect(snapshots.every((s) => s.status === "aborted" && s.abortReason !== null && s.mode === "agent")).toBe(true);
+    // 중간 저장본에서도 집계가 실행 수와 맞고 보고서를 만들 수 있다
+    expect(snapshots[1]?.aggregate.baseline?.runs).toBe(1);
+    expect(() => renderReport(snapshots[1] as BenchResult)).not.toThrow();
+    expect(final.runs).toHaveLength(4);
+    expect(final).toMatchObject({ status: "complete", abortReason: null });
+    expect(JSON.parse(fs.readFileSync(out, "utf-8")).status).toBe("complete");
+    // 임시 파일이 남지 않는다
+    expect(fs.readdirSync(path.dirname(out)).filter((n) => n.includes(".tmp"))).toEqual([]);
+  }, 120_000);
+
+  it("실행 하나의 하네스 예외는 던지지 않고 harness-error로 기록하고 다음 실행을 계속한다", async () => {
+    const out = path.join(outRoot, "harness-error/result.json");
+    const lines: string[] = [];
+    // 에이전트가 복사본의 .git을 지우면 collectChanges(git status)가 던진다
+    const r = await runBench(args(["--agent", "rm -rf .git", "--agent-version", "none", "--install-tool", "claude-code", "--out", out, "--prompts", "06-badge", "--date", "2026-11-01"]), (l) => lines.push(l));
+    expect(r.runs.map((x) => `${x.condition}/${x.status}`)).toEqual(["baseline/harness-error", "dsmith/harness-error"]);
+    expect(r.runs[0]?.error).toMatch(/git status 실패/);
+    expect(r.runs[0]?.score.expectedFile).toBe(false);
+    expect(r).toMatchObject({ status: "complete", abortReason: null });
+    expect(r.aggregate.baseline).toMatchObject({ runs: 1, okRuns: 0, failedRuns: 1 });
+    expect(lines.some((l) => l.includes("harness-error"))).toBe(true);
     expect(leftovers()).toEqual([]);
   }, 120_000);
 

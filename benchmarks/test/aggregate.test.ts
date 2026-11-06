@@ -58,4 +58,14 @@ describe("aggregate", () => {
     ]);
     expect(a).toMatchObject({ runs: 5, okRuns: 2, failedRuns: 3, missingExpected: 2, harnessPathSeen: 1, nonDs: 2, costUsd: 0.3, turns: 7 });
   });
+
+  it("harness-error는 실패 실행이고, MCP 호출·permission denial은 있는 값만 더한다(없으면 null)", () => {
+    const a = aggregate([
+      rec({ agentMeta: { mcpToolCalls: 2, permissionDenials: 1 }, score: score({ token: 1, hardcoded: 0 }) }),
+      rec({ rep: 2, agentMeta: { mcpToolCalls: 3, permissionDenials: 0 }, score: score({ token: 1, hardcoded: 0 }) }),
+      rec({ rep: 3, status: "harness-error", score: score({ token: 0, hardcoded: 0 }, false) }),
+    ]);
+    expect(a).toMatchObject({ runs: 3, okRuns: 2, failedRuns: 1, mcpToolCalls: 5, permissionDenials: 1 });
+    expect(aggregate([rec({ score: score({ token: 1, hardcoded: 0 }) })])).toMatchObject({ mcpToolCalls: null, permissionDenials: null });
+  });
 });

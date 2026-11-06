@@ -1,13 +1,17 @@
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { MONOREPO_ROOT } from "../src/base.js";
 import { CLAUDE_AGENT_COMMAND, parseBenchArgs } from "../src/run.js";
 
 describe("parseBenchArgs", () => {
   it("기본값: legacy-demo, 조건 2개, repeat 1, timeout 600", () => {
-    const a = parseBenchArgs(["--replay", "replay/legacy-demo"]);
+    const a = parseBenchArgs(["--replay", "/abs/replay/legacy-demo"]);
     expect(a).toMatchObject({
       repo: "legacy-demo",
       agent: null,
-      replay: "replay/legacy-demo",
+      replay: "/abs/replay/legacy-demo",
+      maxTotalUsd: 8,
+      maxFailures: 6,
       conditions: ["baseline", "dsmith"],
       repeat: 1,
       prompts: null,
@@ -29,6 +33,11 @@ describe("parseBenchArgs", () => {
 
   it("둘 다 없음 → Error", () => {
     expect(() => parseBenchArgs([])).toThrow(/--agent 또는 --replay/);
+  });
+
+  it("--dry-run만 있으면 기본 실측 명령(claude -p)의 계획을 보여 준다", () => {
+    expect(parseBenchArgs(["--", "--", "--repo", "legacy-demo", "--dry-run"])).toMatchObject({ agent: CLAUDE_AGENT_COMMAND, replay: null, dryRun: true });
+    expect(parseBenchArgs(["--replay", "/r", "--dry-run"])).toMatchObject({ agent: null, replay: "/r" });
   });
 
   it("모르는 repo·condition·옵션 → Error", () => {
@@ -76,8 +85,36 @@ describe("parseBenchArgs", () => {
     expect(() => parseBenchArgs(["--replay", "r", "--timeout", "0"])).toThrow(/양수/);
   });
 
-  it("맨 앞 `--`(pnpm 전달)는 무시한다", () => {
-    expect(parseBenchArgs(["--", "--replay", "r"]).replay).toBe("r");
+  it("`--`(pnpm 전달)는 몇 개든, 어디에 있든 무시한다", () => {
+    const env = { INIT_CWD: "/w" };
+    // `pnpm bench -- --repo x` → 루트 스크립트가 끝에 `--`를 붙여 `-- --` 로 들어온다
+    expect(parseBenchArgs(["--", "--", "--replay", "r"], env).replay).toBe("/w/r");
+    expect(parseBenchArgs(["--", "--replay", "r"], env).replay).toBe("/w/r");
+    // `pnpm bench --repo x` → `--` 없이 들어온다
+    expect(parseBenchArgs(["--replay", "r", "--repo", "with-ds-app"], env)).toMatchObject({ replay: "/w/r", repo: "with-ds-app" });
+    expect(parseBenchArgs(["--replay", "r", "--", "--repo", "with-ds-app"], env).repo).toBe("with-ds-app");
+  });
+
+  it("--out·--record·--replay 상대 경로는 호출한 cwd(INIT_CWD, 없으면 process.cwd())로 푼다", () => {
+    const a = parseBenchArgs(["--agent", "x", "--out", "res/a.json", "--record", "rec"], { INIT_CWD: "/w" });
+    expect(a).toMatchObject({ out: "/w/res/a.json", record: "/w/rec" });
+    expect(parseBenchArgs(["--replay", "/abs/r"], { INIT_CWD: "/w" }).replay).toBe("/abs/r");
+    expect(parseBenchArgs(["--replay", "r"], {}).replay).toBe(path.resolve("r"));
+  });
+
+  it("--replay-set <이름>은 benchmarks/replay/<이름>(cwd 무관)", () => {
+    expect(parseBenchArgs(["--replay-set", "legacy-demo"], { INIT_CWD: "/w" }).replay).toBe(path.join(MONOREPO_ROOT, "benchmarks/replay/legacy-demo"));
+    expect(() => parseBenchArgs(["--replay-set", "../x"])).toThrow(/--replay-set/);
+    expect(() => parseBenchArgs(["--replay-set", "a", "--replay", "b"])).toThrow(/함께 쓸 수 없습니다/);
+  });
+
+  it("중단 기준: --max-total-usd 기본 8, --max-failures 기본 6, 잘못된 값은 Error", () => {
+    expect(parseBenchArgs(["--agent", "x"])).toMatchObject({ maxTotalUsd: 8, maxFailures: 6 });
+    expect(parseBenchArgs(["--agent", "x", "--max-total-usd", "1.5", "--max-failures", "2"])).toMatchObject({ maxTotalUsd: 1.5, maxFailures: 2 });
+    expect(() => parseBenchArgs(["--agent", "x", "--max-total-usd", "0"])).toThrow(/--max-total-usd/);
+    expect(() => parseBenchArgs(["--agent", "x", "--max-total-usd", "abc"])).toThrow(/--max-total-usd/);
+    expect(() => parseBenchArgs(["--agent", "x", "--max-failures", "0"])).toThrow(/--max-failures/);
+    expect(() => parseBenchArgs(["--agent", "x", "--max-failures", "1.5"])).toThrow(/--max-failures/);
   });
 
   it('"claude -p" 약식은 결정 5의 전체 명령으로 펼치고, 그 밖의 명령은 그대로 둔다', () => {

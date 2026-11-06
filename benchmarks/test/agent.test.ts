@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { PASS_ENV, agentEnv, agentVersion, parseAgentMeta, runAgent } from "../src/agent.js";
+import { MONOREPO_ROOT } from "../src/base.js";
 import { cleanupTmps, tmpDir } from "./helpers.js";
 
 afterAll(cleanupTmps);
@@ -21,6 +22,37 @@ describe("agentEnv", () => {
     expect(agentEnv(["FAKE_X", "FAKE_Y"], { FAKE_X: "1", PATH: "/p" })).toEqual({ PATH: "/p", FAKE_X: "1" });
     expect(() => agentEnv(["CLAUDE_X"])).toThrow(/넘길 수 없습니다/);
     expect(() => agentEnv(["CLAUDECODE"])).toThrow();
+  });
+
+  it("PATH에서 모노레포 아래 항목(benchmarks·루트 node_modules/.bin, 상대 경로, 빈 항목)을 뺀다", () => {
+    const root = "/mono";
+    const env = { PATH: ["/mono/benchmarks/node_modules/.bin", "/mono/node_modules/.bin", "/usr/local/bin", "/monolith/bin", "/mono", "", "node_modules/.bin", "/usr/bin"].join(":") };
+    expect(agentEnv([], env, root).PATH).toBe("/usr/local/bin:/monolith/bin:/usr/bin");
+    // 실제 모노레포 루트(기본값)
+    const real = [path.join(MONOREPO_ROOT, "benchmarks/node_modules/.bin"), "/usr/bin"].join(":");
+    expect(agentEnv([], { PATH: real }).PATH).toBe("/usr/bin");
+  });
+
+  it("에이전트 PATH에서 dsmith는 찾을 수 없고 claude는 찾을 수 있다", async () => {
+    const root = tmpDir("dsmith-bench-root-");
+    const bins = [path.join(root, "benchmarks/node_modules/.bin"), path.join(root, "node_modules/.bin")];
+    const fakeBin = tmpDir("dsmith-bench-fakebin-");
+    for (const d of [...bins, fakeBin]) fs.mkdirSync(d, { recursive: true });
+    for (const d of bins) fs.writeFileSync(path.join(d, "dsmith"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    fs.writeFileSync(path.join(fakeBin, "claude"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    const PATH = [...bins, fakeBin, "/usr/bin", "/bin"].join(":");
+    const cwd = tmpDir("dsmith-bench-agent-");
+
+    // 대조군: 걸러 내지 않으면 dsmith가 보인다(테스트 설정 검증)
+    const raw = await runAgent("command -v dsmith", "", { cwd, env: { PATH }, timeoutMs: 5000 });
+    expect(raw.exitCode).toBe(0);
+
+    const env = agentEnv([], { PATH, HOME: "/h" }, root);
+    expect((await runAgent("command -v dsmith", "", { cwd, env, timeoutMs: 5000 })).exitCode).not.toBe(0);
+    const claude = await runAgent("command -v claude", "", { cwd, env, timeoutMs: 5000 });
+    expect(claude.exitCode).toBe(0);
+    expect(claude.stdout.trim()).toBe(path.join(fakeBin, "claude"));
+    expect(env.PATH?.split(":").some((e) => e.startsWith(root))).toBe(false);
   });
 
   it("PASS_ENV 고정", () => {
@@ -119,9 +151,25 @@ describe("parseAgentMeta", () => {
     expect(parseAgentMeta(JSON.stringify(RESULT))).toEqual(EXPECTED);
   });
 
-  it("JSONL 마지막 줄(stream-json)", () => {
+  it("JSONL 마지막 줄(stream-json) — 스트림이면 mcpToolCalls도 센다", () => {
     const lines = [{ type: "system", subtype: "init", cwd: "/x" }, { type: "assistant", message: {} }, RESULT];
-    expect(parseAgentMeta(lines.map((l) => JSON.stringify(l)).join("\n"))).toEqual(EXPECTED);
+    expect(parseAgentMeta(lines.map((l) => JSON.stringify(l)).join("\n"))).toEqual({ ...EXPECTED, mcpToolCalls: 0 });
+  });
+
+  it("assistant tool_use 중 mcp__ 로 시작하는 것만 mcpToolCalls로 센다", () => {
+    const tool = (name: string) => ({ type: "assistant", message: { content: [{ type: "text", text: "x" }, { type: "tool_use", id: name, name, input: {} }] } });
+    const lines = [
+      { type: "system", subtype: "init" },
+      tool("Read"),
+      tool("mcp__dsmith__lint_snippet"),
+      { type: "user", message: { content: [{ type: "tool_result", content: "mcp__dsmith__fake" }] } },
+      tool("mcp__dsmith__get_catalog"),
+      tool("Bash"),
+      RESULT,
+    ];
+    expect(parseAgentMeta(lines.map((l) => JSON.stringify(l)).join("\n"))?.mcpToolCalls).toBe(2);
+    // 결과 JSON 한 개에는 호출 기록이 없으므로 키 자체가 없다
+    expect(parseAgentMeta(JSON.stringify(RESULT))).not.toHaveProperty("mcpToolCalls");
   });
 
   it("앞에 비JSON 줄이 섞여도 읽는다 / 결과가 둘이면 마지막", () => {

@@ -52,6 +52,8 @@ function summaryRows(agg: Partial<Record<Condition, Aggregate>>): string[][] {
     row("deprecated", (a) => String(a.deprecated)),
     row("파싱 실패", (a) => String(a.parseFailed)),
     row("기대 파일 없음", (a) => String(a.missingExpected)),
+    row("MCP 도구 호출", (a) => (a.mcpToolCalls === null || a.mcpToolCalls === undefined ? DASH : String(a.mcpToolCalls))),
+    row("permission denial", (a) => (a.permissionDenials === null || a.permissionDenials === undefined ? DASH : String(a.permissionDenials))),
   ];
 }
 
@@ -59,17 +61,26 @@ interface Sums {
   token: number;
   hardcoded: number;
   tailwindDefault: number;
+  dynamic: number;
   nonDs: number;
+  /** 메타가 하나도 없으면 null */
+  mcpToolCalls: number | null;
+  permissionDenials: number | null;
 }
 
 function sumRuns(runs: RunRecord[]): Sums | null {
   if (runs.length === 0) return null;
-  const s: Sums = { token: 0, hardcoded: 0, tailwindDefault: 0, nonDs: 0 };
+  const s: Sums = { token: 0, hardcoded: 0, tailwindDefault: 0, dynamic: 0, nonDs: 0, mcpToolCalls: null, permissionDenials: null };
   for (const r of runs) {
     s.token += r.score.totals.token;
     s.hardcoded += r.score.totals.hardcoded;
     s.tailwindDefault += r.score.totals.tailwindDefault;
+    s.dynamic += r.score.totals.dynamic;
     s.nonDs += r.score.totals.nonDs;
+    const mcp = r.agentMeta?.mcpToolCalls;
+    if (mcp !== undefined) s.mcpToolCalls = (s.mcpToolCalls ?? 0) + mcp;
+    const denied = r.agentMeta?.permissionDenials;
+    if (denied !== undefined) s.permissionDenials = (s.permissionDenials ?? 0) + denied;
   }
   return s;
 }
@@ -91,9 +102,12 @@ function verdictOf(base: Sums | null, ds: Sums | null): Verdict {
   return rd > rb ? "개선" : rd < rb ? "악화" : "같음";
 }
 
+const CONDITION_COLUMNS = ["준수율", "token/hardcoded/기본", "dynamic", "DS 외", "MCP/거부"] as const;
+
 function condCells(s: Sums | null): string[] {
-  if (s === null) return [DASH, DASH, DASH];
-  return [pct(complianceOf(s)), `${s.token}/${s.hardcoded}/${s.tailwindDefault}`, String(s.nonDs)];
+  if (s === null) return CONDITION_COLUMNS.map(() => DASH);
+  const mcp = s.mcpToolCalls === null && s.permissionDenials === null ? DASH : `${s.mcpToolCalls ?? DASH}/${s.permissionDenials ?? DASH}`;
+  return [ratioCell(s.token, s.token + s.hardcoded), `${s.token}/${s.hardcoded}/${s.tailwindDefault}`, String(s.dynamic), String(s.nonDs), mcp];
 }
 
 function runCountsLine(runs: RunRecord[]): string {
@@ -101,8 +115,13 @@ function runCountsLine(runs: RunRecord[]): string {
   let line = `총 ${runs.length} · 성공 ${count("ok")} · 실패 ${count("agent-error")} · timeout ${count("timeout")} · missing ${count("missing")}`;
   const replay = count("replay");
   if (replay > 0) line += ` · 재생 ${replay}`;
+  const harness = count("harness-error");
+  if (harness > 0) line += ` · harness-error ${harness}`;
   return line;
 }
+
+/** 옛 결과 JSON에는 status가 없다 → complete */
+const isAborted = (result: BenchResult): boolean => result.status === "aborted";
 
 function totalCost(result: BenchResult): string {
   let sum: number | null = null;
@@ -117,7 +136,6 @@ function totalCost(result: BenchResult): string {
 export function renderReport(result: BenchResult): string {
   const lines: string[] = [];
   const n = result.prompts.length;
-  const isReplay = result.mode === "replay";
   const seen = result.runs.filter((r) => r.harnessPathSeen).length;
   const commit = result.dsmith.commit === null ? DASH : result.dsmith.commit.slice(0, 7);
 
@@ -138,12 +156,17 @@ export function renderReport(result: BenchResult): string {
         ["베이스 DS 컴포넌트 수", String(result.base.dsComponents)],
         ["스냅샷 sha256", result.base.snapshotSha256.slice(0, 12)],
         ["실행 수", runCountsLine(result.runs)],
+        ["상태", isAborted(result) ? `aborted — ${result.abortReason ?? "이유 기록 없음"}` : "complete"],
         ["총비용(USD)", totalCost(result)],
         ["harnessPathSeen 실행 수", String(seen)],
       ],
     ),
     "",
   );
+  if (isAborted(result)) {
+    const planned = result.prompts.length * result.conditions.length * result.repeat;
+    lines.push(`**경고:** 중단된 결과다(${result.abortReason ?? "이유 기록 없음"}). 계획한 실행 ${planned}개 중 ${result.runs.length}개만 집계했다.`, "");
+  }
   if (seen > 0) {
     lines.push(
       `**경고:** ${seen}개 실행의 에이전트 출력에서 채점 코드 경로(\`benchmarks\`)가 보였다. 해당 실행은 오염됐을 수 있다.`,
@@ -168,17 +191,7 @@ export function renderReport(result: BenchResult): string {
     "## 프롬프트별",
     "",
     ...table(
-      [
-        "id",
-        "파일",
-        "baseline 준수율",
-        "baseline token/hardcoded/기본",
-        "baseline DS 외",
-        "dsmith 준수율",
-        "dsmith token/hardcoded/기본",
-        "dsmith DS 외",
-        "판정",
-      ],
+      ["id", "파일", ...CONDITIONS.flatMap((c) => CONDITION_COLUMNS.map((col) => `${c} ${col}`)), "판정"],
       promptRows,
     ),
     "",
@@ -193,14 +206,27 @@ export function renderReport(result: BenchResult): string {
     `- 프롬프트 ${n}개·반복 ${result.repeat}회의 단일 측정이며 에이전트 출력은 비결정적이다.`,
     "- 유의성 검정을 하지 않았다.",
     "- 준수율 분모에서 Tailwind 기본 스케일 클래스는 뺐다(별도 행).",
+    "- 변수·상수에 담은 className은 dynamic으로만 세며 준수율 분모에 들어가지 않음.",
     "- 렌더링·타입 검사는 하지 않았다. `tokens.css` 로드·프리셋 연결 여부는 측정 밖이다.",
     "- 채점은 dsmith 자신의 규칙 엔진이고 dsmith 조건의 에이전트는 같은 엔진(`lint_snippet`)을 쓸 수 있다. 같은 기준에 맞추도록 돕는 효과를 잰 것이지 독립 평가가 아니다.",
-    isReplay
-      ? "- 합성 산출물 — 실측 아님. 채점 파이프라인 검증용이며 성능 주장에 쓰지 않는다."
-      : `- 산출물은 \`${recordPath}\`에 있고 \`pnpm bench -- --repo ${result.repo} --replay ${recordPath}\`로 같은 채점을 다시 낼 수 있다.`,
+    originLine(result, recordPath),
     "",
   );
   return lines.join("\n");
+}
+
+function originLine(result: BenchResult, recordPath: string): string {
+  if (result.mode !== "replay") {
+    return `- 산출물은 \`${recordPath}\`에 있고 저장소 루트에서 \`pnpm bench --repo ${result.repo} --replay ${recordPath}\`로 같은 채점을 다시 낼 수 있다.`;
+  }
+  switch (result.replaySource) {
+    case "synthetic":
+      return "- 합성 산출물 — 실측 아님. 채점 파이프라인 검증용이며 성능 주장에 쓰지 않는다.";
+    case "agent":
+      return "- 실제 에이전트 실행의 산출물을 다시 채점한 결과(replay)다. 에이전트는 호출하지 않았다.";
+    default:
+      return "- replay 산출물의 출처가 기록되지 않았다(meta.json 없음). 실측 결과로 쓰지 않는다.";
+  }
 }
 
 /**
@@ -209,29 +235,34 @@ export function renderReport(result: BenchResult): string {
  */
 export function readmeLine(result: BenchResult, mdPath: string): string {
   if (result.mode === "replay") throw new Error("replay 결과로는 README 줄을 만들지 않음");
+  if (isAborted(result)) throw new Error(`중단된 결과로는 README 줄을 만들지 않음: ${result.abortReason ?? "이유 기록 없음"}`);
   const base = result.aggregate.baseline;
   const ds = result.aggregate.dsmith;
   if (base === undefined || ds === undefined) throw new Error("README 줄에는 baseline과 dsmith 조건이 둘 다 필요함");
   if (result.agent.command === null) throw new Error("에이전트 명령이 없는 결과로는 README 줄을 만들지 않음");
   const label = result.agent.command.trim().split(/\s+/).slice(0, 2).join(" ");
-  return `벤치마크(프롬프트 ${result.prompts.length}개 × 조건 2, ${label}, ${result.date}): 토큰 준수율 ${pct(base.compliance)} → ${pct(ds.compliance)}, DS 외 컴포넌트 ${base.nonDs} → ${ds.nonDs} — ${mdPath}`;
+  return `벤치마크(프롬프트 ${result.prompts.length}개 × 조건 2, ${label}, ${result.date}): 토큰 준수율 ${ratioCell(base.token, base.token + base.hardcoded)} → ${ratioCell(ds.token, ds.token + ds.hardcoded)}, DS 외 컴포넌트 ${base.nonDs} → ${ds.nonDs} — ${mdPath}`;
 }
 
-const USAGE = "사용법: bench:report -- --in <결과.json> [--out <보고서.md>]";
+const USAGE = "사용법: pnpm bench:report --in <결과.json> [--out <보고서.md>]  (상대 경로는 명령을 실행한 폴더 기준)";
 
-/** 결과 JSON을 읽어 같은 이름의 .md를 쓰고 README 줄을 돌려준다 */
-export function reportFromFile(argv: string[]): { mdFile: string; line: string | null } {
-  const args = argv[0] === "--" ? argv.slice(1) : argv;
+/**
+ * 결과 JSON을 읽어 같은 이름의 .md를 쓰고 README 줄을 돌려준다.
+ * `--`(pnpm 전달)는 몇 개든 무시하고, 상대 경로는 pnpm이 알려 주는 INIT_CWD(없으면 process.cwd()) 기준으로 푼다.
+ */
+export function reportFromFile(argv: string[], env: NodeJS.ProcessEnv = process.env): { mdFile: string; line: string | null } {
   const { values } = parseArgs({
-    args,
+    args: argv.filter((a) => a !== "--"),
     options: { in: { type: "string" }, out: { type: "string" } },
     strict: true,
   });
   if (values.in === undefined) throw new Error(USAGE);
-  const result = JSON.parse(readFileSync(values.in, "utf8")) as BenchResult;
+  const cwd = env.INIT_CWD !== undefined && env.INIT_CWD !== "" ? env.INIT_CWD : process.cwd();
+  const inFile = path.resolve(cwd, values.in);
+  const result = JSON.parse(readFileSync(inFile, "utf8")) as BenchResult;
   if (result.version !== 1) throw new Error(`지원하지 않는 결과 형식: version ${String(result.version)}`);
-  const mdFile = values.out ?? values.in.replace(/\.json$/, "") + ".md";
-  mkdirSync(path.dirname(path.resolve(mdFile)), { recursive: true });
+  const mdFile = values.out === undefined ? inFile.replace(/\.json$/, "") + ".md" : path.resolve(cwd, values.out);
+  mkdirSync(path.dirname(mdFile), { recursive: true });
   writeFileSync(mdFile, renderReport(result));
   const mdPath = `benchmarks/results/${path.basename(mdFile)}`;
   let line: string | null = null;
@@ -247,7 +278,7 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
   try {
     const { mdFile, line } = reportFromFile(process.argv.slice(2));
     process.stderr.write(`보고서: ${mdFile}\n`);
-    if (line === null) process.stderr.write("README 줄: 만들지 않음(replay 결과이거나 조건이 하나뿐임)\n");
+    if (line === null) process.stderr.write("README 줄: 만들지 않음(replay 결과, 중단된 결과이거나 조건이 하나뿐임)\n");
     else process.stdout.write(`${line}\n`);
   } catch (e) {
     process.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);

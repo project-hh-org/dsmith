@@ -244,6 +244,8 @@ export function aggregate(runs: RunRecord[]): Aggregate {
     tokenShareAll: null,
     costUsd: null,
     turns: null,
+    mcpToolCalls: null,
+    permissionDenials: null,
   };
   for (const r of runs) {
     if (r.status === "ok" || r.status === "replay") agg.okRuns += 1;
@@ -261,6 +263,10 @@ export function aggregate(runs: RunRecord[]): Aggregate {
     if (cost !== undefined) agg.costUsd = (agg.costUsd ?? 0) + cost;
     const turns = r.agentMeta?.turns;
     if (turns !== undefined) agg.turns = (agg.turns ?? 0) + turns;
+    const mcp = r.agentMeta?.mcpToolCalls;
+    if (mcp !== undefined) agg.mcpToolCalls = (agg.mcpToolCalls ?? 0) + mcp;
+    const denied = r.agentMeta?.permissionDenials;
+    if (denied !== undefined) agg.permissionDenials = (agg.permissionDenials ?? 0) + denied;
   }
   if (agg.costUsd !== null) agg.costUsd = Math.round(agg.costUsd * 1_000_000) / 1_000_000;
   agg.compliance = ratio(agg.token, agg.token + agg.hardcoded);

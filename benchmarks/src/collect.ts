@@ -1,12 +1,12 @@
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { AgentMeta, Condition, RunRecord } from "./model.js";
+import type { AgentMeta, Condition, ReplaySource, RunRecord } from "./model.js";
 import type { Base } from "./base.js";
 import type { FileChange } from "./score.js";
 
 const MAX_BYTES = 1024 * 1024;
-const RUN_STATUSES: readonly RunRecord["status"][] = ["ok", "agent-error", "timeout", "replay", "missing"];
+const RUN_STATUSES: readonly RunRecord["status"][] = ["ok", "agent-error", "timeout", "replay", "missing", "harness-error"];
 const byCodeUnit = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 function git(cwd: string, args: string[]): Promise<{ code: number; stdout: string }> {
@@ -115,6 +115,44 @@ export async function writeOutputs(
     deleted,
   };
   await fs.writeFile(path.join(repDir, "run.json"), `${JSON.stringify(body, null, 2)}\n`);
+}
+
+/** replay 루트 `meta.json`: 이 산출물이 어디서 왔는지(실제 에이전트 실행 / 손으로 쓴 합성). `--record`로 산출물을 내보낼 때 같이 쓴다. */
+export async function writeReplayMeta(dir: string, meta: { source: ReplaySource; repo: string; date: string; agentVersion?: string | null }): Promise<void> {
+  await fs.mkdir(dir, { recursive: true });
+  const body: Record<string, unknown> = { version: 1, source: meta.source, repo: meta.repo, date: meta.date };
+  if (meta.agentVersion !== undefined && meta.agentVersion !== null) body.agentVersion = meta.agentVersion;
+  await fs.writeFile(path.join(dir, "meta.json"), `${JSON.stringify(body, null, 2)}\n`);
+}
+
+/** meta.json의 source. 파일이 없거나 읽을 수 없거나 모르는 값이면 "unknown". */
+export async function readReplaySource(dir: string): Promise<ReplaySource> {
+  try {
+    const v: unknown = JSON.parse(await fs.readFile(path.join(dir, "meta.json"), "utf-8"));
+    const source = typeof v === "object" && v !== null && "source" in v ? v.source : undefined;
+    return source === "agent" || source === "synthetic" ? source : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/** replay 루트가 디렉터리이고 선택한 조건 디렉터리가 하나라도 있는지. 아니면 무엇이 문제인지 담은 Error. */
+export async function assertReplayDir(dir: string, conditions: readonly Condition[]): Promise<void> {
+  let st;
+  try {
+    st = await fs.stat(dir);
+  } catch {
+    throw new Error(`replay 디렉터리가 없습니다: ${dir}`);
+  }
+  if (!st.isDirectory()) throw new Error(`replay 경로가 디렉터리가 아닙니다: ${dir}`);
+  for (const c of conditions) {
+    try {
+      if ((await fs.stat(path.join(dir, c))).isDirectory()) return;
+    } catch {
+      // 다음 조건
+    }
+  }
+  throw new Error(`replay 디렉터리에 조건 디렉터리(${conditions.join(", ")})가 하나도 없습니다: ${dir}`);
 }
 
 async function walk(root: string, rel = ""): Promise<string[]> {

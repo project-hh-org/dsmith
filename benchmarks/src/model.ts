@@ -57,18 +57,22 @@ export interface AgentMeta {
   models?: string[];
   permissionDenials?: number;
   isError?: boolean;
+  /** stream-json의 assistant `mcp__*` tool_use 수(스트림이 아니면 없음) */
+  mcpToolCalls?: number;
 }
 
 export interface RunRecord {
   prompt: string;
   condition: Condition;
   rep: number;
-  status: "ok" | "agent-error" | "timeout" | "replay" | "missing";
+  /** harness-error: 하네스가 이 실행을 처리하다 던진 예외(error에 메시지) — 던지지 않고 기록한다 */
+  status: "ok" | "agent-error" | "timeout" | "replay" | "missing" | "harness-error";
   exitCode: number | null;
   durationMs: number | null;
   agentMeta: AgentMeta | null;
   harnessPathSeen: boolean;
   score: RunScore;
+  error?: string;
 }
 
 export interface Aggregate extends UsageCounts {
@@ -87,7 +91,14 @@ export interface Aggregate extends UsageCounts {
   /** agentMeta.costUsd 합(하나도 없으면 null) */
   costUsd: number | null;
   turns: number | null;
+  /** agentMeta.mcpToolCalls 합(하나도 없으면 null) */
+  mcpToolCalls: number | null;
+  /** agentMeta.permissionDenials 합(하나도 없으면 null) */
+  permissionDenials: number | null;
 }
+
+/** replay 디렉터리의 meta.json이 기록한 산출물 출처. 없으면 unknown */
+export type ReplaySource = "synthetic" | "agent" | "unknown";
 
 export interface BenchResult {
   version: 1;
@@ -104,6 +115,11 @@ export interface BenchResult {
   conditions: Condition[];
   repeat: number;
   timeoutSec: number | null;
+  /** complete: 계획한 실행을 모두 마침. aborted: 중단 기준을 넘었거나, 아직 끝나지 않은 중간 저장본 */
+  status: "complete" | "aborted";
+  abortReason: string | null;
+  /** replay 모드에서만: 산출물의 출처(replay 디렉터리 meta.json) */
+  replaySource?: ReplaySource;
   runs: RunRecord[];
   aggregate: Partial<Record<Condition, Aggregate>>;
 }

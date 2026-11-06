@@ -3,6 +3,7 @@
 //   FAKE_AGENT_MODE=baseline|dsmith  (없으면 cwd에 AGENTS.md가 있으면 dsmith, 없으면 baseline)
 //   FAKE_AGENT_SLEEP_MS=<ms>         쓰기 전에 이만큼 기다림(timeout 테스트)
 //   FAKE_AGENT_EXIT=<code>           쓰고 나서 그 코드로 종료
+//   FAKE_AGENT_COST=<usd>            result 줄의 total_cost_usd (기본 0.001)
 import fs from "node:fs";
 import path from "node:path";
 
@@ -66,10 +67,20 @@ process.stdout.write(
     hasBenchmarksDir: fs.existsSync(path.join(cwd, "benchmarks")),
     mcp: readJson(".mcp.json"),
     claudeEnvKeys: Object.keys(process.env).filter((k) => k.startsWith("CLAUDE")).length,
+    path: process.env.PATH ?? "",
+    dsmithOnPath: (process.env.PATH ?? "").split(path.delimiter).some((d) => d !== "" && fs.existsSync(path.join(d, "dsmith"))),
   })}\n`,
 );
+// stream-json 모양: init, assistant tool_use. dsmith 모드에서만 mcp__dsmith__* 호출 2개(+ Bash 1개)
+const toolUse = (name) => ({ type: "assistant", message: { content: [{ type: "tool_use", id: name, name, input: {} }] } });
+process.stdout.write(`${JSON.stringify({ type: "system", subtype: "init", cwd })}\n`);
+process.stdout.write(`${JSON.stringify(toolUse("Bash"))}\n`);
+if (mode === "dsmith") {
+  process.stdout.write(`${JSON.stringify(toolUse("mcp__dsmith__lint_snippet"))}\n`);
+  process.stdout.write(`${JSON.stringify(toolUse("mcp__dsmith__get_catalog"))}\n`);
+}
 process.stdout.write(
-  `${JSON.stringify({ type: "result", subtype: "success", num_turns: 1, total_cost_usd: 0.001, modelUsage: { "fake-model": {} }, permission_denials: [], is_error: false })}\n`,
+  `${JSON.stringify({ type: "result", subtype: "success", num_turns: 1, total_cost_usd: Number(process.env.FAKE_AGENT_COST ?? "0.001"), modelUsage: { "fake-model": {} }, permission_denials: [], is_error: false })}\n`,
 );
 
 const exit = process.env.FAKE_AGENT_EXIT;

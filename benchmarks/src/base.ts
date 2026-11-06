@@ -2,19 +2,18 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { extractorMatchers, sha256Text, type GuardSnapshot } from "@dsmith-dev/core";
 import { readDetect } from "@dsmith-dev/detect";
 import { buildGuardSnapshot } from "@dsmith-dev/guard";
 import { agentEnv } from "./agent.js";
 import { extractorsFor } from "./extractors.js";
 import type { Condition } from "./model.js";
+import { MONOREPO_ROOT } from "./paths.js";
 
 export const REPOS = { "legacy-demo": "examples/legacy-demo", "with-ds-app": "fixtures/with-ds-app" } as const;
 export type RepoName = keyof typeof REPOS;
 
-/** benchmarks/src 또는 benchmarks/dist 기준 ../.. */
-export const MONOREPO_ROOT: string = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+export { MONOREPO_ROOT };
 export const CLI_BIN: string = path.join(MONOREPO_ROOT, "packages/cli/dist/bin.js");
 
 export interface Base {

@@ -333,7 +333,7 @@ docs/showcase/legacy-demo.md                  Task 5(컨트롤러)
   /**
    * README 상단 한 줄. mode가 "replay"면 Error("replay 결과로는 README 줄을 만들지 않음").
    * 조건 둘이 다 있어야 함. 형식(한 줄, 끝 마침표 없음):
-   * 벤치마크(프롬프트 {N}개 × 조건 2, {agentLabel}, {date}): 토큰 준수율 {b}% → {d}%, DS 외 컴포넌트 {nb} → {nd} — benchmarks/results/{date}-{repo}.md
+   * 벤치마크(프롬프트 {N}개 × 조건 2, {agentLabel}, {date}): 토큰 준수율 {b}% ({token}/{token+hardcoded}) → {d}% ({token}/{token+hardcoded}), DS 외 컴포넌트 {nb} → {nd} — benchmarks/results/{date}-{repo}.md
    * agentLabel = agent.command의 첫 두 단어("claude -p"), 백분율은 compliance×100을 소수 첫째 자리까지(null이면 "—")
    */
   export function readmeLine(result: BenchResult, mdPath: string): string;
@@ -345,7 +345,7 @@ docs/showcase/legacy-demo.md                  Task 5(컨트롤러)
   4. `## 프롬프트별` 표: id · 파일 · baseline(준수율, token/hardcoded/기본, DS 외) · dsmith(같음) · 판정(준수율 기준 "개선"/"같음"/"악화"/"비교 불가") — 반복 > 1이면 합산값. 표 아래 "개선 a · 같음 b · 악화 c · 비교 불가 d"
   5. `## 해석 한계`(고정 문구): 프롬프트 {N}개·반복 {k}회의 단일 측정이며 에이전트 출력은 비결정적이다 / 유의성 검정을 하지 않았다 / 준수율 분모에서 Tailwind 기본 스케일 클래스는 뺐다(별도 행) / 렌더링·타입 검사는 하지 않았다 — `tokens.css` 로드·프리셋 연결 여부는 측정 밖 / 채점은 dsmith 자신의 규칙 엔진이고 dsmith 조건의 에이전트는 같은 엔진(`lint_snippet`)을 쓸 수 있다 — 같은 기준에 맞추도록 돕는 효과를 잰 것이지 독립 평가가 아니다 / 산출물은 `{record 경로}`에 있고 `pnpm bench -- --repo {repo} --replay <그 경로>`로 같은 채점을 다시 낼 수 있다(replay 모드면 "합성 산출물 — 실측 아님"으로 대체)
 - README `## 벤치마크` 절(버전 숫자·결과 숫자 없음 — 결과 숫자는 Task 4가 상단 한 줄로): 무엇을 재는가(두 조건 정의, 같은 베이스·같은 엔진), 실행법(`pnpm -r build` → `pnpm bench -- --repo legacy-demo --agent "<결정 5의 명령>"`, `pnpm bench:replay`), 지표 정의(준수율·사용률·knownToken·DS 외), 격리(임시 복사본, 정리된 env, `harnessPathSeen`), 한계 요약 3줄, `codex exec` 같은 다른 에이전트도 stdin으로 프롬프트를 받는 명령이면 된다는 것(실측은 claude만)
-- [ ] **Step 1: 실패하는 테스트** — 고정 `BenchResult`(손으로 만든 2프롬프트) → `renderReport` 스냅샷 1건; 두 번 같은 바이트; replay 결과의 해석 한계 문장이 "합성"; `readmeLine` — agent 결과 → 정확한 문자열 1건(`벤치마크(프롬프트 2개 × 조건 2, claude -p, 2026-11-01): 토큰 준수율 12.5% → 87.5%, DS 외 컴포넌트 3 → 0 — benchmarks/results/2026-11-01-legacy-demo.md`), compliance null → "—", replay → Error, 조건 하나 → Error; `pnpm bench:replay`를 `execFileSync`로 → stdout에 `## 요약` 포함·exit 0·파일 생성 없음(`git status --porcelain benchmarks` 빈 문자열)
+- [ ] **Step 1: 실패하는 테스트** — 고정 `BenchResult`(손으로 만든 2프롬프트) → `renderReport` 스냅샷 1건; 두 번 같은 바이트; replay 결과의 해석 한계 문장이 "합성"; `readmeLine` — agent 결과 → 정확한 문자열 1건(`벤치마크(프롬프트 2개 × 조건 2, claude -p, 2026-11-01): 토큰 준수율 12.5% (1/8) → 87.5% (7/8), DS 외 컴포넌트 3 → 0 — benchmarks/results/2026-11-01-legacy-demo.md`), 분모 0 → "— (0/0)", replay → Error, 조건 하나 → Error; `pnpm bench:replay`를 `execFileSync`로 → stdout에 `## 요약` 포함·exit 0·파일 생성 없음(`git status --porcelain benchmarks` 빈 문자열)
 - [ ] **Step 2: 실패 확인 → 구현 → 통과** — 루트 세 명령
 - [ ] **Step 3: Commit** — `feat(benchmarks): 결과 보고서(md)와 README 한 줄 생성, bench 스크립트·README 벤치마크 절`
 
@@ -360,8 +360,8 @@ docs/showcase/legacy-demo.md                  Task 5(컨트롤러)
 - Modify: `README.md`(상단 — 첫 소개 단락 바로 아래 한 줄)
 
 **Steps:**
-- [ ] **Step 1: 사전 확인** — `pnpm -r build` 녹색; `claude --version`(2.1.316 기대 — 다르면 부록 D.1 플래그를 `claude -p --help`로 다시 확인하고 결과 문서에 버전 기록); 스모크 1회: `pnpm bench -- --repo legacy-demo --prompts 06-badge --conditions baseline --agent "<결정 5 명령>" --out /tmp/…/smoke.json` → status ok·비용·턴 기록, 산출물 확인 후 스모크 파일 삭제
-- [ ] **Step 2: 실측** — `pnpm bench -- --repo legacy-demo --agent "claude -p --output-format stream-json --verbose --model sonnet --max-turns 20 --max-budget-usd 0.5 --permission-mode acceptEdits --allowedTools mcp__dsmith --setting-sources project --no-session-persistence"` (기본: 12 × 2 × 1, timeout 600s, 순차). Bash `run_in_background`로 돌리고 끝나면 결과 확인. **예상 $1.5~$2.5·8~10분, 중단 기준: 누적 $8 초과 또는 실패 실행 6개 이상** → 멈추고 원인 기록(인증·한도면 스펙 §3.1대로 "재생 모드로 채점 파이프라인만 검증"을 결과 문서에 남기고 README 줄은 쓰지 않는다)
+- [ ] **Step 1: 사전 확인** — `pnpm -r build` 녹색; `claude --version`(2.1.316 기대 — 다르면 부록 D.1 플래그를 `claude -p --help`로 다시 확인하고 결과 문서에 버전 기록); 스모크 1회: `pnpm bench --repo legacy-demo --prompts 06-badge --conditions baseline --agent "<결정 5 명령>" --out /tmp/…/smoke.json` → status ok·비용·턴 기록, 산출물 확인 후 스모크 파일 삭제
+- [ ] **Step 2: 실측** — `pnpm bench --repo legacy-demo --agent "claude -p --output-format stream-json --verbose --model sonnet --max-turns 20 --max-budget-usd 0.5 --permission-mode acceptEdits --allowedTools mcp__dsmith --setting-sources project --no-session-persistence"` (기본: 12 × 2 × 1, timeout 600s, 순차). Bash `run_in_background`로 돌리고 끝나면 결과 확인. **예상 $1.5~$2.5·8~10분, 중단 기준: 누적 $8 초과 또는 실패 실행 6개 이상(하네스가 `--max-total-usd 8`·`--max-failures 6` 기본값으로 강제하고 `status: "aborted"` 부분 결과를 저장, 종료 코드 1)** → 멈추고 원인 기록(인증·한도면 스펙 §3.1대로 "재생 모드로 채점 파이프라인만 검증"을 결과 문서에 남기고 README 줄은 쓰지 않는다)
 - [ ] **Step 3: 결과 점검(눈으로)** — 실행 24개 status, `harnessPathSeen` 0, 각 조건에서 산출물 3개씩 열어 채점과 맞는지(하드코딩·token 건수 손으로 세기), transcripts에서 dsmith 조건의 MCP 호출(`mcp__dsmith__*`) 횟수와 `permission_denials` 요약을 결과 md의 "관찰" 절에 짧게 추가(이 절만 손으로 씀 — 숫자는 transcripts에서 센 값). 결과가 dsmith에 불리해도 그대로 둔다
 - [ ] **Step 4: 재현 테스트** — `results-replay.test.ts`: `benchmarks/results/*.json` 중 `mode: "agent"`인 파일마다 같은 이름 디렉터리의 `outputs`를 `--replay`로 채점한 `aggregate`(costUsd·turns·status 관련 필드 제외)·실행별 `score`가 커밋된 값과 같다. 결과 파일이 없으면 `it.skip`
 - [ ] **Step 5: README 한 줄** — `readmeLine(result, "benchmarks/results/<date>-legacy-demo.md")` 출력을 README 상단(소개 단락 다음 줄)에 Edit로 넣는다. 숫자를 다듬지 않는다
