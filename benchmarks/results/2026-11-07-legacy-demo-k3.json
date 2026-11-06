@@ -1,0 +1,7448 @@
+{
+  "version": 1,
+  "date": "2026-11-07",
+  "startedAt": "2026-11-06T17:00:35.881Z",
+  "repo": "legacy-demo",
+  "mode": "agent",
+  "agent": {
+    "command": "claude -p --output-format stream-json --verbose --model sonnet --max-turns 20 --max-budget-usd 0.5 --permission-mode acceptEdits --allowedTools mcp__dsmith --setting-sources project --no-session-persistence",
+    "version": "2.1.318 (Claude Code)",
+    "installTool": "claude-code",
+    "models": [
+      "claude-sonnet-5-5"
+    ]
+  },
+  "dsmith": {
+    "version": "0.1.0",
+    "commit": "70149c5d2fda2d383dc1d473cf5d87cfd9f6c38f"
+  },
+  "base": {
+    "tokens": 14,
+    "dsComponents": 6,
+    "snapshotSha256": "2094d703f68dc9ecb9c051bb86e575e9d8880e3e06ef76597028b3c1652e4971"
+  },
+  "prompts": [
+    {
+      "id": "01-form",
+      "file": "src/components/ProductForm.tsx",
+      "sha256": "d28007a2b33cf5283a6fced72c214e4244475c9f41e1b4bd51a5ce0a09527660"
+    },
+    {
+      "id": "02-modal",
+      "file": "src/components/DeleteConfirmModal.tsx",
+      "sha256": "9e026c231334010edb036cc8e2eed9a897bd3411cf5c85474be4898e99c9b690"
+    },
+    {
+      "id": "03-list",
+      "file": "src/components/RecentOrderList.tsx",
+      "sha256": "ff61d2384e64da0ac57c5f871fe8fc456e9adb746b149846cc0b544580b94d48"
+    },
+    {
+      "id": "04-card",
+      "file": "src/components/CustomerSummaryCard.tsx",
+      "sha256": "aeda48100f80fb3874ad3c98d35155f964b7422aabee5fdcd6c14ca41dc5bf12"
+    },
+    {
+      "id": "05-table",
+      "file": "src/components/InventoryTable.tsx",
+      "sha256": "61a78b96f271d5b7dfc242e28b6265fa79311337649961a72183f20a9c5f0404"
+    },
+    {
+      "id": "06-badge",
+      "file": "src/components/StockStatusBadge.tsx",
+      "sha256": "3b4fc838e338c462addc631b40c02e4aa2d846bc3ad739009ee29c241904ecfd"
+    },
+    {
+      "id": "07-tabs",
+      "file": "src/components/OrderStatusTabs.tsx",
+      "sha256": "8ad0a5f787a08aba2a4b8729c0fec5f8d72fc47a64023067a26cd58a02683f68"
+    },
+    {
+      "id": "08-toast",
+      "file": "src/components/SaveToast.tsx",
+      "sha256": "9c6ebe5e00b8033320fa05bc0ab05b967e3b144db44278750fd9bb059c08f118"
+    },
+    {
+      "id": "09-sidebar",
+      "file": "src/components/FilterSidebar.tsx",
+      "sha256": "98502052d2ef5f7409eaa9415930ea805d1483c27c1c66a084317e33d416a5ba"
+    },
+    {
+      "id": "10-settings",
+      "file": "src/components/NotificationSettingsPage.tsx",
+      "sha256": "148f4f3df473a0d49c5fe1740938a0f0fa55744b09afbbcd514b9bf84f8045bb"
+    },
+    {
+      "id": "11-empty",
+      "file": "src/components/NoSearchResults.tsx",
+      "sha256": "67cc3ef9aa7e9dcc9a9c455a4dbbd75fa51be892d7ff58f62b48512406a4fb7e"
+    },
+    {
+      "id": "12-pagination",
+      "file": "src/components/Pagination.tsx",
+      "sha256": "316ba594e1d22f94dd9b30e5a4653e621566739157d76d9964fcafcc8c37d100"
+    }
+  ],
+  "conditions": [
+    "baseline",
+    "dsmith"
+  ],
+  "repeat": 3,
+  "timeoutSec": 600,
+  "status": "complete",
+  "abortReason": null,
+  "runs": [
+    {
+      "prompt": "01-form",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 24009,
+      "agentMeta": {
+        "costUsd": 0.0722237,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 12,
+              "dynamic": 0
+            },
+            "nonDs": 2,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              },
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 12,
+          "dynamic": 0,
+          "nonDs": 2,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 13,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 5
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 13,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 5,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "01-form",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 39283,
+      "agentMeta": {
+        "costUsd": 0.08477579999999998,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 1,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 11,
+              "dynamic": 0
+            },
+            "nonDs": 2,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              },
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 1,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 11,
+          "dynamic": 0,
+          "nonDs": 2,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.0833
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 13,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 5
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 13,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 5,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "01-form",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 25457,
+      "agentMeta": {
+        "costUsd": 0.07727,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 17,
+              "dynamic": 0
+            },
+            "nonDs": 2,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              },
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 17,
+          "dynamic": 0,
+          "nonDs": 2,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 20,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 5
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 20,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 5,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "01-form",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 25368,
+      "agentMeta": {
+        "costUsd": 0.07074810000000001,
+        "turns": 3,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 2,
+              "dynamic": 8
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 2,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 2,
+          "dynamic": 8,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 2,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 14,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 2,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 14,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 2,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "01-form",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 20288,
+      "agentMeta": {
+        "costUsd": 0.0863035,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 2,
+              "knownToken": 2,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 11
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 2,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 2,
+          "knownToken": 2,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 11,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 2,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 1,
+              "varDefined": 14,
+              "varUndefined": 0,
+              "dsComponents": 2,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 1,
+          "varDefined": 14,
+          "varUndefined": 0,
+          "dsComponents": 2,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.9333,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "01-form",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 15121,
+      "agentMeta": {
+        "costUsd": 0.07815180000000001,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 12,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 2,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 12,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 2,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/ProductForm.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 13,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 2,
+              "otherLocalComponents": 3
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 13,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 2,
+          "otherLocalComponents": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "02-modal",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 27793,
+      "agentMeta": {
+        "costUsd": 0.07331119999999999,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 5,
+              "dynamic": 0
+            },
+            "nonDs": 2,
+            "deprecated": 0,
+            "dsComponentUses": 3,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              },
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 5,
+          "dynamic": 0,
+          "nonDs": 2,
+          "deprecated": 0,
+          "dsComponentUses": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 5,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 3,
+              "otherLocalComponents": 2
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 5,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 3,
+          "otherLocalComponents": 2,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "02-modal",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 15867,
+      "agentMeta": {
+        "costUsd": 0.0705467,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 6,
+              "dynamic": 0
+            },
+            "nonDs": 2,
+            "deprecated": 0,
+            "dsComponentUses": 3,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              },
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 6,
+          "dynamic": 0,
+          "nonDs": 2,
+          "deprecated": 0,
+          "dsComponentUses": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 6,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 3,
+              "otherLocalComponents": 2
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 6,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 3,
+          "otherLocalComponents": 2,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "02-modal",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 29523,
+      "agentMeta": {
+        "costUsd": 0.0799765,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 6,
+              "dynamic": 0
+            },
+            "nonDs": 2,
+            "deprecated": 0,
+            "dsComponentUses": 3,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              },
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 6,
+          "dynamic": 0,
+          "nonDs": 2,
+          "deprecated": 0,
+          "dsComponentUses": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 6,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 3,
+              "otherLocalComponents": 2
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 6,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 3,
+          "otherLocalComponents": 2,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "02-modal",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 20384,
+      "agentMeta": {
+        "costUsd": 0.06514110000000001,
+        "turns": 3,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 5,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 5,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 5,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 5,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 5,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 5,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 5,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 5,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "02-modal",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 17321,
+      "agentMeta": {
+        "costUsd": 0.0620646,
+        "turns": 3,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 5,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 5,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 5,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 5,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 5,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 5,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 5,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 5,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "02-modal",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 15265,
+      "agentMeta": {
+        "costUsd": 0.068998,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 5,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 5,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 5,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 5,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/DeleteConfirmModal.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 5,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 5,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 5,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 5,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "03-list",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 13498,
+      "agentMeta": {
+        "costUsd": 0.0806655,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 15,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 15,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 18,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 18,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "03-list",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 19492,
+      "agentMeta": {
+        "costUsd": 0.0795101,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 14,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 14,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 17,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 17,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "03-list",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 11004,
+      "agentMeta": {
+        "costUsd": 0.0761172,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 15,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 15,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 17,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 17,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "03-list",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 18554,
+      "agentMeta": {
+        "costUsd": 0.0719443,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 10,
+              "knownToken": 10,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 10,
+          "knownToken": 10,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 1,
+              "tailwindPalette": 0,
+              "varDefined": 12,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 1,
+          "tailwindPalette": 0,
+          "varDefined": 12,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.9231,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "03-list",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 19574,
+      "agentMeta": {
+        "costUsd": 0.07638200000000002,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 7,
+              "knownToken": 7,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 7,
+          "knownToken": 7,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 2,
+              "tailwindPalette": 0,
+              "varDefined": 15,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 2,
+          "tailwindPalette": 0,
+          "varDefined": 15,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8824,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "03-list",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 12871,
+      "agentMeta": {
+        "costUsd": 0.06912839999999999,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 9,
+              "knownToken": 9,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 4,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 9,
+          "knownToken": 9,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 4,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.6923
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/RecentOrderList.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 5,
+              "varDefined": 14,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 5,
+          "varDefined": 14,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.7368,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "04-card",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 14096,
+      "agentMeta": {
+        "costUsd": 0.0722727,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 16,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 16,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 1,
+              "tailwindPalette": 18,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 1,
+          "tailwindPalette": 18,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "04-card",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 22287,
+      "agentMeta": {
+        "costUsd": 0.07063,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 9,
+              "knownToken": 9,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 4,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 9,
+          "knownToken": 9,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 4,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.6923
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 1,
+              "tailwindPalette": 6,
+              "varDefined": 13,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 1,
+          "tailwindPalette": 6,
+          "varDefined": 13,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.65,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "04-card",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 13981,
+      "agentMeta": {
+        "costUsd": 0.0700064,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 15,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 15,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 1,
+              "tailwindPalette": 17,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 1,
+          "tailwindPalette": 17,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "04-card",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 13162,
+      "agentMeta": {
+        "costUsd": 0.0731802,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 8
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 8,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": null
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 2,
+              "tailwindPalette": 0,
+              "varDefined": 21,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 2,
+          "tailwindPalette": 0,
+          "varDefined": 21,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.913,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "04-card",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 15762,
+      "agentMeta": {
+        "costUsd": 0.0723318,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 8
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 8,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": null
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 1,
+              "tailwindPalette": 0,
+              "varDefined": 18,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 1,
+          "tailwindPalette": 0,
+          "varDefined": 18,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.9474,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "04-card",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 17128,
+      "agentMeta": {
+        "costUsd": 0.075225,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 2,
+              "knownToken": 2,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 2
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 2,
+          "knownToken": 2,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 2,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/CustomerSummaryCard.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 1,
+              "tailwindPalette": 0,
+              "varDefined": 15,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 1,
+          "tailwindPalette": 0,
+          "varDefined": 15,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.9375,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "05-table",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 22190,
+      "agentMeta": {
+        "costUsd": 0.0797365,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 7,
+              "replaceable": 7,
+              "tailwindDefault": 23,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 7,
+          "replaceable": 7,
+          "tailwindDefault": 23,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 0,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 3,
+              "lengthLiterals": 4,
+              "tailwindPalette": 28,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 3,
+          "lengthLiterals": 4,
+          "tailwindPalette": 28,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "05-table",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 22026,
+      "agentMeta": {
+        "costUsd": 0.079009,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 7,
+              "replaceable": 7,
+              "tailwindDefault": 20,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 7,
+          "replaceable": 7,
+          "tailwindDefault": 20,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 0,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 4,
+              "lengthLiterals": 4,
+              "tailwindPalette": 25,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 2
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 4,
+          "lengthLiterals": 4,
+          "tailwindPalette": 25,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 2,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "05-table",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 31592,
+      "agentMeta": {
+        "costUsd": 0.08374870000000001,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 21,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 21,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 23,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 23,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "05-table",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 28607,
+      "agentMeta": {
+        "costUsd": 0.0652303,
+        "turns": 3,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 3,
+              "knownToken": 3,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 7
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 3,
+          "knownToken": 3,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 7,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 3,
+              "tailwindPalette": 0,
+              "varDefined": 12,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 3,
+          "tailwindPalette": 0,
+          "varDefined": 12,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "05-table",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 21078,
+      "agentMeta": {
+        "costUsd": 0.08491370000000001,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 6,
+              "knownToken": 6,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 6
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 6,
+          "knownToken": 6,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 6,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 2,
+              "tailwindPalette": 0,
+              "varDefined": 10,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 2,
+          "tailwindPalette": 0,
+          "varDefined": 10,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8333,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "05-table",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 18227,
+      "agentMeta": {
+        "costUsd": 0.0808907,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 25,
+              "knownToken": 25,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 25,
+          "knownToken": 25,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/InventoryTable.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 5,
+              "varDefined": 25,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 5,
+          "varDefined": 25,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8333,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "06-badge",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 19336,
+      "agentMeta": {
+        "costUsd": 0.065168,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": null
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 0,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 0,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": null,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "06-badge",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 12169,
+      "agentMeta": {
+        "costUsd": 0.0657894,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 1,
+              "replaceable": 0,
+              "tailwindDefault": 9,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 1,
+          "replaceable": 0,
+          "tailwindDefault": 9,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 0,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 1,
+              "tailwindPalette": 9,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 1,
+          "tailwindPalette": 9,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "06-badge",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 17634,
+      "agentMeta": {
+        "costUsd": 0.06295629999999999,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 1,
+              "replaceable": 0,
+              "tailwindDefault": 9,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 1,
+          "replaceable": 0,
+          "tailwindDefault": 9,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 0,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 1,
+              "tailwindPalette": 9,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 1,
+          "tailwindPalette": 9,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "06-badge",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 18514,
+      "agentMeta": {
+        "costUsd": 0.0707061,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 8,
+              "knownToken": 8,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 3
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 8,
+          "knownToken": 8,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 3,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 1,
+              "varDefined": 8,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 1,
+          "varDefined": 8,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8889,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "06-badge",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 23199,
+      "agentMeta": {
+        "costUsd": 0.0730507,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 3,
+              "knownToken": 3,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 2
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 3,
+          "knownToken": 3,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 2,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 0,
+              "varDefined": 3,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 0,
+          "varDefined": 3,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 1,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "06-badge",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 18677,
+      "agentMeta": {
+        "costUsd": 0.0687856,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 3,
+              "knownToken": 3,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 3,
+          "knownToken": 3,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/StockStatusBadge.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 0,
+              "varDefined": 4,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 0,
+          "varDefined": 4,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 1,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "07-tabs",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 15595,
+      "agentMeta": {
+        "costUsd": 0.063765,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 2,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 8,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 2,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 8,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.2
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 10,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 10,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "07-tabs",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 17465,
+      "agentMeta": {
+        "costUsd": 0.080032,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 2,
+              "knownToken": 2,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 5,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 2,
+          "knownToken": 2,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 5,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.2857
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 7,
+              "varDefined": 5,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 7,
+          "varDefined": 5,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.4167,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "07-tabs",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 21523,
+      "agentMeta": {
+        "costUsd": 0.0706683,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 2,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 8,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 2,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 8,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.2
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 10,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 10,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "07-tabs",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 20697,
+      "agentMeta": {
+        "costUsd": 0.0688745,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 9,
+              "knownToken": 9,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 1,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 9,
+          "knownToken": 9,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 1,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.9
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 2,
+              "varDefined": 9,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 2,
+          "varDefined": 9,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8182,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "07-tabs",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 17862,
+      "agentMeta": {
+        "costUsd": 0.0773067,
+        "turns": 6,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 1
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 1,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 1,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 1,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 1,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "07-tabs",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 23262,
+      "agentMeta": {
+        "costUsd": 0.0712884,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 1,
+              "knownToken": 1,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 1,
+          "knownToken": 1,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/OrderStatusTabs.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 0,
+              "varDefined": 1,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 0,
+          "varDefined": 1,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 1,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "08-toast",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 26121,
+      "agentMeta": {
+        "costUsd": 0.0786974,
+        "turns": 6,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 13,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 13,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 16,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 16,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "08-toast",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 17994,
+      "agentMeta": {
+        "costUsd": 0.0733096,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 9,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 9,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 11,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 11,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "08-toast",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 22099,
+      "agentMeta": {
+        "costUsd": 0.07365769999999999,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 2,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 16,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 2,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 16,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.1111
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 17,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 17,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "08-toast",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 19344,
+      "agentMeta": {
+        "costUsd": 0.068115,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": null
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 1,
+              "tailwindPalette": 0,
+              "varDefined": 9,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 1,
+          "tailwindPalette": 0,
+          "varDefined": 9,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.9,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "08-toast",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 15758,
+      "agentMeta": {
+        "costUsd": 0.07055929999999999,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 1
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 8,
+              "knownToken": 8,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 2,
+              "dynamic": 3
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 8,
+          "knownToken": 8,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 2,
+          "dynamic": 3,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.8
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 3,
+              "varDefined": 13,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 3,
+          "varDefined": 13,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8125,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "08-toast",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 17159,
+      "agentMeta": {
+        "costUsd": 0.0713799,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 11,
+              "knownToken": 11,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 3
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 11,
+          "knownToken": 11,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 3,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/SaveToast.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 0,
+              "varDefined": 11,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 0,
+          "varDefined": 11,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 1,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "09-sidebar",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 20571,
+      "agentMeta": {
+        "costUsd": 0.0814418,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 27,
+              "dynamic": 0
+            },
+            "nonDs": 1,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 27,
+          "dynamic": 0,
+          "nonDs": 1,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 30,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 3
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 30,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "09-sidebar",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 21887,
+      "agentMeta": {
+        "costUsd": 0.0891706,
+        "turns": 10,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 1,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 1,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 28,
+              "dynamic": 0
+            },
+            "nonDs": 1,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 1,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 28,
+          "dynamic": 0,
+          "nonDs": 1,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.0345
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 32,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 3
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 32,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "09-sidebar",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 14925,
+      "agentMeta": {
+        "costUsd": 0.0730582,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 1,
+              "replaceable": 1,
+              "tailwindDefault": 27,
+              "dynamic": 1
+            },
+            "nonDs": 1,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 1,
+          "replaceable": 1,
+          "tailwindDefault": 27,
+          "dynamic": 1,
+          "nonDs": 1,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 0,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 1,
+              "lengthLiterals": 0,
+              "tailwindPalette": 30,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 3
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 1,
+          "lengthLiterals": 0,
+          "tailwindPalette": 30,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "09-sidebar",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 27422,
+      "agentMeta": {
+        "costUsd": 0.08898930000000001,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 24,
+              "knownToken": 24,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 3,
+              "dynamic": 3
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 24,
+          "knownToken": 24,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 3,
+          "dynamic": 3,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.8889
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 7,
+              "varDefined": 31,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 7,
+          "varDefined": 31,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8158,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "09-sidebar",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 25482,
+      "agentMeta": {
+        "costUsd": 0.0923581,
+        "turns": 7,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 1
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 14,
+              "knownToken": 14,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 1,
+              "dynamic": 3
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 14,
+          "knownToken": 14,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 1,
+          "dynamic": 3,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.9333
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 4,
+              "varDefined": 27,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 4,
+          "varDefined": 27,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.871,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "09-sidebar",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 23079,
+      "agentMeta": {
+        "costUsd": 0.09658320000000001,
+        "turns": 6,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 14,
+              "knownToken": 14,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 3,
+              "dynamic": 3
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 14,
+          "knownToken": 14,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 3,
+          "dynamic": 3,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.8235
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/FilterSidebar.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 6,
+              "varDefined": 27,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 6,
+          "varDefined": 27,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8182,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "10-settings",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 24989,
+      "agentMeta": {
+        "costUsd": 0.0909658,
+        "turns": 6,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 1,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 19,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 1,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 19,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.05
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 25,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 25,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "10-settings",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 26317,
+      "agentMeta": {
+        "costUsd": 0.08331319999999999,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 2,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 21,
+              "dynamic": 0
+            },
+            "nonDs": 1,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 2,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 21,
+          "dynamic": 0,
+          "nonDs": 1,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.087
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 26,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 1
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 26,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "10-settings",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 31791,
+      "agentMeta": {
+        "costUsd": 0.0919433,
+        "turns": 6,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 1,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 19,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 1,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 19,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.05
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 23,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 23,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "10-settings",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 18283,
+      "agentMeta": {
+        "costUsd": 0.0851854,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 14,
+              "knownToken": 14,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 14,
+          "knownToken": 14,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 3,
+              "varDefined": 19,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 3,
+          "varDefined": 19,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8636,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "10-settings",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 30781,
+      "agentMeta": {
+        "costUsd": 0.0786558,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 16,
+              "knownToken": 16,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 5,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 16,
+          "knownToken": 16,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 5,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.7619
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 8,
+              "varDefined": 21,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 8,
+          "varDefined": 21,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.7241,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "10-settings",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 15033,
+      "agentMeta": {
+        "costUsd": 0.08425730000000001,
+        "turns": 6,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 1
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 11,
+              "knownToken": 11,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 0,
+              "dynamic": 2
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 11,
+          "knownToken": 11,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 0,
+          "dynamic": 2,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NotificationSettingsPage.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 2,
+              "tailwindPalette": 2,
+              "varDefined": 22,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 2,
+          "tailwindPalette": 2,
+          "varDefined": 22,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8462,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "11-empty",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 20870,
+      "agentMeta": {
+        "costUsd": 0.069805,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 9,
+              "dynamic": 1
+            },
+            "nonDs": 1,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 9,
+          "dynamic": 1,
+          "nonDs": 1,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 9,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 2
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 9,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 2,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "11-empty",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 28708,
+      "agentMeta": {
+        "costUsd": 0.0709687,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 9,
+              "dynamic": 1
+            },
+            "nonDs": 1,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": [
+              {
+                "name": "Button",
+                "module": "src/components/Button",
+                "preferModule": "src/components/ui/button"
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 9,
+          "dynamic": 1,
+          "nonDs": 1,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 9,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 2
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 9,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 2,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "11-empty",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 16824,
+      "agentMeta": {
+        "costUsd": 0.0735073,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 15,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 15,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 16,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 16,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "11-empty",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 15248,
+      "agentMeta": {
+        "costUsd": 0.0733523,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 11,
+              "knownToken": 11,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 3,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 11,
+          "knownToken": 11,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 3,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.7857
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 5,
+              "varDefined": 11,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 5,
+          "varDefined": 11,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.6875,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "11-empty",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 13334,
+      "agentMeta": {
+        "costUsd": 0.07076779999999999,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 6,
+              "knownToken": 6,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 3,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 6,
+          "knownToken": 6,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 3,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.6667
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 4,
+              "varDefined": 9,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 4,
+          "varDefined": 9,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.6923,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "11-empty",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 14860,
+      "agentMeta": {
+        "costUsd": 0.074291,
+        "turns": 6,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 1
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 10,
+              "knownToken": 10,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 2,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 1,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 10,
+          "knownToken": 10,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 2,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 1,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.8333
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/NoSearchResults.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 3,
+              "varDefined": 14,
+              "varUndefined": 0,
+              "dsComponents": 1,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 3,
+          "varDefined": 14,
+          "varUndefined": 0,
+          "dsComponents": 1,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0.8235,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "12-pagination",
+      "condition": "baseline",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 24734,
+      "agentMeta": {
+        "costUsd": 0.0775776,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 1,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 5,
+              "dynamic": 7
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 1,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 5,
+          "dynamic": 7,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.1667
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 15,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 15,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "12-pagination",
+      "condition": "baseline",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 18565,
+      "agentMeta": {
+        "costUsd": 0.087221,
+        "turns": 4,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 1,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 19,
+              "dynamic": 4
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 1,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 19,
+          "dynamic": 4,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.05
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 25,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 25,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "12-pagination",
+      "condition": "baseline",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 18362,
+      "agentMeta": {
+        "costUsd": 0.07871439999999999,
+        "turns": 5,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 2,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 18,
+              "dynamic": 3
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 0,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 2,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 18,
+          "dynamic": 3,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": 1,
+        "tokenShareAll": 0.1
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 23,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 0,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 23,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 0,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "12-pagination",
+      "condition": "dsmith",
+      "rep": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 12674,
+      "agentMeta": {
+        "costUsd": 0.0632393,
+        "turns": 3,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 3,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 3,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 3,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 3,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 3,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 3,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 3,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "12-pagination",
+      "condition": "dsmith",
+      "rep": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 29154,
+      "agentMeta": {
+        "costUsd": 0.0702024,
+        "turns": 3,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 3,
+              "dynamic": 1
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 3,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 3,
+          "dynamic": 1,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 3,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 3,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 3,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 3,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    },
+    {
+      "prompt": "12-pagination",
+      "condition": "dsmith",
+      "rep": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "durationMs": 15970,
+      "agentMeta": {
+        "costUsd": 0.06693930000000001,
+        "turns": 3,
+        "subtype": "success",
+        "models": [
+          "claude-sonnet-5-5"
+        ],
+        "permissionDenials": 0,
+        "isError": false,
+        "mcpToolCalls": 0
+      },
+      "harnessPathSeen": false,
+      "score": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "introduced": {
+              "token": 0,
+              "knownToken": 0,
+              "hardcoded": 0,
+              "replaceable": 0,
+              "tailwindDefault": 2,
+              "dynamic": 0
+            },
+            "nonDs": 0,
+            "deprecated": 0,
+            "dsComponentUses": 3,
+            "nonDsDetails": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "deleted": [],
+        "expectedFile": true,
+        "totals": {
+          "token": 0,
+          "knownToken": 0,
+          "hardcoded": 0,
+          "replaceable": 0,
+          "tailwindDefault": 2,
+          "dynamic": 0,
+          "nonDs": 0,
+          "deprecated": 0,
+          "dsComponentUses": 3,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "compliance": null,
+        "tokenShareAll": 0
+      },
+      "independent": {
+        "files": [
+          {
+            "file": "src/components/Pagination.tsx",
+            "status": "added",
+            "parseFailed": false,
+            "counts": {
+              "colorLiterals": 0,
+              "lengthLiterals": 0,
+              "tailwindPalette": 2,
+              "varDefined": 0,
+              "varUndefined": 0,
+              "dsComponents": 3,
+              "otherLocalComponents": 0
+            },
+            "undefinedVars": []
+          }
+        ],
+        "excluded": [],
+        "ignored": [],
+        "totals": {
+          "colorLiterals": 0,
+          "lengthLiterals": 0,
+          "tailwindPalette": 2,
+          "varDefined": 0,
+          "varUndefined": 0,
+          "dsComponents": 3,
+          "otherLocalComponents": 0,
+          "parseFailed": 0,
+          "files": 1
+        },
+        "indepUsage": 0,
+        "undefinedVars": []
+      },
+      "typeCheck": {
+        "mode": "구문·의미 검사(의존성 타입 없이)",
+        "filesChecked": 1,
+        "typeErrors": 0,
+        "diagnostics": []
+      }
+    }
+  ],
+  "aggregate": {
+    "baseline": {
+      "runs": 36,
+      "okRuns": 36,
+      "failedRuns": 0,
+      "missingExpected": 0,
+      "harnessPathSeen": 0,
+      "token": 27,
+      "knownToken": 11,
+      "hardcoded": 17,
+      "replaceable": 15,
+      "tailwindDefault": 493,
+      "dynamic": 26,
+      "nonDs": 18,
+      "deprecated": 0,
+      "dsComponentUses": 12,
+      "parseFailed": 0,
+      "files": 36,
+      "compliance": 0.6136,
+      "tokenShareAll": 0.0503,
+      "costUsd": 2.751531,
+      "turns": 183,
+      "mcpToolCalls": 0,
+      "permissionDenials": 1
+    },
+    "dsmith": {
+      "runs": 36,
+      "okRuns": 36,
+      "failedRuns": 0,
+      "missingExpected": 0,
+      "harnessPathSeen": 0,
+      "token": 227,
+      "knownToken": 227,
+      "hardcoded": 0,
+      "replaceable": 0,
+      "tailwindDefault": 65,
+      "dynamic": 84,
+      "nonDs": 0,
+      "deprecated": 0,
+      "dsComponentUses": 44,
+      "parseFailed": 0,
+      "files": 36,
+      "compliance": 1,
+      "tokenShareAll": 0.7774,
+      "costUsd": 2.685521,
+      "turns": 157,
+      "mcpToolCalls": 5,
+      "permissionDenials": 0
+    }
+  }
+}

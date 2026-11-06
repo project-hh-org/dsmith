@@ -119,7 +119,7 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 `benchmarks/`(비공개 워크스페이스, 배포 안 함)는 같은 UI 생성 프롬프트 12개를 같은 에이전트에 두 조건으로 돌리고, 만들어진 파일을 위 "같은 규칙 엔진"(`evaluateFile`)으로 채점한다.
 
 <!-- bench:line -->
-벤치마크(프롬프트 12개 × 조건 2, claude -p, 2026-11-07): 토큰 사용률 4.0% (8/199) → 72.1% (75/104), 토큰 준수율 80.0% (8/10) → 100.0% (75/75), DS 외 컴포넌트 5 → 0, DS 컴포넌트 사용 5 → 15 — [benchmarks/results/2026-11-07-legacy-demo.md](benchmarks/results/2026-11-07-legacy-demo.md). 반복 1회 단일 측정이고, 채점은 dsmith 자신의 규칙 엔진이다(해석 한계는 보고서 참고).
+벤치마크(프롬프트 12개 × 조건 2 × 반복 3, claude -p, 2026-11-07): 토큰 사용률 평균 5.9% → 69.4% (차이 +63.5%p, 95% CI [+42.0, +82.6], 부호 검정 p=0.0117), DS 외 컴포넌트 반복당 평균 6.0 → 0.0 (부호 검정 p=0.0625), dsmith 코드를 쓰지 않는 독립 채점기 기준 사용률 2.9% → 76.0%(두 채점기 방향 일치 10 · 불일치 0), 타입 오류 0 → 0 — [benchmarks/results/2026-11-07-legacy-demo-k3.md](benchmarks/results/2026-11-07-legacy-demo-k3.md). 렌더링은 하지 않았고 모델·레포 하나다(해석 한계는 보고서 참고).
 
 - `baseline`: dsmith 연결 없음. `audit → init --all`을 거친 같은 베이스에서 `.dsmith/`·AGENTS.md DS 섹션·MCP·슬래시 명령만 뺀 복사본
 - `dsmith`: 같은 베이스에 `install` + `ai`를 끝낸 복사본
