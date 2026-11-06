@@ -17,6 +17,8 @@ import {
 } from "./base.js";
 import { assertReplayDir, collectChanges, readReplay, readReplaySource, writeOutputs, writeReplayMeta } from "./collect.js";
 import { CONDITIONS, type Aggregate, type BenchResult, type Condition, type ReplaySource, type RunRecord } from "./model.js";
+import { metricOfSums, sumsOf } from "./analysis.js";
+import { evaluateIndependent } from "./independent/index.js";
 import { loadPrompts, type Prompt } from "./prompts.js";
 import { renderReport } from "./report.js";
 import { aggregate, scoreRun } from "./score.js";
@@ -42,10 +44,29 @@ export interface BenchArgs {
   date: string | null;
   agentVersion: string | null;
   dryRun: boolean;
-  /** 누적 비용(USD)이 이 값을 넘으면 새 실행을 시작하지 않는다(agent 모드) */
-  maxTotalUsd: number;
-  /** 실패 실행(ok가 아닌 것)이 이 개수에 닿으면 새 실행을 시작하지 않는다(agent 모드) */
-  maxFailures: number;
+  /** 누적 비용(USD)이 이 값을 넘으면 새 실행을 시작하지 않는다(agent 모드). null이면 실행 수에 맞춘 기본값(resolveLimits) */
+  maxTotalUsd: number | null;
+  /** 실패 실행(ok가 아닌 것)이 이 개수에 닿으면 새 실행을 시작하지 않는다(agent 모드). null이면 실행 수에 맞춘 기본값 */
+  maxFailures: number | null;
+}
+
+/** 실측 프로브(결정 5, 부록 D.1)의 실행당 비용 추정 — 12×2×1 실측은 24회에 $1.79(평균 $0.075) */
+export const COST_PER_RUN_USD = 0.075;
+
+export function estimateCostUsd(plannedRuns: number): number {
+  return Math.round(plannedRuns * COST_PER_RUN_USD * 100) / 100;
+}
+
+/**
+ * 중단 기준. 명시한 값은 그대로 쓴다. 안 쓰면 실행 수에 맞춰 늘린다:
+ *  - 비용 한도 = max(8, ceil(추정 비용 × 1.5)) — 24회(추정 $1.8)는 기존 $8, 72회(추정 $5.4)는 $9
+ *  - 실패 한도 = max(6, ceil(실행 수 / 8)) — 24회는 6, 72회는 9
+ */
+export function resolveLimits(args: Pick<BenchArgs, "maxTotalUsd" | "maxFailures">, plannedRuns: number): { maxTotalUsd: number; maxFailures: number } {
+  return {
+    maxTotalUsd: args.maxTotalUsd ?? Math.max(8, Math.ceil(estimateCostUsd(plannedRuns) * 1.5)),
+    maxFailures: args.maxFailures ?? Math.max(6, Math.ceil(plannedRuns / 8)),
+  };
 }
 
 const USAGE = `사용법: pnpm bench (--agent "<명령>" | --replay <디렉터리> | --replay-set <이름>) [옵션]   (\`pnpm bench -- …\`도 같다)
@@ -60,8 +81,8 @@ const USAGE = `사용법: pnpm bench (--agent "<명령>" | --replay <디렉터�
   --out <결과.json>                  agent 기본 benchmarks/results/<date>-<repo>.json, replay 기본: 파일 없이 요약만 출력. agent는 실행마다 갱신한다
   --record <dir>                     agent 산출물 디렉터리 (기본 <out 확장자 뺀 경로>/outputs, meta.json에 출처를 기록)
   --timeout <초>                     에이전트 한 번의 제한 (기본 600)
-  --max-total-usd <n>                누적 비용이 n(USD)을 넘으면 새 실행을 시작하지 않고 aborted로 저장, 종료 코드 1 (기본 8)
-  --max-failures <n>                 실패 실행이 n개가 되면 같은 방식으로 중단 (기본 6)
+  --max-total-usd <n>                누적 비용이 n(USD)을 넘으면 새 실행을 시작하지 않고 aborted로 저장, 종료 코드 1 (기본 max(8, 추정 비용×1.5) — 24회 $8, 72회 $9)
+  --max-failures <n>                 실패 실행이 n개가 되면 같은 방식으로 중단 (기본 max(6, 실행 수/8) — 24회 6, 72회 9)
   --install-tool <도구>              dsmith 조건의 install --tool (기본: 에이전트 명령에서 추정)
   --pass-env <NAME>                  에이전트에 추가로 넘길 환경 변수 (반복 가능, CLAUDE* 불가)
   --keep                             실행 복사본을 지우지 않고 경로를 출력
@@ -153,10 +174,10 @@ export function parseBenchArgs(argv: string[], env: NodeJS.ProcessEnv = process.
   if (date !== null && !/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(`--date는 YYYY-MM-DD 형식이어야 합니다: ${date}`);
   const prompts = values.prompts === undefined ? null : splitList(values.prompts);
   if (prompts !== null && prompts.length === 0) fail("--prompts가 비어 있습니다");
-  const maxTotalUsd = values["max-total-usd"] === undefined ? 8 : Number(values["max-total-usd"]);
-  if (!Number.isFinite(maxTotalUsd) || maxTotalUsd <= 0) fail(`--max-total-usd는 양수(USD)여야 합니다: ${values["max-total-usd"] ?? ""}`);
-  const maxFailures = values["max-failures"] === undefined ? 6 : Number(values["max-failures"]);
-  if (!Number.isInteger(maxFailures) || maxFailures < 1) fail(`--max-failures는 1 이상의 정수여야 합니다: ${values["max-failures"] ?? ""}`);
+  const maxTotalUsd = values["max-total-usd"] === undefined ? null : Number(values["max-total-usd"]);
+  if (maxTotalUsd !== null && (!Number.isFinite(maxTotalUsd) || maxTotalUsd <= 0)) fail(`--max-total-usd는 양수(USD)여야 합니다: ${values["max-total-usd"] ?? ""}`);
+  const maxFailures = values["max-failures"] === undefined ? null : Number(values["max-failures"]);
+  if (maxFailures !== null && (!Number.isInteger(maxFailures) || maxFailures < 1)) fail(`--max-failures는 1 이상의 정수여야 합니다: ${values["max-failures"] ?? ""}`);
   const passEnv = values["pass-env"] ?? [];
   for (const name of passEnv) agentEnv([name], {}); // CLAUDE* 이면 Error
 
@@ -214,13 +235,20 @@ export async function planBench(args: BenchArgs): Promise<string[]> {
   const out = effectiveOut(args, date);
   const record = args.agent !== null ? effectiveRecord(args, out) : null;
   const total = prompts.length * args.conditions.length * args.repeat;
+  const limits = resolveLimits(args, total);
   return [
     `모드: ${args.agent !== null ? "agent" : "replay"} · 레포: ${args.repo} (${REPOS[args.repo]})`,
     args.agent !== null ? `에이전트 명령: ${args.agent}` : `replay 디렉터리: ${path.resolve(args.replay ?? "")}`,
     ...(args.agent !== null ? [`install 도구: ${args.installTool ?? defaultInstallTool(args.agent)} · 제한시간 ${args.timeoutSec}초 · 넘기는 환경 변수: ${Object.keys(agentEnv(args.passEnv)).join(", ")}`] : []),
     `조건: ${args.conditions.join(", ")} · 반복: ${args.repeat} · 프롬프트 ${prompts.length}개: ${prompts.map((p) => p.id).join(", ")}`,
     `실행 수: ${total} (순차)`,
-    ...(args.agent !== null ? [`중단 기준: 누적 $${args.maxTotalUsd} 초과 또는 실패 ${args.maxFailures}개 이상 — 넘으면 새 실행을 시작하지 않고 aborted로 저장`] : []),
+    ...(args.agent !== null
+      ? [
+          `예상 비용: 실행 ${total}회 × ~$${COST_PER_RUN_USD} ≈ $${estimateCostUsd(total)} (실측 프로브 평균, 실제는 달라질 수 있음)`,
+          `중단 기준: 누적 $${limits.maxTotalUsd} 초과 또는 실패 ${limits.maxFailures}개 이상 — 넘으면 새 실행을 시작하지 않고 aborted로 저장${args.maxTotalUsd === null && args.maxFailures === null ? " (실행 수에 맞춘 기본값; --max-total-usd·--max-failures로 바꿈)" : ""}`,
+          ...(estimateCostUsd(total) > limits.maxTotalUsd ? [`경고: 예상 비용 $${estimateCostUsd(total)}가 비용 한도 $${limits.maxTotalUsd}를 넘는다 — 끝까지 가기 전에 중단된다`] : []),
+        ]
+      : []),
     `결과 JSON: ${out ?? "(파일 없음 — 요약만 출력)"}`,
     ...(record !== null ? [`산출물(replay 배치): ${record}`] : []),
     `날짜: ${date}`,
@@ -316,6 +344,10 @@ export async function runBench(args: BenchArgs, log: (line: string) => void = ()
     const jobs: { prompt: Prompt; condition: Condition; rep: number }[] = [];
     for (const prompt of prompts) for (const condition of args.conditions) for (let rep = 1; rep <= args.repeat; rep += 1) jobs.push({ prompt, condition, rep });
 
+    const limits = resolveLimits(args, jobs.length);
+    // 독립 채점·타입 검사: root는 에이전트 복사본(agent) 또는 replay의 베이스. DS 모듈은 스냅샷 값을 일반 데이터로 넘긴다
+    const extrasOf = (root: string, changes: Parameters<typeof scoreRun>[0]["changes"]) =>
+      evaluateIndependent({ root, changes, dsModules: base.snapshot.ds.modules });
     let spent = 0;
     let failures = 0;
     let abortReason: string | null = null;
@@ -337,6 +369,7 @@ export async function runBench(args: BenchArgs, log: (line: string) => void = ()
           agentMeta: r.run.agentMeta ?? null,
           harnessPathSeen: r.run.harnessPathSeen ?? false,
           score: scoreOf(r.changes),
+          ...extrasOf(base.dir, r.changes),
         };
         runs.push(rec);
         log(`${label}: ${rec.status}`);
@@ -363,7 +396,8 @@ export async function runBench(args: BenchArgs, log: (line: string) => void = ()
         }
         const meta0 = { status, exitCode: res.exitCode, durationMs: res.durationMs, agentMeta: meta, harnessPathSeen };
         if (record !== null) await writeOutputs(record, condition, prompt.id, rep, changes, meta0);
-        rec = { prompt: prompt.id, condition, rep, ...meta0, score: scoreOf(changes) };
+        // 복사본이 아직 있을 때(정리 전에) 독립 채점과 타입 검사를 한다
+        rec = { prompt: prompt.id, condition, rep, ...meta0, score: scoreOf(changes), ...extrasOf(copy, changes) };
         log(`${label}: ${status} (${Math.round(res.durationMs / 100) / 10}s, 변경 ${changes.length}개${meta?.costUsd !== undefined ? `, $${meta.costUsd}` : ""})`);
         if (res.exitCode !== 0 && res.stderrTail.trim() !== "") log(`  stderr: ${res.stderrTail.trim().split("\n").slice(-3).join(" | ")}`);
       } catch (e) {
@@ -383,8 +417,8 @@ export async function runBench(args: BenchArgs, log: (line: string) => void = ()
 
       spent += rec.agentMeta?.costUsd ?? 0;
       if (rec.status !== "ok") failures += 1;
-      if (spent > args.maxTotalUsd) abortReason = `누적 비용 ${usd(spent)} > 한도 ${usd(args.maxTotalUsd)}`;
-      else if (failures >= args.maxFailures) abortReason = `실패 실행 ${failures}개 ≥ 한도 ${args.maxFailures}개`;
+      if (spent > limits.maxTotalUsd) abortReason = `누적 비용 ${usd(spent)} > 한도 ${usd(limits.maxTotalUsd)}`;
+      else if (failures >= limits.maxFailures) abortReason = `실패 실행 ${failures}개 ≥ 한도 ${limits.maxFailures}개`;
       if (abortReason !== null) {
         log(`중단: ${abortReason} — 남은 실행 ${jobs.length - runs.length}개는 시작하지 않음`);
         break;
@@ -419,8 +453,12 @@ export function summaryLines(result: BenchResult): string[] {
   for (const c of result.conditions) {
     const a = result.aggregate[c];
     if (a === undefined) continue;
+    const sums = result.runs.filter((r) => r.condition === c).map(sumsOf);
+    const indepUsage = metricOfSums(sums, "indepUsage");
+    const typeErrors = metricOfSums(sums, "typeErrors");
+    const extra = `${indepUsage !== null ? ` · 독립 사용률 ${pct(indepUsage)}` : ""}${typeErrors !== null ? ` · 타입 오류 ${typeErrors}` : ""}`;
     lines.push(
-      `${c.padEnd(8)} 준수율 ${pct(a.compliance)} (token ${a.token} / hardcoded ${a.hardcoded}) · tailwind-default ${a.tailwindDefault} · knownToken ${a.knownToken} · nonDs ${a.nonDs} · dynamic ${a.dynamic} · DS 사용 ${a.dsComponentUses}${a.mcpToolCalls !== null ? ` · MCP 호출 ${a.mcpToolCalls}` : ""}${a.permissionDenials !== null ? ` · denial ${a.permissionDenials}` : ""} · 실행 ${a.runs} (실패 ${a.failedRuns}, 기대 파일 없음 ${a.missingExpected})${a.costUsd !== null ? ` · $${a.costUsd}` : ""}`,
+      `${c.padEnd(8)} 준수율 ${pct(a.compliance)} (token ${a.token} / hardcoded ${a.hardcoded}) · tailwind-default ${a.tailwindDefault} · knownToken ${a.knownToken} · nonDs ${a.nonDs} · dynamic ${a.dynamic} · DS 사용 ${a.dsComponentUses}${extra}${a.mcpToolCalls !== null ? ` · MCP 호출 ${a.mcpToolCalls}` : ""}${a.permissionDenials !== null ? ` · denial ${a.permissionDenials}` : ""} · 실행 ${a.runs} (실패 ${a.failedRuns}, 기대 파일 없음 ${a.missingExpected})${a.costUsd !== null ? ` · $${a.costUsd}` : ""}`,
     );
   }
   return lines;

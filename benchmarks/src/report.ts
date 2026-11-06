@@ -2,33 +2,10 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { DASH, byCodeUnit, esc, ratioCell, table } from "./format.js";
 import { CONDITIONS } from "./model.js";
 import type { Aggregate, BenchResult, Condition, RunRecord } from "./model.js";
-
-const DASH = "—";
-const byCodeUnit = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
-/** 0..1 → "12.5%". null이면 "—" */
-function pct(value: number | null | undefined): string {
-  return value === null || value === undefined ? DASH : `${(value * 100).toFixed(1)}%`;
-}
-
-/** 비율 + 분자/분모. 분모 0이면 "— (0/0)" */
-function ratioCell(num: number, den: number): string {
-  return den === 0 ? `${DASH} (${num}/${den})` : `${pct(num / den)} (${num}/${den})`;
-}
-
-function esc(text: string): string {
-  return text.replace(/\|/g, "\\|");
-}
-
-function table(header: string[], rows: string[][]): string[] {
-  return [
-    `| ${header.join(" | ")} |`,
-    `| ${header.map(() => "---").join(" | ")} |`,
-    ...rows.map((r) => `| ${r.join(" | ")} |`),
-  ];
-}
+import { independentSection, limitLines, pairedSection, repeatSection, statsLineParts } from "./sections.js";
 
 function summaryRows(agg: Partial<Record<Condition, Aggregate>>): string[][] {
   const cell = (c: Condition, f: (a: Aggregate) => string): string => {
@@ -199,19 +176,10 @@ export function renderReport(result: BenchResult): string {
     "",
   );
 
+  lines.push(...repeatSection(result), ...pairedSection(result), ...independentSection(result));
+
   const recordPath = `benchmarks/results/${result.date}-${result.repo}/outputs`;
-  lines.push(
-    "## 해석 한계",
-    "",
-    `- 프롬프트 ${n}개·반복 ${result.repeat}회의 단일 측정이며 에이전트 출력은 비결정적이다.`,
-    "- 유의성 검정을 하지 않았다.",
-    "- 준수율 분모에서 Tailwind 기본 스케일 클래스는 뺐다(별도 행).",
-    "- 변수·상수에 담은 className은 dynamic으로만 세며 준수율 분모에 들어가지 않음.",
-    "- 렌더링·타입 검사는 하지 않았다. `tokens.css` 로드·프리셋 연결 여부는 측정 밖이다.",
-    "- 채점은 dsmith 자신의 규칙 엔진이고 dsmith 조건의 에이전트는 같은 엔진(`lint_snippet`)을 쓸 수 있다. 같은 기준에 맞추도록 돕는 효과를 잰 것이지 독립 평가가 아니다.",
-    originLine(result, recordPath),
-    "",
-  );
+  lines.push("## 해석 한계", "", ...limitLines(result, originLine(result, recordPath)), "");
   return lines.join("\n");
 }
 
@@ -241,6 +209,11 @@ export function readmeLine(result: BenchResult, mdPath: string): string {
   if (base === undefined || ds === undefined) throw new Error("README 줄에는 baseline과 dsmith 조건이 둘 다 필요함");
   if (result.agent.command === null) throw new Error("에이전트 명령이 없는 결과로는 README 줄을 만들지 않음");
   const label = result.agent.command.trim().split(/\s+/).slice(0, 2).join(" ");
+  // 반복이 2회 이상이면 평균·CI·부호 검정 형식, 1회면 아래의 기존 형식 그대로
+  const stats = statsLineParts(result);
+  if (stats !== null) {
+    return `벤치마크(프롬프트 ${result.prompts.length}개 × 조건 2 × 반복 ${result.repeat}, ${label}, ${result.date}): ${stats.usage}, ${stats.nonDs} — ${mdPath}`;
+  }
   return `벤치마크(프롬프트 ${result.prompts.length}개 × 조건 2, ${label}, ${result.date}): 토큰 준수율 ${ratioCell(base.token, base.token + base.hardcoded)} → ${ratioCell(ds.token, ds.token + ds.hardcoded)}, DS 외 컴포넌트 ${base.nonDs} → ${ds.nonDs} — ${mdPath}`;
 }
 

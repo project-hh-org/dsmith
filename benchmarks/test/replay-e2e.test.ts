@@ -139,10 +139,21 @@ describe("replay (합성 산출물, 네트워크·에이전트 없음)", () => {
     const lines = await planBench(args(["--agent", "node x.mjs", "--repeat", "2", "--prompts", "06-badge,12-pagination", "--date", "2026-11-01", "--dry-run"]));
     expect(lines.join("\n")).toContain("실행 수: 8");
     expect(lines.join("\n")).toContain("중단 기준: 누적 $8 초과 또는 실패 6개 이상");
+    expect(lines.join("\n")).toContain("예상 비용: 실행 8회 × ~$0.075 ≈ $0.6");
     expect(lines.join("\n")).toContain("agents-md");
     expect(lines.join("\n")).toContain("2026-11-01-legacy-demo.json");
     // 프롬프트는 id 순으로 센다
     expect(lines.join("\n")).toContain("06-badge, 12-pagination");
+  });
+
+  it("--dry-run --repeat 3 (12개 × 2조건 = 72회): 예상 비용과 실행 수에 맞춘 중단 기준을 보여 주고, 명시한 값은 그대로 쓴다", async () => {
+    const text = (await planBench(args(["--repeat", "3", "--dry-run"]))).join("\n");
+    expect(text).toContain("실행 수: 72");
+    expect(text).toContain("예상 비용: 실행 72회 × ~$0.075 ≈ $5.4");
+    expect(text).toContain("중단 기준: 누적 $9 초과 또는 실패 9개 이상");
+    const custom = (await planBench(args(["--repeat", "3", "--max-total-usd", "4", "--max-failures", "3", "--dry-run"]))).join("\n");
+    expect(custom).toContain("중단 기준: 누적 $4 초과 또는 실패 3개 이상");
+    expect(custom).toContain("경고: 예상 비용 $5.4가 비용 한도 $4를 넘는다");
   });
 });
 

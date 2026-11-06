@@ -131,11 +131,12 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 ```
 pnpm -r build
 pnpm bench --repo legacy-demo --agent "claude -p --output-format stream-json --verbose --model sonnet --max-turns 20 --max-budget-usd 0.5 --permission-mode acceptEdits --allowedTools mcp__dsmith --setting-sources project --no-session-persistence"
+pnpm bench --repo legacy-demo --repeat 3 --dry-run                # 계획과 예상 비용(72회 × ~$0.075 ≈ $5.4)만 출력, 실행 안 함. 실측은 --agent "…" --repeat 3
 pnpm bench:replay                                                # 미리 받은 산출물을 채점만(네트워크·에이전트 없음)
 pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 JSON → 마크다운 보고서 + README 줄
 ```
 
-명령은 저장소 루트에서 실행한다. `--`는 붙여도 되고 안 붙여도 되며, 상대 경로(`--out`·`--record`·`--replay`·`--in`)는 명령을 실행한 폴더 기준이다. `--max-total-usd`(기본 8)와 `--max-failures`(기본 6)를 넘으면 새 실행을 시작하지 않고 `status: "aborted"`로 부분 결과를 저장한 뒤 종료 코드 1로 끝난다. 결과 JSON은 실행마다 갱신한다.
+명령은 저장소 루트에서 실행한다. `--`는 붙여도 되고 안 붙여도 되며, 상대 경로(`--out`·`--record`·`--replay`·`--in`)는 명령을 실행한 폴더 기준이다. `--max-total-usd`와 `--max-failures`(안 쓰면 실행 수에 맞춘 기본값: 24회 $8·6개, 72회 $9·9개)를 넘으면 새 실행을 시작하지 않고 `status: "aborted"`로 부분 결과를 저장한 뒤 종료 코드 1로 끝난다. 결과 JSON은 실행마다 갱신한다.
 
 실행은 레포 원본이 아니라 `os.tmpdir()` 아래 임시 복사본에서 하고, 채점 코드(`benchmarks/`)는 복사본에 넣지 않는다. 에이전트에는 `CLAUDE*` 환경 변수를 넘기지 않고 모노레포 경로를 뺀 PATH를 주는 정리된 환경을 준다. 에이전트 출력에 채점 코드 경로가 보이면 그 실행에 `harnessPathSeen`을 표시하고 보고서에 경고를 쓴다. 결과 JSON·보고서·산출물은 `benchmarks/results/`에 남고, 산출물을 `--replay`로 다시 채점하면 같은 숫자가 나온다. 보고서는 dsmith 조건의 MCP 도구 호출 수와 permission denial 수도 센다. 자세한 옵션과 폴더 구조는 [benchmarks/README.md](benchmarks/README.md).
 
@@ -146,12 +147,14 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 - `knownToken` — token 중 베이스의 토큰 이름·프리셋 키를 실제로 가리킨 것(지어낸 변수 `var(--made-up)`는 제외)
 - DS 외 컴포넌트 — `prefer-ds-component` finding 수. 이 밖에 DS 컴포넌트 사용, deprecated, 파싱 실패, 기대 파일 없음을 센다
 - 바뀐 파일에서 새로 생긴 사용만 센다(수정 파일은 원래 있던 값을 빼고 비교 — `guard --ci`와 같은 방식)
+- 독립 사용률 = `정의된 var 참조 / (정의된 var + 정의 없는 var + 색 리터럴 + px·rem 길이 리터럴 + Tailwind 기본 팔레트·스케일)` — dsmith 엔진과 코드를 공유하지 않는 별도 채점기의 값. `typeErrors`는 바뀐 파일의 구문·의미 진단 수(의존성 타입 없이)
 
 ### 주장하지 않는 것
 
-- 프롬프트 수와 반복 횟수가 작은 단일 측정이다. 에이전트 출력은 비결정적이고 유의성 검정을 하지 않았으므로 "이번 실행에서 이렇게 나왔다"까지만 말한다.
-- 채점은 dsmith 자신의 규칙 엔진이고, `dsmith` 조건의 에이전트는 같은 엔진(`lint_snippet`)을 쓸 수 있다. 같은 기준에 맞추도록 돕는 효과를 잰 것이지 독립 평가가 아니다.
-- 렌더링·타입 검사는 하지 않았다. 코드가 화면에서 맞게 보이는지, `tokens.css`를 불러오는지는 측정 밖이다.
+- 프롬프트 12개의 작은 표본이다. 에이전트 출력은 비결정적이라 `--repeat k`로 반복하면 프롬프트·조건별 평균과 최소–최대, 프롬프트 단위 대응 비교(부호 검정, 평균 차이의 95% 부트스트랩 CI)를 보고서에 싣는다. 반복 1회 결과는 "이번 실행에서 이렇게 나왔다"까지만 말한다. 위 README 줄은 반복 1회 단일 측정이다.
+- 채점은 두 가지다. 기본 점수는 dsmith 자신의 규칙 엔진이고 `dsmith` 조건의 에이전트는 같은 엔진(`lint_snippet`)을 쓸 수 있다 — 같은 기준에 맞추도록 돕는 효과를 잰 것이다. 이를 보완하려고 dsmith 코드를 쓰지 않는 독립 채점기(`benchmarks/src/independent/`)가 같은 산출물에서 색·길이 리터럴, Tailwind 기본 스케일, 정의된/정의 없는 `var(--x)`, 컴포넌트 import를 다시 세고 두 점수의 방향 일치도를 보고서에 밝힌다. 다만 독립 채점기도 같은 저자의 휴리스틱이라 제3자 평가는 아니다.
+- 바뀐 파일을 TypeScript 컴파일러로 검사하지만 복사본에 `node_modules`가 없어 외부 패키지(react 등) 타입 없이 구문·의미만 본다. 외부 API 오용·JSX 내장 요소 속성 오타는 못 잡는다. 정의 없는 `var()` 참조 수로 토큰 정의는 확인하지만, 렌더링은 하지 않아 화면에서 맞게 보이는지와 `tokens.css`가 실제로 로드되는지는 측정 밖이다.
+- 모델 하나(`sonnet`)·에이전트 하나(`claude -p`)·레포 하나(legacy-demo)다. dsmith 조건의 개선이 AGENTS.md DS 섹션 때문인지 MCP 도구 때문인지도 분리하지 않았다(MCP 호출 수만 보고서에 싣는다).
 - `bench:replay`가 쓰는 산출물은 합성이다. 그 숫자는 채점 파이프라인 검증용이며 성능 근거가 아니다. 실제 실행의 산출물을 `--replay`로 다시 채점한 보고서에는 산출물 폴더의 `meta.json`에 기록된 출처(agent)가 표시된다.
 
 ## 지원하는 스타일링 방식

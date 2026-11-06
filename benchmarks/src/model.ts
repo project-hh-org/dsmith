@@ -1,3 +1,7 @@
+import type { IndependentScore, TypeCheckRecord } from "./independent/types.js";
+
+export type { IndependentScore, TypeCheckRecord };
+
 export type Condition = "baseline" | "dsmith";
 export const CONDITIONS: readonly Condition[] = ["baseline", "dsmith"];
 
@@ -72,6 +76,10 @@ export interface RunRecord {
   agentMeta: AgentMeta | null;
   harnessPathSeen: boolean;
   score: RunScore;
+  /** dsmith와 독립인 채점(옛 결과 JSON에는 없다) */
+  independent?: IndependentScore;
+  /** 바뀐 파일의 타입 검사(옛 결과 JSON에는 없다) */
+  typeCheck?: TypeCheckRecord;
   error?: string;
 }
 

@@ -18,7 +18,10 @@
     "@dsmith-dev/extractor-styled": "workspace:*",
     "@dsmith-dev/extractor-tailwind": "workspace:*",
     "@dsmith-dev/guard": "workspace:*",
-    "picomatch": "^4.0.7"
+    "picomatch": "^4.0.7",
+    "@babel/parser": "^7.29.12",
+    "postcss": "^8.5.32",
+    "typescript": "^5.7.0"
   },
   "devDependencies": {
     "@types/picomatch": "^4.0.3",

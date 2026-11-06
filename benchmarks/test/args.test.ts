@@ -1,7 +1,7 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { MONOREPO_ROOT } from "../src/base.js";
-import { CLAUDE_AGENT_COMMAND, parseBenchArgs } from "../src/run.js";
+import { CLAUDE_AGENT_COMMAND, COST_PER_RUN_USD, estimateCostUsd, parseBenchArgs, resolveLimits } from "../src/run.js";
 
 describe("parseBenchArgs", () => {
   it("기본값: legacy-demo, 조건 2개, repeat 1, timeout 600", () => {
@@ -10,8 +10,8 @@ describe("parseBenchArgs", () => {
       repo: "legacy-demo",
       agent: null,
       replay: "/abs/replay/legacy-demo",
-      maxTotalUsd: 8,
-      maxFailures: 6,
+      maxTotalUsd: null,
+      maxFailures: null,
       conditions: ["baseline", "dsmith"],
       repeat: 1,
       prompts: null,
@@ -108,8 +108,18 @@ describe("parseBenchArgs", () => {
     expect(() => parseBenchArgs(["--replay-set", "a", "--replay", "b"])).toThrow(/함께 쓸 수 없습니다/);
   });
 
-  it("중단 기준: --max-total-usd 기본 8, --max-failures 기본 6, 잘못된 값은 Error", () => {
-    expect(parseBenchArgs(["--agent", "x"])).toMatchObject({ maxTotalUsd: 8, maxFailures: 6 });
+  it("중단 기준은 실행 수에 맞춰 늘어난다: 24회는 $8·6개, 72회(--repeat 3)는 $9·9개, 명시하면 그대로", () => {
+    expect(resolveLimits({ maxTotalUsd: null, maxFailures: null }, 24)).toEqual({ maxTotalUsd: 8, maxFailures: 6 });
+    // 72 × 0.075 = 5.4 → ×1.5 = 8.1 → 올림 9, 72/8 = 9
+    expect(resolveLimits({ maxTotalUsd: null, maxFailures: null }, 72)).toEqual({ maxTotalUsd: 9, maxFailures: 9 });
+    expect(resolveLimits({ maxTotalUsd: 20, maxFailures: 2 }, 72)).toEqual({ maxTotalUsd: 20, maxFailures: 2 });
+    expect(estimateCostUsd(24)).toBe(1.8);
+    expect(estimateCostUsd(72)).toBe(5.4);
+    expect(COST_PER_RUN_USD).toBe(0.075);
+  });
+
+  it("중단 기준 옵션: 안 쓰면 null(기본값은 실행 수로 정함), 명시하면 숫자, 잘못된 값은 Error", () => {
+    expect(parseBenchArgs(["--agent", "x"])).toMatchObject({ maxTotalUsd: null, maxFailures: null });
     expect(parseBenchArgs(["--agent", "x", "--max-total-usd", "1.5", "--max-failures", "2"])).toMatchObject({ maxTotalUsd: 1.5, maxFailures: 2 });
     expect(() => parseBenchArgs(["--agent", "x", "--max-total-usd", "0"])).toThrow(/--max-total-usd/);
     expect(() => parseBenchArgs(["--agent", "x", "--max-total-usd", "abc"])).toThrow(/--max-total-usd/);
