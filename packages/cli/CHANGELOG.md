@@ -1,5 +1,27 @@
 # dsmith
 
+## 0.2.1
+
+### Patch Changes
+
+- [`bd6c827`](https://github.com/project-hh-org/dsmith/commit/bd6c827a68d2053d09f1c9767721c50ccd082632) Thanks [@dahee90522](https://github.com/dahee90522)! - `dsmith --version` 지원, 릴리스 태그 push
+- Updated dependencies []:
+  - @dsmith-dev/agent-skill@0.2.1
+  - @dsmith-dev/catalog@0.2.1
+  - @dsmith-dev/core@0.2.1
+  - @dsmith-dev/detect@0.2.1
+  - @dsmith-dev/extractor-api@0.2.1
+  - @dsmith-dev/extractor-css@0.2.1
+  - @dsmith-dev/extractor-emotion@0.2.1
+  - @dsmith-dev/extractor-inline-style@0.2.1
+  - @dsmith-dev/extractor-mui-sx@0.2.1
+  - @dsmith-dev/extractor-styled@0.2.1
+  - @dsmith-dev/extractor-tailwind@0.2.1
+  - @dsmith-dev/guard@0.2.1
+  - @dsmith-dev/init@0.2.1
+  - @dsmith-dev/mcp-server@0.2.1
+  - @dsmith-dev/migrate@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes

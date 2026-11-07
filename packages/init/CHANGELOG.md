@@ -1,5 +1,13 @@
 # @dsmith-dev/init
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dsmith-dev/core@0.2.1
+  - @dsmith-dev/detect@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
