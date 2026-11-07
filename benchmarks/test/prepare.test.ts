@@ -96,11 +96,16 @@ describe("prepareBase / prepareCondition / makeRunCopy", () => {
         // 스킬을 지운 뒤 빈 .claude 디렉터리도 남기지 않는다
         if (!matrix[c as keyof typeof matrix][2]) expect(has(d, ".claude"), c).toBe(false);
       }
-      // .mcp.json·.dsmith·AGENTS.md는 있는 조건끼리 같은 내용이다
+      // .mcp.json·.dsmith는 있는 조건끼리 같은 내용이다. AGENTS.md 섹션은 실제 install처럼 설치된 표면에 맞게 렌더링되므로
+      // agents-only(기본 install)에는 MCP·슬래시 명령 언급이 없고, dsmith(--mcp --skills)에는 있다.
       const same = (rel: string, a: string, b: string): void => expect(fs.readFileSync(path.join(a, rel)), rel).toEqual(fs.readFileSync(path.join(b, rel)));
       same(".mcp.json", mcpOnly, dsmith);
-      same("AGENTS.md", agentsOnly, dsmith);
-      for (const f of listFiles(agentsOnly).filter((x) => x.startsWith(".dsmith/") && !x.startsWith(".dsmith/reports/"))) same(f, agentsOnly, dsmith);
+      const agentsText = (d: string): string => fs.readFileSync(path.join(d, "AGENTS.md"), "utf-8");
+      expect(agentsText(agentsOnly)).not.toMatch(/resolve_token|search_component|lint_snippet|\/ds-check/);
+      expect(agentsText(dsmith)).toMatch(/resolve_token/);
+      expect(agentsText(dsmith)).toMatch(/\/ds-check/);
+      // ai.json은 섹션을 렌더링한 표면 정보를 담으므로 조건마다 다르다
+      for (const f of listFiles(agentsOnly).filter((x) => x.startsWith(".dsmith/") && !x.startsWith(".dsmith/reports/") && x !== ".dsmith/ai.json")) same(f, agentsOnly, dsmith);
       expect(fs.readFileSync(path.join(mcpOnly, ".mcp.json"), "utf-8")).toContain(CLI_BIN);
 
       // 네 복사본의 차이는 전환 경로(AGENTS.md·.mcp.json·.claude/·.dsmith/)뿐이고, 나머지 파일 집합과 내용은 같다

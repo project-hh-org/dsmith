@@ -120,13 +120,21 @@ export function dsmithInstallArgs(installTool: string): string[] {
   return ["install", "--tool", installTool, "--mcp", "--skills", "--mcp-command", `node ${CLI_BIN}`, "--json"];
 }
 
+/** 조건별 실제 install 명령. agents-only = 기본 install, agents-mcp·mcp-only = --mcp, dsmith = --mcp --skills. */
+export function conditionInstallArgs(condition: Exclude<Condition, "baseline">, installTool: string): string[] {
+  if (condition === "dsmith") return dsmithInstallArgs(installTool);
+  if (condition === "agents-only") return ["install", "--tool", installTool, "--json"];
+  return ["install", "--tool", installTool, "--mcp", "--mcp-command", `node ${CLI_BIN}`, "--json"];
+}
+
 /**
  * base.dir을 새 mkdtemp로 복사한 조건 템플릿. 2×2: AGENTS.md DS 섹션 × MCP 서버(.mcp.json).
  * baseline: `.dsmith/`·`.mcp.json`·AGENTS.md의 dsmith 섹션(그것뿐이면 파일째) 삭제 → dsmith 흔적 없음.
- * dsmith: `install --tool <installTool> --mcp --skills --mcp-command "node <CLI_BIN>"` (ai는 베이스에서 이미 실행됨) → AGENTS.md에 DS 마커가 있어야 한다.
- * agents-only: dsmith 복사본에서 `.mcp.json`·`.claude/skills` 삭제 (AGENTS.md 섹션과 섹션이 가리키는 `.dsmith/`는 유지).
- * mcp-only: dsmith 복사본에서 AGENTS.md dsmith 섹션(그것뿐이면 파일째)·`.claude/skills` 삭제 (`.mcp.json`·`.dsmith/` 유지).
- * agents-mcp: dsmith 복사본에서 `.claude/skills`만 삭제 (AGENTS.md 섹션·`.mcp.json`·`.dsmith/` 유지) — 슬래시 명령의 몫을 가르는 조건.
+ * 나머지는 사용자가 칠 install 명령 그대로(`conditionInstallArgs`, ai는 베이스에서 이미 실행됨) — 섹션 문구가 설치된 표면에 맞게 렌더링된다.
+ * agents-only: `install`(기본) → AGENTS.md 섹션만(MCP·슬래시 명령 언급 없음).
+ * agents-mcp: `install --mcp` → 섹션(MCP 도구 언급) + `.mcp.json`.
+ * mcp-only: `install --mcp` 뒤 AGENTS.md dsmith 섹션 삭제 → `.mcp.json`만.
+ * dsmith: `install --mcp --skills` → 전부.
  */
 export async function prepareCondition(base: Base, condition: Condition, installTool: string): Promise<string> {
   const dir = await mkTmp(`dsmith-bench-${condition}-`);
@@ -138,18 +146,11 @@ export async function prepareCondition(base: Base, condition: Condition, install
       await fs.rm(path.join(dir, ".mcp.json"), { force: true });
       await stripAgentsSection(dir);
     } else {
-      await runCli(dir, dsmithInstallArgs(installTool));
+      // 사용자가 실제로 칠 install 명령 그대로 만든다 — AGENTS.md 섹션 문구가 설치된 표면(MCP·스킬)에 맞게 렌더링된다.
+      await runCli(dir, conditionInstallArgs(condition, installTool));
       const agents = await fs.readFile(path.join(dir, "AGENTS.md"), "utf-8").catch(() => "");
       if (!agents.includes("<!-- dsmith:ds:start -->")) throw new Error(`dsmith 조건 템플릿의 AGENTS.md에 DS 섹션이 없습니다: ${dir}`);
-      if (condition === "agents-only") {
-        await fs.rm(path.join(dir, ".mcp.json"), { force: true });
-        await stripSkills(dir);
-      } else if (condition === "mcp-only") {
-        await stripAgentsSection(dir);
-        await stripSkills(dir);
-      } else if (condition === "agents-mcp") {
-        await stripSkills(dir);
-      }
+      if (condition === "mcp-only") await stripAgentsSection(dir);
     }
     return dir;
   } catch (e) {

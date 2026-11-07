@@ -199,20 +199,27 @@ describe("mergeResults", () => {
     refuse(first(), { ...second(), mode: "replay" }, /replay 결과/);
   });
 
-  it("날짜·에이전트 버전·dsmith 커밋·관측 모델이 달라도 지문이 같으면(또는 둘 다 legacy면) 합친다", () => {
+  it("날짜·에이전트 버전·관측 모델이 달라도 지문·dsmith 커밋이 같으면(또는 둘 다 legacy면) 합친다", () => {
     expect(() => mergeResults([{ file: "a.json", result: first() }, { file: "b.json", result: { ...second(), agent: { ...second().agent, models: ["other"] } } }])).not.toThrow();
     const fa = withFp(first());
-    const fb = withFp(second());
+    const fb = { ...withFp(second()), dsmith: fa.dsmith };
     expect(() => mergeResults([{ file: "a.json", result: fa }, { file: "b.json", result: fb }])).not.toThrow();
+  });
+
+  it("지문이 있는 결과끼리는 dsmith 커밋이 다르면 거부한다(섹션 템플릿이 빌드마다 바뀔 수 있음)", () => {
+    const fa = withFp(first());
+    const fb = { ...withFp(second()), dsmith: { ...fa.dsmith, commit: "0123456789abcdef" } };
+    expect(() => mergeResults([{ file: "a.json", result: fa }, { file: "b.json", result: fb }])).toThrow(/dsmith 커밋/);
   });
 
   describe("설정 지문", () => {
     const mergeFp = (a: BenchResult, b: BenchResult): BenchResult => mergeResults([{ file: "a.json", result: a }, { file: "b.json", result: b }]);
 
-    it("공유하는 AGENTS.md 섹션이 다르면 무엇이 다른지 적어 거부한다", () => {
-      const b = withFp(second());
+    it("AGENTS.md 섹션은 설치 표면(기본 / --mcp / --mcp --skills)별로 렌더링되어 다른 표면끼리는 비교하지 않는다", () => {
+      const a = withFp(result(["agents-mcp", "dsmith"]));
+      const b = { ...withFp(second()), dsmith: a.dsmith };
       b.setupFingerprint = { ...b.setupFingerprint, "agents-only": { ...fp("agents-only"), agentsSection: "x".repeat(64) } };
-      expect(() => mergeFp(withFp(result(["agents-mcp", "dsmith"])), b)).toThrow(/병합 거부: 설정이 다릅니다.*AGENTS\.md 섹션.*agents-mcp \(a\.json\).*agents-only \(b\.json\)/s);
+      expect(() => mergeFp(a, b)).not.toThrow();
     });
 
     it("MCP 서버 도구 설명·instructions 지문이 다르면 거부한다", () => {
@@ -229,9 +236,11 @@ describe("mergeResults", () => {
     });
 
     it("병합 결과는 입력의 지문을 조건별로 이어받고, 다시 병합해도 지문이 유지된다", () => {
-      const m = mergeFp(withFp(first()), withFp(second()));
+      // 지문이 있는 결과끼리는 같은 dsmith 커밋이어야 합쳐진다
+      const sameBuild = (r: BenchResult): BenchResult => ({ ...r, dsmith: first().dsmith });
+      const m = mergeFp(withFp(first()), sameBuild(withFp(second())));
       expect(Object.keys(m.setupFingerprint ?? {}).sort()).toEqual(["agents-only", "baseline", "dsmith", "mcp-only"]);
-      const again = mergeResults([{ file: "m.json", result: m }, { file: "c.json", result: withFp(result(["agents-mcp"])) }]);
+      const again = mergeResults([{ file: "m.json", result: m }, { file: "c.json", result: sameBuild(withFp(result(["agents-mcp"]))) }]);
       expect(again.setupFingerprint?.["agents-mcp"]).toBeDefined();
     });
   });

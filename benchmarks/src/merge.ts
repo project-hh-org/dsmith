@@ -31,21 +31,31 @@ function checkFingerprints(inputs: MergeInput[]): void {
     );
   }
   const diffs: string[] = [];
+  // AGENTS.md 섹션은 실제 install처럼 설치된 표면(기본 / --mcp / --mcp --skills)에 맞게 렌더링되므로 같은 표면끼리만 비교한다.
+  // 섹션 템플릿이 빌드마다 바뀌는 것은 아래 dsmith 커밋 비교로 잡는다.
+  const sectionVariant: Record<Condition, string> = { baseline: "none", "agents-only": "default", "mcp-only": "mcp", "agents-mcp": "mcp", dsmith: "mcp+skills" };
   for (const part of FINGERPRINT_PARTS) {
-    const seenPart = new Map<string, string[]>();
+    const groups = new Map<string, Map<string, string[]>>();
     for (const { file, result: r } of inputs) {
       for (const c of CONDITIONS) {
         const v = r.setupFingerprint?.[c]?.[part];
         if (v === null || v === undefined) continue;
+        const key = part === "agentsSection" ? sectionVariant[c] : "all";
+        const seenPart = groups.get(key) ?? new Map<string, string[]>();
         const list = seenPart.get(v) ?? [];
         list.push(`${c} (${file})`);
         seenPart.set(v, list);
+        groups.set(key, seenPart);
       }
     }
-    if (seenPart.size > 1) {
-      diffs.push(`${PART_LABEL[part]}: ${[...seenPart.entries()].map(([v, who]) => `${who.join("·")} = ${v.slice(0, 12)}`).join(" ≠ ")}`);
+    for (const seenPart of groups.values()) {
+      if (seenPart.size > 1) {
+        diffs.push(`${PART_LABEL[part]}: ${[...seenPart.entries()].map(([v, who]) => `${who.join("·")} = ${v.slice(0, 12)}`).join(" ≠ ")}`);
+      }
     }
   }
+  const commits = new Set(withFp.map((i) => i.result.dsmith.commit ?? "unknown"));
+  if (commits.size > 1) diffs.push(`dsmith 커밋: ${withFp.map((i) => `${i.file} = ${(i.result.dsmith.commit ?? "unknown").slice(0, 12)}`).join(" ≠ ")}`);
   if (diffs.length > 0) {
     throw new Error(`병합 거부: 설정이 다릅니다 — 같은 파일이 입력마다 다른 텍스트입니다. 한쪽을 같은 빌드로 다시 재거나 따로 보고하세요.\n  ${diffs.join("\n  ")}`);
   }

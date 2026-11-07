@@ -47,9 +47,11 @@ describe("fingerprintCondition (실제 조건 복사본)", () => {
     expect(f("agents-mcp").skills).toBeNull();
   });
 
-  it("조건 사이에서 같은 파일의 지문은 같다 (AGENTS.md 섹션·MCP 도구 설명)", () => {
-    expect(f("agents-only").agentsSection).toBe(f("dsmith").agentsSection);
-    expect(f("agents-mcp").agentsSection).toBe(f("dsmith").agentsSection);
+  it("MCP 도구 설명·설정은 조건 사이에서 같고, AGENTS.md 섹션은 설치된 표면에 따라 다르다", () => {
+    // 섹션은 실제 install처럼 렌더링된다: 기본(agents-only)·--mcp(agents-mcp)·--mcp --skills(dsmith)가 서로 다른 문구
+    expect(f("agents-only").agentsSection).not.toBe(f("dsmith").agentsSection);
+    expect(f("agents-mcp").agentsSection).not.toBe(f("dsmith").agentsSection);
+    expect(f("agents-mcp").mcpTools).toBe(f("dsmith").mcpTools);
     expect(f("mcp-only").mcpTools).toBe(f("dsmith").mcpTools);
     expect(f("mcp-only").mcpConfig).toBe(f("dsmith").mcpConfig);
   });
@@ -62,15 +64,18 @@ describe("fingerprintCondition (실제 조건 복사본)", () => {
       fs.writeFileSync(file, original.replace("<!-- dsmith:ds:start -->", "<!-- dsmith:ds:start -->\n(바뀐 문구)"));
       const changed = await fingerprintCondition(dir);
       expect(changed.agentsSection).not.toBe(f("agents-only").agentsSection);
-      const mk = (c: Condition, fp: SetupFingerprint): BenchResult =>
+      const mk = (c: Condition, fp: SetupFingerprint, commit: string | null): BenchResult =>
         ({
           version: 1, date: "2026-11-08", startedAt: null, repo: "legacy-demo", mode: "agent",
           agent: { command: "x", version: null, installTool: "claude-code", models: [] },
-          dsmith: { version: "0", commit: null }, base: { tokens: 1, dsComponents: 1, snapshotSha256: "s" },
+          dsmith: { version: "0", commit }, base: { tokens: 1, dsComponents: 1, snapshotSha256: "s" },
           prompts: [], conditions: [c], repeat: 1, timeoutSec: 1, status: "complete", abortReason: null,
           runs: [], aggregate: {}, setupFingerprint: { [c]: fp },
         }) as BenchResult;
-      expect(() => mergeResults([{ file: "a.json", result: mk("agents-only", changed) }, { file: "b.json", result: mk("dsmith", f("dsmith")) }])).toThrow(/AGENTS\.md 섹션/);
+      // 섹션 문구가 바뀐 빌드는 커밋이 다르다 → 다른 표면끼리라도 병합이 거부된다
+      expect(() => mergeResults([{ file: "a.json", result: mk("agents-only", changed, "aaaa") }, { file: "b.json", result: mk("dsmith", f("dsmith"), "bbbb") }])).toThrow(/dsmith 커밋/);
+      // 같은 빌드(같은 커밋)의 다른 표면끼리는 합친다
+      expect(() => mergeResults([{ file: "a.json", result: mk("agents-only", f("agents-only"), "aaaa") }, { file: "b.json", result: mk("dsmith", f("dsmith"), "aaaa") }])).not.toThrow();
     } finally {
       fs.writeFileSync(file, original);
     }
