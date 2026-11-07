@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Button as LegacyButton } from "@/components/Button";
 import { KpiCard } from "@/components/KpiCard";
 import { Table } from "@/components/Table";
 import { formatWon } from "@/lib/format";
@@ -40,6 +41,7 @@ export default function DashboardPage() {
         <div style={{ marginTop: "var(--space-4)", display: "flex", gap: "var(--space-2)" }}>
           <Button size="sm">주문 전체 보기</Button>
           <Button variant="ghost" size="sm">정산 내역</Button>
+          <LegacyButton variant="danger" size="sm" style={{ backgroundColor: "#e11d48", borderColor: "#9f1239" }}>긴급 공지</LegacyButton>
         </div>
       </section>
     </div>
