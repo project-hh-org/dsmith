@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "../../src/components/Button";
+import { Button } from "@/components/ui/button";
 import { Select } from "@/components/forms/Select";
 import { Table } from "@/components/Table";
 import { Badge, type OrderStatus } from "@/components/common/StatusBadge";
@@ -46,7 +46,7 @@ export default function OrdersPage() {
             ]}
           />
         </div>
-        <Button variant="secondary" size="sm">엑셀 다운로드</Button>
+        <Button variant="outline" size="sm">엑셀 다운로드</Button>
       </div>
 
       <Table
@@ -63,7 +63,7 @@ export default function OrdersPage() {
             key: "actions",
             header: "",
             render: (o) => (
-              <Button variant="danger" size="sm" onClick={() => setTarget(o)}>
+              <Button variant="destructive" size="sm" onClick={() => setTarget(o)}>
                 취소
               </Button>
             ),
@@ -74,7 +74,7 @@ export default function OrdersPage() {
       <Modal open={target !== null} title="주문 취소" onClose={() => setTarget(null)}>
         <p className="text-sm text-gray-700">{target?.id} 주문을 취소하시겠습니까?</p>
         <div style={{ marginTop: 18, textAlign: "right" }}>
-          <Button variant="danger" onClick={() => setTarget(null)}>
+          <Button variant="destructive" onClick={() => setTarget(null)}>
             주문 취소
           </Button>
         </div>

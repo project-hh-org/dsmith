@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 body {
-  background: #F9FAFB;
-  color: #111827;
+  background: var(--color-gray-50);
+  color: var(--color-blue-900);
   font-family: "Pretendard", -apple-system, sans-serif;
 }
 
 a {
-  color: #3B82F6;
+  color: var(--color-blue-400);
   text-decoration: none;
 }
 
@@ -18,13 +18,13 @@ a:hover {
 }
 
 .page-title {
-  font-size: 22px;
+  font-size: var(--text-xl);
   font-weight: 700;
   margin-bottom: 18px;
 }
 
 .danger-text {
-  color: #e53e3e;
+  color: var(--color-red-500);
 }
 
 .card-shadow {

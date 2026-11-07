@@ -20,7 +20,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       <h1 className="page-title">상품 상세 #{params.id}</h1>
 
       <div className="bg-white rounded-lg px-[18px] py-4 border border-gray-200">
-        <h2 className="text-lg font-semibold text-[#111827]">{PRODUCT.name}</h2>
+        <h2 className="text-lg font-semibold text-[color:var(--color-blue-900)]">{PRODUCT.name}</h2>
         <p className="mt-2 text-2xl font-bold text-gray-900">{formatWon(PRODUCT.price)}</p>
         <p className="mt-[22px] text-sm text-gray-500">
           재고 {total}개 (옵션별 비중: {PRODUCT.variants.map((v) => `${v.color} ${percent(v.stock, total)}`).join(", ")})

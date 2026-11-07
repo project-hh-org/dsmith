@@ -20,8 +20,8 @@ export function Table<T extends Record<string, any>>({ columns, rows, rowKey, em
   }
 
   return (
-    <table className="w-full text-sm bg-white border border-[#E5E7EB]">
-      <thead className="bg-[#F9FAFB]">
+    <table className="w-full text-sm bg-white border border-[color:var(--color-gray-100)]">
+      <thead className="bg-[color:var(--color-gray-50)]">
         <tr>
           {columns.map((col) => (
             <th

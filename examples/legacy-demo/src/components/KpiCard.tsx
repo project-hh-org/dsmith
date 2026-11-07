@@ -13,9 +13,9 @@ export function KpiCard({ label, value, delta }: KpiCardProps) {
   return (
     <div
       className="bg-white rounded-lg p-4 border border-gray-200"
-      style={{ padding: 13, borderColor: "#E5E7EB", minWidth: 200 }}
+      style={{ padding: 13, borderColor: "var(--color-gray-100)", minWidth: 200 }}
     >
-      <p className="text-sm text-[#6B7280]">{label}</p>
+      <p className="text-sm text-[color:var(--color-gray-500)]">{label}</p>
       <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
       {delta !== undefined && (
         <p className="mt-1 text-xs" style={{ color: up ? theme.primary : "#EF4444" }}>

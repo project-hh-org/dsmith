@@ -25,7 +25,7 @@ export function Modal({ open, title, onClose, children }: ModalProps) {
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} aria-label="닫기" className="text-[#6B7280]">
+          <button onClick={onClose} aria-label="닫기" className="text-[color:var(--color-gray-500)]">
             ✕
           </button>
         </div>

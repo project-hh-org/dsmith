@@ -39,7 +39,7 @@ export default function CustomersPage() {
         ]}
       />
 
-      <a href="/orders" className="mt-6 inline-block underline" style={{ color: "#3B82F6" }}>
+      <a href="/orders" className="mt-6 inline-block underline" style={{ color: "var(--color-blue-400)" }}>
         주문 내역으로 이동
       </a>
     </div>
