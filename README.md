@@ -114,6 +114,49 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 
 `migrate`가 후보를 고르는 규칙, ESLint 플러그인이 보고하는 규칙, `guard --ci`가 세는 규칙, MCP `lint_snippet`의 답은 모두 `@dsmith-dev/core`의 같은 함수(`evaluateFile`·`bestReplacement`)에서 나온다. 그래서 migrate가 바꾼 것은 guard가 신규로 세지 않고, ESLint가 보고한 것은 guard가 같은 위치에서 같은 값으로 센다. `packages/cli/test/e2e-migrate-guard.test.ts`가 `examples/legacy-demo`에서 `init → migrate → guard`를 끝까지 돌려 이를 고정한다.
 
+## 벤치마크
+
+`benchmarks/`(비공개 워크스페이스, 배포 안 함)는 같은 UI 생성 프롬프트 12개를 같은 에이전트에 두 조건으로 돌리고, 만들어진 파일을 위 "같은 규칙 엔진"(`evaluateFile`)으로 채점한다.
+
+<!-- bench:line -->
+벤치마크(프롬프트 12개 × 조건 2 × 반복 3, claude -p, 2026-11-07): 토큰 사용률 평균 5.9% → 69.4% (차이 +63.5%p, 95% CI [+42.0, +82.6], 부호 검정 p=0.0117), DS 외 컴포넌트 반복당 합계 6.0 → 0.0 (프롬프트 단위 부호 검정 n=5, p=0.0625), 독립 채점기 기준 사용률 평균 3.0% → 64.7% (+61.8%p, 95% CI [+42.7, +78.5], 부호 검정 p=0.0020), 타입 오류 0 → 0 — [benchmarks/results/2026-11-07-legacy-demo-k3.md](benchmarks/results/2026-11-07-legacy-demo-k3.md). 렌더링은 하지 않았고 모델·레포 하나다(해석 한계는 보고서 참고).
+
+- `baseline`: dsmith 연결 없음. `audit → init --all`을 거친 같은 베이스에서 `.dsmith/`·AGENTS.md DS 섹션·MCP·슬래시 명령만 뺀 복사본
+- `dsmith`: 같은 베이스에 `install` + `ai`를 끝낸 복사본
+- 두 조건 모두 `init --all`이 만든 `design-system/`(토큰·프리셋·Badge 스캐폴드)를 갖고 있다. 의도된 설계이고, 두 조건의 차이는 AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`뿐이다.
+- 두 조건은 같은 베이스·같은 채점 기준(토큰·DS 컴포넌트·정책 스냅샷)·같은 에이전트 명령·같은 환경 변수로 돈다. 프롬프트는 stdin으로 넘기므로 `codex exec`처럼 stdin으로 프롬프트를 받는 명령이면 다른 에이전트로도 돌릴 수 있다(실측은 `claude -p`만 했다).
+
+### 실행
+
+```
+pnpm -r build
+pnpm bench --repo legacy-demo --agent "claude -p --output-format stream-json --verbose --model sonnet --max-turns 20 --max-budget-usd 0.5 --permission-mode acceptEdits --allowedTools mcp__dsmith --setting-sources project --no-session-persistence"
+pnpm bench --repo legacy-demo --repeat 3 --dry-run                # 계획과 예상 비용(72회 × ~$0.075 ≈ $5.4)만 출력, 실행 안 함. 실측은 --agent "…" --repeat 3
+pnpm bench:replay                                                # 미리 받은 산출물을 채점만(네트워크·에이전트 없음)
+pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 JSON → 마크다운 보고서 + README 줄
+```
+
+명령은 저장소 루트에서 실행한다. `--`는 붙여도 되고 안 붙여도 되며, 상대 경로(`--out`·`--record`·`--replay`·`--in`)는 명령을 실행한 폴더 기준이다. `--max-total-usd`와 `--max-failures`(안 쓰면 실행 수에 맞춘 기본값: 24회 $8·6개, 72회 $9·9개)를 넘으면 새 실행을 시작하지 않고 `status: "aborted"`로 부분 결과를 저장한 뒤 종료 코드 1로 끝난다. 결과 JSON은 실행마다 갱신한다.
+
+실행은 레포 원본이 아니라 `os.tmpdir()` 아래 임시 복사본에서 하고, 채점 코드(`benchmarks/`)는 복사본에 넣지 않는다. 에이전트에는 `CLAUDE*` 환경 변수를 넘기지 않고 모노레포 경로를 뺀 PATH를 주는 정리된 환경을 준다. 에이전트 출력에 채점 코드 경로가 보이면 그 실행에 `harnessPathSeen`을 표시하고 보고서에 경고를 쓴다. 결과 JSON·보고서·산출물은 `benchmarks/results/`에 남고, 산출물을 `--replay`로 다시 채점하면 같은 숫자가 나온다. 보고서는 dsmith 조건의 MCP 도구 호출 수와 permission denial 수도 센다. 자세한 옵션과 폴더 구조는 [benchmarks/README.md](benchmarks/README.md).
+
+### 지표
+
+- 토큰 준수율 = `token / (token + hardcoded)` — 에이전트가 새로 쓴 스타일 값 중 토큰을 가리킨 비율. 보고서와 README 줄에는 `12.5% (1/8)`처럼 분자/분모를 함께 쓴다. Tailwind 기본 스케일 클래스(`p-4`, `bg-blue-100`)는 분모에서 빼고 별도 행으로 센다. 변수·상수에 담은 className은 dynamic으로만 세며 준수율 분모에 들어가지 않는다
+- 토큰 사용률 = `token / (token + hardcoded + tailwind 기본 스케일)`
+- `knownToken` — token 중 베이스의 토큰 이름·프리셋 키를 실제로 가리킨 것(지어낸 변수 `var(--made-up)`는 제외)
+- DS 외 컴포넌트 — `prefer-ds-component` finding 수. 이 밖에 DS 컴포넌트 사용, deprecated, 파싱 실패, 기대 파일 없음을 센다
+- 바뀐 파일에서 새로 생긴 사용만 센다(수정 파일은 원래 있던 값을 빼고 비교 — `guard --ci`와 같은 방식)
+- 독립 사용률 = `정의된 var 참조 / (정의된 var + 정의 없는 var + 색 리터럴 + px·rem 길이 리터럴 + Tailwind 기본 팔레트·스케일)` — dsmith 엔진과 코드를 공유하지 않는 별도 채점기의 값. `typeErrors`는 바뀐 파일의 구문·의미 진단 수(의존성 타입 없이)
+
+### 주장하지 않는 것
+
+- 프롬프트 12개의 작은 표본이다. 에이전트 출력은 비결정적이라 `--repeat k`로 반복하면 프롬프트·조건별 평균과 최소–최대, 프롬프트 단위 대응 비교(부호 검정, 평균 차이의 95% 부트스트랩 CI)를 보고서에 싣는다. 반복 1회 결과는 "이번 실행에서 이렇게 나왔다"까지만 말한다. 위 README 줄은 반복 3회, 프롬프트 12개 단위의 대응 비교이고 `bench:report`가 만든 줄과 글자 그대로 같다. 지표 4개를 각각 검정했고 다중 비교 보정은 하지 않았다(Bonferroni ×4를 적용하면 토큰 사용률 p=0.047).
+- 채점은 두 가지다. 기본 점수는 dsmith 자신의 규칙 엔진이고 `dsmith` 조건의 에이전트는 같은 엔진(`lint_snippet`)을 쓸 수 있다 — 같은 기준에 맞추도록 돕는 효과를 잰 것이다. 이를 보완하려고 dsmith 코드를 쓰지 않는 독립 채점기(`benchmarks/src/independent/`)가 같은 산출물에서 색·길이 리터럴, Tailwind 기본 스케일, 정의된/정의 없는 `var(--x)`, 컴포넌트 import를 다시 세고 두 점수의 방향 일치도를 보고서에 밝힌다. 다만 독립 채점기도 같은 저자의 휴리스틱이라 제3자 평가는 아니다.
+- 바뀐 파일을 TypeScript 컴파일러로 검사하지만 복사본에 `node_modules`가 없어 외부 패키지(react 등) 타입 없이 구문·의미만 본다. 외부 API 오용·JSX 내장 요소 속성 오타는 못 잡는다. 정의 없는 `var()` 참조 수로 토큰 정의는 확인하지만, 렌더링은 하지 않아 화면에서 맞게 보이는지와 `tokens.css`가 실제로 로드되는지는 측정 밖이다.
+- 모델 하나(`sonnet`)·에이전트 하나(`claude -p`)·레포 하나(legacy-demo)다. dsmith 조건의 개선이 AGENTS.md DS 섹션·`.mcp.json`(MCP 도구)·`.dsmith/`·`.claude/skills` 중 무엇 때문인지도 분리하지 않았다(MCP 호출 수만 보고서에 싣는다).
+- `bench:replay`가 쓰는 산출물은 합성이다. 그 숫자는 채점 파이프라인 검증용이며 성능 근거가 아니다. 실제 실행의 산출물을 `--replay`로 다시 채점한 보고서에는 산출물 폴더의 `meta.json`에 기록된 출처(agent)가 표시된다.
+
 ## 지원하는 스타일링 방식
 
 `detect`가 레포에서 감지한 방식 중 이름이 같은 Extractor만 `activeExtractors`로 켜지고, `audit`은 켜진 Extractor로만 스타일 값을 추출한다. 감지된 방식과 겹치는 Extractor가 하나도 없으면 `inline-style`이 대신 켜진다(`fallback`). 레지스트리는 `packages/cli/src/registry.ts`에 있다.

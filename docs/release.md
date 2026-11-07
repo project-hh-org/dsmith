@@ -9,6 +9,7 @@
 3. PR을 `main`에 머지한다.
 4. `release.yml`이 `chore: 버전 올림 (Version Packages)` PR을 만들거나 갱신한다. 버전·CHANGELOG 변경이 여기에 모인다. 이 PR을 머지한다.
 5. 머지된 `main`에서 `release.yml`이 `pnpm release`(`pnpm build && pnpm publish -r && changeset tag`)를 실행해 npm에 게시하고 git 태그를 만든다. `pnpm publish -r`을 쓰는 이유: `changeset publish`는 `npm publish`를 호출해 `workspace:*`를 실제 버전으로 치환하지 못한다(pnpm 공식 안내). npm 패키지 페이지에서 새 버전과 provenance 배지를 확인한다.
+6. 게시가 일어난 실행(`changesets/action`의 `published` 출력이 `true`)에서만 마지막 단계 "릴리스 태그 push"가 `git push origin --tags`로 5단계에서 만든 태그(`dsmith@0.2.0`처럼 패키지마다 하나)를 GitHub에 올린다. 워크플로의 `contents: write` 권한이 필요하다. 게시할 것이 없는 실행(Version Packages PR만 만든 실행)에서는 이 단계가 건너뛰어진다. 태그 push만 실패했다면 게시된 버전은 그대로 두고, 다시 실행하면 게시가 없어 `published`가 `false`가 되어 단계가 건너뛰어지므로 해당 커밋에서 `git tag`로 빠진 태그를 만들어 `git push origin <태그>`로 올린다.
 
 `pnpm changeset status --verbose`로 대기 중인 changeset과 예정 버전을 미리 볼 수 있다. `changeset version`·`changeset publish`는 로컬에서 실행하지 않는다(릴리스 PR과 Actions가 한다).
 
