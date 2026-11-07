@@ -10,7 +10,8 @@ import {
   type WriteOutcome,
 } from "@dsmith-dev/core";
 import { readDetect } from "@dsmith-dev/detect";
-import { DS_MARKERS, renderAgentsDsSection } from "./agents-section.js";
+import { DS_MARKERS, renderAgentsDsSection, type InstalledSurfaces } from "./agents-section.js";
+import { detectInstalledSurfaces } from "./surfaces.js";
 import { buildCatalog } from "./build.js";
 
 export interface AiOptions {
@@ -19,6 +20,11 @@ export interface AiOptions {
   dryRun?: boolean;
   force?: boolean;
   version: string;
+  /**
+   * 이번 실행이 곧 설치하는 표면(install이 넘긴다). 디스크에서 읽은 설치 상태에 더해져 AGENTS.md 규칙이
+   * MCP 도구·슬래시 명령을 가리킬지 정한다. 생략하면 디스크 상태만 본다.
+   */
+  surfaces?: Partial<InstalledSurfaces>;
 }
 
 export interface AiResult {
@@ -115,7 +121,11 @@ export async function runAi(opts: AiOptions): Promise<AiResult> {
     };
   }
 
-  const section = renderAgentsDsSection(catalog, usageOrder);
+  const onDisk = await detectInstalledSurfaces(root);
+  const section = renderAgentsDsSection(catalog, usageOrder, {
+    mcp: onDisk.mcp || opts.surfaces?.mcp === true,
+    skills: onDisk.skills || opts.surfaces?.skills === true,
+  });
   const write = await safeWrite(
     [{ file: path.join(root, "AGENTS.md"), region: { kind: "block", ...DS_MARKERS }, content: section }],
     {

@@ -62,6 +62,11 @@ export interface InstallResult {
   surfaces: { mcp: boolean; skills: boolean };
   /** AGENTS.md DS 섹션(`dsmith ai`) 결과 */
   ds: DsOutcome;
+  /**
+   * 이전 설치가 쓴 MCP·스킬 파일 중 이번 실행이 그 표면을 켜지 않아 손대지 않은 것(표시용 경로).
+   * 새 문구로 갱신하려면 `--mcp`·`--skills`로 다시 실행해야 한다.
+   */
+  kept: string[];
   /** 명령 본문과 AGENTS.md 블록이 부르는 CLI 실행 명령(기본 `npx dsmith`) */
   cli: string;
   outcomes: WriteOutcome[];
@@ -222,10 +227,55 @@ function manualSnippet(w: PlannedWrite, mcp: McpLaunch, inlineToml: boolean): st
   return null;
 }
 
+/** 설치 매니페스트 항목 키(`파일#region`)가 MCP 설정 항목인가 */
+const isMcpKey = (key: string): boolean => /#json:\["mcpServers"|config\.toml#/.test(key);
+// 슬래시 명령·스킬 파일(`.claude/skills/<ds 명령>/SKILL.md`, `.cursor/commands/<ds 명령>.md` 등)인가
+const isSkillKey = (key: string): boolean =>
+  /(?:^|\/)(?:skills\/ds(?:-[a-z]+)?\/SKILL\.md|commands\/ds(?:-[a-z]+)?\.(?:md|toml))$/.test(key.split("#")[0] ?? "");
+
+/**
+ * 이전 `install`이 매니페스트에 남긴 MCP·스킬 파일 중, 이번 실행이 켜지 않은 표면의 것(디스크에 있는 것만).
+ * 이 파일들은 지우지도 갱신하지도 않는다.
+ */
+async function keptFromEarlierInstall(a: {
+  manifestFile: string;
+  root: string;
+  home: string;
+  base: string;
+  surfaces: { mcp: boolean; skills: boolean };
+}): Promise<{ mcp: string[]; skills: string[] }> {
+  const out = { mcp: [] as string[], skills: [] as string[] };
+  const text = await readText(a.manifestFile);
+  if (text === null) return out;
+  let entries: Record<string, unknown>;
+  try {
+    const parsed = (JSON.parse(text) as { entries?: unknown } | null)?.entries;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return out;
+    entries = parsed as Record<string, unknown>;
+  } catch {
+    return out;
+  }
+  for (const key of Object.keys(entries).sort()) {
+    const kind = isMcpKey(key) ? "mcp" : isSkillKey(key) ? "skills" : null;
+    if (kind === null || a.surfaces[kind]) continue;
+    const file = key.split("#")[0] ?? "";
+    const abs = path.isAbsolute(file) ? file : path.join(a.base, file);
+    try {
+      await fs.access(abs);
+    } catch {
+      continue;
+    }
+    const shown = displayPath(abs, a.root, a.home);
+    if (!out[kind].includes(shown)) out[kind].push(shown);
+  }
+  return out;
+}
+
 /** `dsmith ai`와 같은 경로로 AGENTS.md DS 섹션을 만든다. 못 만들면 사유를 note로 남기고 설치는 계속한다. */
 async function ensureDsSection(a: {
   root: string;
   version: string;
+  surfaces: { mcp: boolean; skills: boolean };
   scope: "repo" | "global";
   dryRun: boolean;
   force: boolean;
@@ -238,6 +288,8 @@ async function ensureDsSection(a: {
     const r = await runAi({
       root: a.root,
       version: a.version,
+      // 이번에 켠 표면은 파일이 아직 없을 수 있다(dry-run) — 디스크에서 읽은 설치 상태에 더해 규칙에 반영한다
+      surfaces: a.surfaces,
       ...(a.dryRun ? { dryRun: true } : {}),
       ...(a.force ? { force: true } : {}),
     });
@@ -391,7 +443,11 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
   const allSkillsSkipped = !dryRun && skillOutcomes.length > 0 && skillOutcomes.every((o) => o.status.startsWith("skipped"));
 
   // 7. AGENTS.md DS 섹션(`dsmith ai`). 기본 설치의 중심이다 — MCP·스킬 없이 이것만 있을 때 벤치마크 점수가 가장 높았다.
-  const ds = await ensureDsSection({ root, version, scope, dryRun, force, enabled: opts.ds !== false, notes });
+  const ds = await ensureDsSection({ root, version, surfaces, scope, dryRun, force, enabled: opts.ds !== false, notes });
+
+  // 8. 이전 설치의 MCP·스킬 파일 중 이번에 켜지 않은 표면의 것은 그대로 둔다 — 갱신되지 않았다고 요약에 밝힌다.
+  const earlier = await keptFromEarlierInstall({ manifestFile, root, home, base, surfaces });
+  const kept = [...earlier.mcp, ...earlier.skills];
 
   return {
     scope,
@@ -402,6 +458,7 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
     mcp,
     surfaces,
     ds,
+    kept,
     cli,
     outcomes,
     ...(allSkillsSkipped ? { allSkillsSkipped: true as const } : {}),
@@ -443,9 +500,29 @@ function installedNames(r: InstallResult): string[] {
   return [...(r.ds.status === "ok" ? ["AGENTS.md DS 섹션"] : []), ...(r.surfaces.mcp ? ["MCP 서버"] : []), ...(r.surfaces.skills ? ["슬래시 명령"] : [])];
 }
 
-/** MCP·슬래시 명령을 기본으로 설치하지 않는다는 한 줄. 둘 다 켰으면 null. */
+/** 이전 설치의 파일이 남아 있어 "기본으로 설치하지 않음"이 사실이 아닌 표면 */
+function keptKinds(r: InstallResult): { mcp: boolean; skills: boolean } {
+  return { mcp: r.kept.some((p) => !isSkillKey(p)), skills: r.kept.some((p) => isSkillKey(p)) };
+}
+
+/**
+ * 이전 설치의 MCP·스킬 파일을 이번에 켜지 않아 갱신하지 않았다는 한 줄. 새 문구(규칙 줄 등)를 받으려면 플래그를 다시 줘야 한다.
+ * 이전 설치가 없으면 null.
+ */
+export function keptSurfacesLine(r: InstallResult): string | null {
+  const k = keptKinds(r);
+  const kept = [...(k.mcp ? [["MCP", "--mcp"]] : []), ...(k.skills ? [["슬래시 명령", "--skills"]] : [])] as [string, string][];
+  if (kept.length === 0) return null;
+  return `기존 ${kept.map(([n]) => n).join("·")} 파일은 그대로 둠(갱신하지 않음) — 새 문구로 갱신하려면 ${kept.map(([, f]) => f).join(" ")}`;
+}
+
+/** MCP·슬래시 명령을 기본으로 설치하지 않는다는 한 줄. 둘 다 켰거나 이전 설치의 파일이 있으면(그건 `keptSurfacesLine`) 그 표면은 뺀다. 남은 게 없으면 null. */
 export function skippedSurfacesLine(r: InstallResult): string | null {
-  const skipped = [...(r.surfaces.mcp ? [] : [["MCP", "--mcp"]]), ...(r.surfaces.skills ? [] : [["슬래시 명령", "--skills"]])] as [string, string][];
+  const k = keptKinds(r);
+  const skipped = [
+    ...(r.surfaces.mcp || k.mcp ? [] : [["MCP", "--mcp"]]),
+    ...(r.surfaces.skills || k.skills ? [] : [["슬래시 명령", "--skills"]]),
+  ] as [string, string][];
   if (skipped.length === 0) return null;
   const names = skipped.map(([n]) => n).join("·");
   const flags = skipped.map(([, f]) => f).join("·");
@@ -485,8 +562,11 @@ export function formatInstallSummary(r: InstallResult): string {
   const skipped = r.outcomes.filter((o) => o.status.startsWith("skipped"));
   const lines: string[] = [];
   if (r.dryRun) lines.push("(dry-run — 아무것도 쓰지 않음)");
+  // DS 섹션도 못 쓰고 표면도 켜지 않았다 — 기본 install이 분석 결과 없는 레포에서 하는 일. 종료 코드는 0이니 첫 줄에서 분명히 말한다.
+  else if (r.ds.status === "skipped" && r.outcomes.length === 0) lines.push("아무것도 쓰지 않음 — AGENTS.md DS 섹션을 만들 수 없고 MCP·슬래시 명령도 요청하지 않았음");
+  // `등록:`은 이번 실행이 AI 도구에 쓴 표면(MCP·슬래시 명령)이 있을 때만 — AGENTS.md DS 섹션만 쓴 실행은 도구에 등록한 것이 없다.
   lines.push(
-    registeredLine(r),
+    ...(r.surfaces.mcp || r.surfaces.skills ? [registeredLine(r)] : []),
     ...(installedNames(r).length > 0 ? [`설치: ${installedNames(r).join(" · ")}`] : []),
     `파일: 생성 ${count("created")} · 변경 ${count("updated")} · 유지 ${count("unchanged")} · 건너뜀 ${skipped.length}`,
   );
@@ -504,6 +584,8 @@ export function formatInstallSummary(r: InstallResult): string {
   } else if (r.ds.reason !== "건너뜀 요청") {
     lines.push(`AGENTS.md DS 섹션: 쓰지 않음 — ${r.ds.reason}`);
   }
+  const keptLine = keptSurfacesLine(r);
+  if (keptLine !== null) lines.push(keptLine);
   const skippedLine = skippedSurfacesLine(r);
   if (skippedLine !== null) lines.push(skippedLine);
   for (const o of skipped) lines.push(`건너뜀: ${o.file} — ${o.reason ?? o.status}`);

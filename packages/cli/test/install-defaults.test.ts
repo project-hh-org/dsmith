@@ -191,3 +191,137 @@ describe("dsmith install (CLI) 기본값", () => {
     expect(help).toContain("--skills");
   });
 });
+
+const dsSection = (): string => {
+  const text = fs.readFileSync(path.join(repo, "AGENTS.md"), "utf-8");
+  return text.slice(text.indexOf(DS_START), text.indexOf("<!-- dsmith:ds:end -->"));
+};
+const TOOL_REFS = /resolve_token|search_component|get_component|lint_snippet|\/ds-check/;
+
+describe("AGENTS.md DS 섹션의 MCP·슬래시 명령 참조는 설치한 표면에 따른다", () => {
+  it("기본 install: 도구·슬래시 명령 이름이 없고 토큰 파일·카탈로그를 가리킨다", async () => {
+    await install();
+    expect(dsSection()).not.toMatch(TOOL_REFS);
+    expect(dsSection()).not.toContain("MCP");
+    expect(dsSection()).toContain("토큰 파일에서 가장 가까운 토큰");
+    expect(dsSection()).toContain(".dsmith/catalog.json");
+  });
+
+  it("그 뒤 install --mcp --skills를 하면 섹션이 갱신돼 도구와 /ds-check를 가리킨다", async () => {
+    await install();
+    const r = await install({ mcp: true, skills: true });
+    expect(r.ds).toMatchObject({ status: "ok", outcome: "updated" });
+    expect(dsSection()).toContain("MCP `resolve_token`");
+    expect(dsSection()).toContain("`search_component`·`get_component`");
+    expect(dsSection()).toContain("`/ds-check`(또는 MCP `lint_snippet`)");
+  });
+
+  it("--mcp만: 도구는 가리키지만 /ds-check는 없다. --dry-run도 같은 diff를 미리 보인다", async () => {
+    await install();
+    const dry = await install({ mcp: true, dryRun: true });
+    expect(dry.ds).toMatchObject({ status: "ok", outcome: "updated" });
+    await install({ mcp: true });
+    expect(dsSection()).toContain("MCP `lint_snippet`");
+    expect(dsSection()).not.toContain("/ds-check");
+  });
+
+  it("--skills만: MCP가 없으니 /ds-check(MCP 도구를 부르는 명령)도 가리키지 않는다", async () => {
+    await install({ skills: true });
+    expect(dsSection()).not.toMatch(TOOL_REFS);
+  });
+
+  it("전부 설치한 뒤 플래그 없이 다시 실행해도 참조가 사라지지 않는다", async () => {
+    await install({ mcp: true, skills: true });
+    const r = await install();
+    expect(r.ds).toMatchObject({ outcome: "unchanged" });
+    expect(dsSection()).toContain("`/ds-check`");
+  });
+
+  it("AGENTS.md dsmith 블록: --mcp만이면 슬래시 명령 표를 쓰지 않고, --skills면 쓴다", async () => {
+    await install({ tools: ["agents-md"], mcp: true });
+    const mcpOnly = fs.readFileSync(path.join(repo, "AGENTS.md"), "utf-8");
+    expect(mcpOnly).toContain("<!-- dsmith:start -->");
+    expect(mcpOnly).toContain("MCP 서버 dsmith");
+    expect(mcpOnly).not.toContain("| 명령 |");
+    expect(mcpOnly).not.toContain("| `/ds-");
+    await install({ tools: ["agents-md"], mcp: true, skills: true });
+    expect(fs.readFileSync(path.join(repo, "AGENTS.md"), "utf-8")).toContain("| `/ds-check` |");
+  });
+});
+
+describe("이전 설치가 있을 때의 요약", () => {
+  const KEPT_LINE = "기존 MCP·슬래시 명령 파일은 그대로 둠(갱신하지 않음) — 새 문구로 갱신하려면 --mcp --skills";
+
+  it("플래그 없이 다시 실행하면 갱신하지 않았다고 정확히 말하고, 기본 미설치 줄과 등록 줄은 없다. --json에 kept", async () => {
+    await install({ mcp: true, skills: true });
+    const r = await install();
+    expect(r.kept).toHaveLength(10);
+    expect(r.kept).toContain(".mcp.json");
+    expect(r.kept).toContain(".claude/skills/ds-check/SKILL.md");
+    const text = formatInstallSummary(r);
+    expect(text).toContain(KEPT_LINE);
+    expect(text).not.toContain("기본으로 설치하지 않음");
+    expect(text).not.toContain("등록:");
+  });
+
+  it("MCP 파일만 있고 --skills만 줬다면 MCP만 그대로 둔다고 말한다", async () => {
+    await install({ mcp: true });
+    const r = await install({ skills: true });
+    expect(r.kept).toEqual([".mcp.json"]);
+    const text = formatInstallSummary(r);
+    expect(text).toContain("기존 MCP 파일은 그대로 둠(갱신하지 않음) — 새 문구로 갱신하려면 --mcp");
+    expect(text).not.toContain("MCP는 기본으로 설치하지 않음");
+  });
+
+  it("이전 설치가 없으면 kept는 비고 기존의 기본 미설치 줄이 나온다", async () => {
+    const r = await install();
+    expect(r.kept).toEqual([]);
+    expect(formatInstallSummary(r)).toContain(SKIP_LINE);
+  });
+
+  it("--mcp --skills로 다시 실행하면 갱신하므로 kept가 없다", async () => {
+    await install({ mcp: true, skills: true });
+    expect((await install({ mcp: true, skills: true })).kept).toEqual([]);
+  });
+
+  it("--json 출력에 kept가 있다", async () => {
+    await install({ mcp: true, skills: true });
+    const out = JSON.parse(
+      execFileSync(process.execPath, [bin, "install", "--root", repo, "--tool", "claude-code", "--json"], {
+        encoding: "utf-8",
+        env: { ...process.env, HOME: home, USERPROFILE: home },
+      }),
+    );
+    expect(out.kept).toHaveLength(10);
+  });
+});
+
+describe("아무것도 쓰지 않은 실행", () => {
+  it("분석 결과가 없는 레포에서 기본 install은 첫 줄에 아무것도 쓰지 않았다고 밝히고 종료 코드 0", async () => {
+    fs.rmSync(path.join(repo, ".dsmith"), { recursive: true, force: true });
+    const r = await install();
+    const text = formatInstallSummary(r);
+    expect(text.split("\n")[0]).toMatch(/^아무것도 쓰지 않음/);
+    expect(text).toContain("audit");
+    expect(text).not.toContain("등록:");
+    const res = (() => {
+      try {
+        return { code: 0, out: execFileSync(process.execPath, [bin, "install", "--root", repo, "--tool", "claude-code"], { encoding: "utf-8", env: { ...process.env, HOME: home, USERPROFILE: home } }) };
+      } catch (e) {
+        return { code: (e as { status: number }).status, out: "" };
+      }
+    })();
+    expect(res.code).toBe(0);
+    expect(res.out.split("\n")[0]).toMatch(/^아무것도 쓰지 않음/);
+  });
+
+  it("DS 섹션을 썼으면 그 줄이 없고, 등록 줄도 없다(표면을 쓰지 않았으므로)", async () => {
+    const text = formatInstallSummary(await install());
+    expect(text).not.toMatch(/^아무것도 쓰지 않음/m);
+    expect(text).not.toContain("등록:");
+  });
+
+  it("표면을 쓴 실행에는 등록 줄이 있다", async () => {
+    expect(formatInstallSummary(await install({ mcp: true }))).toContain("등록: claude-code");
+  });
+});
