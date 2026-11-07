@@ -126,6 +126,16 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 - `baseline`: dsmith 연결 없음. `audit → init --all`을 거친 같은 베이스에서 `.dsmith/`·AGENTS.md DS 섹션·MCP·슬래시 명령만 뺀 복사본
 - `dsmith`: 같은 베이스에 `install` + `ai`를 끝낸 복사본
 - 두 조건 모두 `init --all`이 만든 `design-system/`(토큰·프리셋·Badge 스캐폴드)를 갖고 있다. 의도된 설계이고, 두 조건의 차이는 AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`뿐이다.
+- AGENTS.md와 MCP의 효과를 가르는 2×2 분리 조건(`--conditions agents-only,mcp-only`)도 있다. 네 조건의 구성(나머지 파일은 모두 같다):
+
+  | 조건 | AGENTS.md DS 섹션 | `.mcp.json` | `.claude/skills` | `.dsmith/` |
+  | --- | --- | --- | --- | --- |
+  | `baseline` | 없음 | 없음 | 없음 | 없음 |
+  | `agents-only` | 있음 | 없음 | 없음 | 있음 |
+  | `mcp-only` | 없음 | 있음 | 없음 | 있음 |
+  | `dsmith` | 있음 | 있음 | 있음 | 있음 |
+
+  `.claude/skills`는 `dsmith`에만 있어 `dsmith`와 단일 요소 조건의 차이에는 스킬이 섞인다. 에이전트 명령은 네 조건이 같고, 서로 다른 날 돌린 조건은 `pnpm bench:report --in a.json --in b.json --out …`로 병합한다(스냅샷·프롬프트·에이전트 명령이 같을 때만). 자세한 것은 [benchmarks/README.md](benchmarks/README.md).
 - 두 조건은 같은 베이스·같은 채점 기준(토큰·DS 컴포넌트·정책 스냅샷)·같은 에이전트 명령·같은 환경 변수로 돈다. 프롬프트는 stdin으로 넘기므로 `codex exec`처럼 stdin으로 프롬프트를 받는 명령이면 다른 에이전트로도 돌릴 수 있다(실측은 `claude -p`만 했다).
 
 ### 실행
@@ -134,6 +144,7 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 pnpm -r build
 pnpm bench --repo legacy-demo --agent "claude -p --output-format stream-json --verbose --model sonnet --max-turns 20 --max-budget-usd 0.5 --permission-mode acceptEdits --allowedTools mcp__dsmith --setting-sources project --no-session-persistence"
 pnpm bench --repo legacy-demo --repeat 3 --dry-run                # 계획과 예상 비용(72회 × ~$0.075 ≈ $5.4)만 출력, 실행 안 함. 실측은 --agent "…" --repeat 3
+pnpm bench --repo legacy-demo --conditions agents-only,mcp-only --repeat 3 --dry-run   # 2×2 분리의 나머지 두 조건: 72회, 계획만 출력
 pnpm bench:replay                                                # 미리 받은 산출물을 채점만(네트워크·에이전트 없음)
 pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 JSON → 마크다운 보고서 + README 줄
 ```

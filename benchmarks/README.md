@@ -1,10 +1,23 @@
 # dsmith-benchmarks (비공개)
 
-같은 UI 생성 프롬프트 12개를 같은 에이전트에 두 조건으로 돌려, 만들어진 파일을 제품과 같은 규칙 엔진(`@dsmith-dev/core`의 `evaluateFile`)으로 채점한다.
+같은 UI 생성 프롬프트 12개를 같은 에이전트에 조건별로 돌려, 만들어진 파일을 제품과 같은 규칙 엔진(`@dsmith-dev/core`의 `evaluateFile`)으로 채점한다. 기본은 `baseline`·`dsmith` 두 조건이고, `--conditions`로 AGENTS.md와 MCP의 효과를 따로 보는 2×2 분리 조건(`agents-only`·`mcp-only`)을 더할 수 있다.
 
-- `baseline`: dsmith 연결 없음(`.dsmith/`·AGENTS.md DS 섹션·MCP·슬래시 명령 없음)
-- `dsmith`: `install` + `ai` 완료 상태
-- 두 조건 모두 `init --all`이 만든 `design-system/`(토큰·프리셋·Badge 스캐폴드, 파일 머리에 "dsmith init이 생성")를 갖고 있다. 의도된 설계이며 두 조건의 차이는 AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`뿐이다. 스캐폴드 Badge 사용도 `dsComponentUses`로 센다.
+## 조건
+
+모든 조건은 `audit → init --all → ai`를 거친 같은 베이스에서 나온다. 조건별 복사본의 차이는 아래 네 경로뿐이고 나머지 파일은 네 복사본이 바이트까지 같다(`test/prepare.test.ts`가 파일 집합을 고정한다).
+
+| 조건 | AGENTS.md DS 섹션 | `.mcp.json` (MCP 서버 `dsmith`) | `.claude/skills` (`/ds-*` 슬래시 명령·스킬) | `.dsmith/` (카탈로그·결정) |
+| --- | --- | --- | --- | --- |
+| `baseline` | 없음(섹션뿐이라 AGENTS.md 파일째 없음) | 없음 | 없음 | 없음 |
+| `agents-only` | 있음 | 없음 | 없음 | 있음 |
+| `mcp-only` | 없음(섹션뿐이라 AGENTS.md 파일째 없음) | 있음 | 없음 | 있음 |
+| `dsmith` | 있음 | 있음 | 있음 | 있음 |
+
+- 만드는 법: `baseline`은 베이스에서 `.dsmith/`·`.mcp.json`·AGENTS.md의 dsmith 마커 블록을 지운다. `dsmith`는 베이스에 `install --tool <도구> --mcp-command "node <CLI_BIN>"`을 한다(AGENTS.md DS 섹션은 베이스의 `ai`가 쓰고, `install`은 `.mcp.json`과 `.claude/skills`를 더한다). `agents-only`와 `mcp-only`는 같은 `dsmith` 복사본에서 각각 `.mcp.json`·`.claude/skills`, 또는 AGENTS.md 섹션·`.claude/skills`를 지운 것이다(`.claude/`가 비면 그것도 지운다).
+- `.dsmith/`는 AGENTS.md 섹션이 가리키는 곳이고 MCP 서버가 읽는 곳이라 `agents-only`·`mcp-only` 모두에 남긴다. `baseline`에는 없다.
+- `.claude/skills`는 `dsmith`에만 있다. 그래서 `dsmith`와 단일 요소 조건의 차이(`dsmith − agents-only`, `dsmith − mcp-only`)에는 스킬이 섞인다. 스킬까지 따로 분리한 조건은 없다.
+- 에이전트 명령은 네 조건이 같다(`--allowedTools mcp__dsmith` 포함 — 서버가 없으면 아무 일도 하지 않는다). `agents-only`의 AGENTS.md 섹션은 MCP 도구(`resolve_token`·`lint_snippet` 등)를 언급하지만 서버는 등록되지 않았다. `mcp-only`는 AGENTS.md 안내 없이 서버가 노출하는 도구 설명만 본다. 요약의 `MCP 도구 호출`로 확인한다: `agents-only`는 0이어야 한다.
+- 모든 조건이 `init --all`이 만든 `design-system/`(토큰·프리셋·Badge 스캐폴드, 파일 머리에 "dsmith init이 생성")를 갖고 있다. 의도된 설계이며 스캐폴드 Badge 사용도 `dsComponentUses`로 센다.
 
 이 패키지는 `private: true`이며 npm에 배포하지 않는다. 이름에 `@dsmith-dev/` 스코프를 쓰지 않아 changeset `fixed` 글롭에도 걸리지 않는다.
 
@@ -25,6 +38,7 @@
   - `knownToken`: 베이스의 토큰 이름·프리셋 키를 실제로 가리키는 token 사용
   - `nonDs`(prefer-ds-component), `deprecated`, `dsComponentUses`, `parseFailed`
 - `src/report.ts` — 결과 JSON(`BenchResult`)을 결정적 마크다운(`renderReport`)과 README 한 줄(`readmeLine`)로 바꾼다. 숫자는 결과 JSON 값만 쓴다. 반복·대응 비교·독립 채점 절은 `src/sections.ts`, 그 계산은 `src/analysis.ts`(순수 함수), 수치 함수는 `src/stats.ts`.
+- `src/merge.ts` — 서로 다른 실행의 결과 JSON을 병합(`mergeResults`): 같은 레포·스냅샷·프롬프트·에이전트 명령일 때만, 입력별 출처를 `merged`에 남긴다.
 - `src/stats.ts` — 평균·최소·최대, 양쪽 정확 이항 부호 검정(0 차이는 버림), 평균 차이의 95% 부트스트랩 CI(프롬프트 단위 복원추출 10,000회, `mulberry32` 시드 20261107 고정 → 결정적), 스피어만 ρ. 손으로 계산한 값으로 테스트한다(`test/stats.test.ts`).
 - `src/independent/` — **dsmith와 독립인 채점기와 타입 검사.** `@dsmith-dev/*`도 이 저장소의 다른 워크스페이스 코드도 import하지 않는다(`test/independent-isolation.test.ts`가 import 지정자를 검사). 쓰는 것은 `@babel/parser`·`postcss`·`typescript`뿐이고 `.dsmith/guard.json`의 `ds.modules`는 일반 JSON 데이터로만 읽는다(하네스는 스냅샷의 같은 값을 넘긴다).
 
@@ -72,6 +86,8 @@ pnpm bench --repo legacy-demo --agent "<에이전트 명령>"      # 실측: 프
 pnpm bench:replay                                             # 산출물 재채점(합성 세트, 네트워크 없음)
 pnpm bench --repo legacy-demo --replay benchmarks/results/<날짜>-legacy-demo/outputs   # 실측 산출물 재채점
 pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 보고서 .md를 쓰고 README 줄을 출력
+pnpm bench --repo legacy-demo --conditions agents-only,mcp-only --repeat 3 --agent "claude -p"   # 2×2 분리: 나머지 두 조건만 실측 (--dry-run: 72회)
+pnpm bench:report --in a.json --in b.json --out benchmarks/results/<이름>.md   # 서로 다른 실행의 조건을 병합
 ```
 
 - `pnpm bench -- --repo …`처럼 `--`를 붙여도 같다(루트 스크립트가 끝에 `--`를 붙이므로 `-- --`로 들어오는데, 하네스가 `--`를 모두 무시한다).
@@ -81,6 +97,10 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 보고�
 - 중단 기준: `--max-total-usd <n>`을 넘거나 `--max-failures <n>`에 닿으면(기본값은 실행 수에 맞춰 늘어난다 — 비용 `max(8, ceil(추정 비용 × 1.5))`: 24회 $8·72회 $9, 실패 `max(6, ceil(실행 수 / 8))`: 24회 6·72회 9. 명시한 값은 그대로 쓴다) 새 실행을 시작하지 않고 `status: "aborted"` + `abortReason`으로 저장하고 종료 코드 1로 끝난다. 결과 JSON은 실행마다 임시 파일에 쓴 뒤 rename으로 갱신하며(중간 저장본도 `aborted`), 정상 종료하면 `complete`로 덮어쓴다. 중단된 결과는 보고서에 경고를 쓰고 README 줄을 만들지 않는다. 하네스가 한 실행을 처리하다 던진 예외는 그 실행을 `harness-error`(`error`에 메시지)로 기록하고 다음 실행을 계속한다.
 - `bench:report`는 `--in`과 같은 이름의 `.md`를 쓴다(`--out`으로 바꿀 수 있다). README 줄은 stdout으로 나오고, 진행 메시지는 stderr로 나온다. 이 줄은 루트 README의 `<!-- bench:line -->` 아래 줄과 글자 그대로 같고(손으로 고치지 않고 붙여 넣는다), 링크는 모노레포 루트 기준 상대 경로다(`--out`이 모노레포 밖이면 파일 이름만 쓰고 stderr에 경고한다). 보고서의 재현 명령은 `--in` 이름에서 따온 `<이름>/outputs`를 가리킨다.
 - README 줄은 baseline·dsmith 두 조건이 다 있고 `complete`인 `agent` 실행 결과에서만 만든다. `replay` 결과, 중단된 결과, 조건이 하나뿐인 결과는 보고서만 쓰고 줄을 만들지 않는다. 실제 실행의 결과 JSON을 나중에 다시 렌더링하는 것은 `agent` 모드 그대로라 줄이 나온다.
+- `--conditions`의 기본은 `baseline,dsmith`다(replay도 마찬가지). 값은 `baseline`·`agents-only`·`mcp-only`·`dsmith` 중 쉼표로 고르고 표시 순서는 이 순서로 고정된다.
+- 조건이 셋 이상이면 보고서의 조건 열이 조건 수만큼 늘고(요약·프롬프트별·반복 통계·독립 채점), `## 대응 비교`·`## 독립 채점`은 쌍마다 같은 통계(평균 차이·부호 검정·부트스트랩 CI·t 구간)를 낸다: `baseline` 대비 존재하는 각 조건, 그리고 `dsmith` 대비 `agents-only`·`mcp-only`(차이 = 비교 − 기준; `dsmith − agents-only`는 MCP·스킬을 더한 효과, `dsmith − mcp-only`는 AGENTS.md 섹션·스킬을 더한 효과). 조건별 MCP 도구 호출 수는 요약의 `MCP 도구 호출` 행과 프롬프트별 `MCP/거부` 열에 나온다. `baseline`·`dsmith`만 있는 결과는 형식이 바뀌지 않는다(`test/ablation.test.ts`가 커밋된 k3·k1 결과 JSON을 다시 렌더링해 커밋된 md와 글자 그대로 같은지 확인한다).
+- 병합: `bench:report --in a.json --in b.json … --out <보고서.md>`(`--out` 필수)는 실행이 다른 결과를 하나의 보고서로 합친다. 같은 레포·베이스 스냅샷 sha256(과 토큰·DS 컴포넌트 수)·프롬프트 집합(id·파일·sha256)·에이전트 명령(플래그)·install 도구·반복 수여야 하고, 아니면 어떤 필드가 다른지 적은 오류로 거부한다(파일은 쓰지 않는다). 실측(`agent`)이 아니거나 중단된 입력, 같은 조건이 두 입력에 있는 경우도 거부한다. 날짜·에이전트 버전·dsmith 버전과 커밋·관측 모델은 달라도 되고, 달라지면 `## 해석 한계`에 `조건별 측정일이 다름: …`으로 입력별 값을 적는다. 병합 결과 JSON(`merged`에 입력별 출처)은 보고서 옆에 같은 이름의 `.json`으로 쓰며, 이를 `--in`으로 다시 주면 같은 보고서가 나온다.
+- 병합 보고서의 README 줄은 기존 2조건 줄 대신 2×2 줄이다: `MCP·AGENTS.md 분리(…): 사용률 평균 baseline X% · agents-only Y% · mcp-only Z% · 둘 다 W%`(토큰 사용률, 프롬프트별 반복 평균의 평균). 네 조건이 모두 있는 `complete`한 agent 결과에서만 만든다. 기존 줄 생성기는 `baseline`·`dsmith` 두 조건 결과에만 쓴다.
 - 에이전트는 stdin으로 프롬프트를 받는 명령이면 된다. 두 조건에 같은 명령을 쓴다. 에이전트에는 PATH에서 모노레포 아래 항목(`benchmarks/node_modules/.bin`, 루트 `node_modules/.bin` 등)을 뺀 환경을 준다 — baseline에서 `dsmith`가 실행되지 않는다. `dsmith` 조건의 MCP 서버는 `.mcp.json`의 `node <절대 경로>/packages/cli/dist/bin.js`로 뜬다.
 - stream-json이면 실행마다 `mcp__*` 도구 호출 수(`mcpToolCalls`)와 `permission_denials` 수를 세어 결과 JSON(`agentMeta`·`aggregate`)과 보고서(요약 행, 프롬프트별 `MCP/거부` 열)에 넣는다. dsmith 조건의 MCP 호출이 0이면 개선은 MCP 도구가 아니라 AGENTS.md·`.claude/skills`·`.dsmith/` 파일과 탐색에서 나온 것이다.
 

@@ -16,7 +16,7 @@ import {
   type RepoName,
 } from "./base.js";
 import { assertReplayDir, collectChanges, readReplay, readReplaySource, writeOutputs, writeReplayMeta } from "./collect.js";
-import { CONDITIONS, type Aggregate, type BenchResult, type Condition, type ReplaySource, type RunRecord } from "./model.js";
+import { CONDITIONS, DEFAULT_CONDITIONS, type Aggregate, type BenchResult, type Condition, type ReplaySource, type RunRecord } from "./model.js";
 import { metricOfSums, sumsOf } from "./analysis.js";
 import { evaluateIndependent } from "./independent/index.js";
 import { loadPrompts, type Prompt } from "./prompts.js";
@@ -75,7 +75,7 @@ const USAGE = `사용법: pnpm bench (--agent "<명령>" | --replay <디렉터�
   --agent "<명령>"                   프롬프트를 stdin으로 받는 에이전트 명령. "claude -p"만 쓰면 결정 5의 전체 명령으로 펼침 (--dry-run만 쓰면 이 명령의 계획)
   --replay <dir>                     <dir>/<조건>/<프롬프트 id>/<반복>/{files/…,run.json} 산출물을 채점만 한다(에이전트 호출 없음). 없는 폴더·조건 폴더가 없으면 종료 코드 2
   --replay-set <이름>                benchmarks/replay/<이름> (저장소에 들어 있는 합성 세트, 실행 폴더와 무관)
-  --conditions baseline,dsmith       기본: 둘 다
+  --conditions <조건,조건>            baseline | agents-only | mcp-only | dsmith (기본: baseline,dsmith). 2×2 분리는 agents-only,mcp-only를 따로 돌려 bench:report --in a --in b로 병합
   --repeat <1..10>                   기본 1
   --prompts <id,id>                  기본: 12개 전부
   --out <결과.json>                  agent 기본 benchmarks/results/<date>-<repo>.json, replay 기본: 파일 없이 요약만 출력. agent는 실행마다 갱신한다
@@ -158,7 +158,7 @@ export function parseBenchArgs(argv: string[], env: NodeJS.ProcessEnv = process.
   if (agent === "") fail("--agent 명령이 비어 있습니다");
 
   const conditions: Condition[] = [];
-  for (const c of splitList(values.conditions ?? CONDITIONS.join(","))) {
+  for (const c of splitList(values.conditions ?? DEFAULT_CONDITIONS.join(","))) {
     const known = CONDITIONS.find((k) => k === c);
     if (known === undefined) return fail(`모르는 --conditions 값: ${c} (있는 것: ${CONDITIONS.join(", ")})`);
     if (!conditions.includes(known)) conditions.push(known);

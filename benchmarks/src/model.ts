@@ -2,8 +2,28 @@ import type { IndependentScore, TypeCheckRecord } from "./independent/types.js";
 
 export type { IndependentScore, TypeCheckRecord };
 
-export type Condition = "baseline" | "dsmith";
-export const CONDITIONS: readonly Condition[] = ["baseline", "dsmith"];
+/**
+ * 2×2 설계(AGENTS.md DS 섹션 × MCP 서버):
+ *  baseline = 둘 다 없음, agents-only = AGENTS.md만, mcp-only = MCP(.mcp.json)만, dsmith = 둘 다.
+ * `.dsmith/`는 agents-only·mcp-only·dsmith에 있고, `.claude/skills`는 dsmith에만 있다.
+ */
+export type Condition = "baseline" | "agents-only" | "mcp-only" | "dsmith";
+/** 표시·정렬 순서 */
+export const CONDITIONS: readonly Condition[] = ["baseline", "agents-only", "mcp-only", "dsmith"];
+/** `--conditions`를 생략했을 때의 조건(기존 2조건 비교) */
+export const DEFAULT_CONDITIONS: readonly Condition[] = ["baseline", "dsmith"];
+
+/** 병합된 결과(`bench:report --in a --in b`)에서 입력 하나의 출처 */
+export interface MergedSource {
+  /** 입력 결과 JSON의 모노레포 기준 상대 경로(밖이면 파일 이름) */
+  file: string;
+  conditions: Condition[];
+  date: string;
+  startedAt: string | null;
+  agentVersion: string | null;
+  models: string[];
+  dsmith: { version: string; commit: string | null };
+}
 
 /** 한 파일(또는 합계)에서 에이전트가 새로 만든 스타일 사용 수 */
 export interface UsageCounts {
@@ -128,6 +148,8 @@ export interface BenchResult {
   abortReason: string | null;
   /** replay 모드에서만: 산출물의 출처(replay 디렉터리 meta.json) */
   replaySource?: ReplaySource;
+  /** 여러 실행을 병합한 결과에서만: 입력별 출처(없으면 단일 실행) */
+  merged?: MergedSource[];
   runs: RunRecord[];
   aggregate: Partial<Record<Condition, Aggregate>>;
 }

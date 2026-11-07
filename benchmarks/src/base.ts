@@ -104,10 +104,19 @@ async function stripAgentsSection(dir: string): Promise<void> {
   else await fs.writeFile(file, `${rest.replace(/\s+$/, "")}\n`);
 }
 
+/** `.claude/skills`를 지우고, 그 뒤 `.claude`가 비었으면 그것도 지운다 */
+async function stripSkills(dir: string): Promise<void> {
+  await fs.rm(path.join(dir, ".claude/skills"), { recursive: true, force: true });
+  const claude = path.join(dir, ".claude");
+  if ((await fs.readdir(claude).catch(() => ["."])).length === 0) await fs.rmdir(claude);
+}
+
 /**
- * base.dir을 새 mkdtemp로 복사한 조건 템플릿.
+ * base.dir을 새 mkdtemp로 복사한 조건 템플릿. 2×2: AGENTS.md DS 섹션 × MCP 서버(.mcp.json).
  * baseline: `.dsmith/`·`.mcp.json`·AGENTS.md의 dsmith 섹션(그것뿐이면 파일째) 삭제 → dsmith 흔적 없음.
  * dsmith: `install --tool <installTool> --mcp-command "node <CLI_BIN>"` (ai는 베이스에서 이미 실행됨) → AGENTS.md에 DS 마커가 있어야 한다.
+ * agents-only: dsmith 복사본에서 `.mcp.json`·`.claude/skills` 삭제 (AGENTS.md 섹션과 섹션이 가리키는 `.dsmith/`는 유지).
+ * mcp-only: dsmith 복사본에서 AGENTS.md dsmith 섹션(그것뿐이면 파일째)·`.claude/skills` 삭제 (`.mcp.json`·`.dsmith/` 유지).
  */
 export async function prepareCondition(base: Base, condition: Condition, installTool: string): Promise<string> {
   const dir = await mkTmp(`dsmith-bench-${condition}-`);
@@ -122,6 +131,13 @@ export async function prepareCondition(base: Base, condition: Condition, install
       await runCli(dir, ["install", "--tool", installTool, "--mcp-command", `node ${CLI_BIN}`, "--json"]);
       const agents = await fs.readFile(path.join(dir, "AGENTS.md"), "utf-8").catch(() => "");
       if (!agents.includes("<!-- dsmith:ds:start -->")) throw new Error(`dsmith 조건 템플릿의 AGENTS.md에 DS 섹션이 없습니다: ${dir}`);
+      if (condition === "agents-only") {
+        await fs.rm(path.join(dir, ".mcp.json"), { force: true });
+        await stripSkills(dir);
+      } else if (condition === "mcp-only") {
+        await stripAgentsSection(dir);
+        await stripSkills(dir);
+      }
     }
     return dir;
   } catch (e) {

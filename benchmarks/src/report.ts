@@ -2,22 +2,20 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { DASH, byCodeUnit, esc, ratioCell, table } from "./format.js";
+import { DASH, byCodeUnit, esc, pct, ratioCell, table } from "./format.js";
 import { CONDITIONS } from "./model.js";
 import { MONOREPO_ROOT } from "./paths.js";
 import type { Aggregate, BenchResult, Condition, RunRecord } from "./model.js";
-import { independentSection, limitLines, pairedSection, repeatSection, statsLineParts } from "./sections.js";
+import { displayConditions, isLegacyConditions } from "./analysis.js";
+import { mergeResults } from "./merge.js";
+import { ablationUsageMeans, independentSection, limitLines, pairedSection, repeatSection, statsLineParts } from "./sections.js";
 
-function summaryRows(agg: Partial<Record<Condition, Aggregate>>): string[][] {
+function summaryRows(agg: Partial<Record<Condition, Aggregate>>, conds: Condition[]): string[][] {
   const cell = (c: Condition, f: (a: Aggregate) => string): string => {
     const a = agg[c];
     return a === undefined ? DASH : f(a);
   };
-  const row = (label: string, f: (a: Aggregate) => string): string[] => [
-    label,
-    cell("baseline", f),
-    cell("dsmith", f),
-  ];
+  const row = (label: string, f: (a: Aggregate) => string): string[] => [label, ...conds.map((c) => cell(c, f))];
   return [
     row("토큰 준수율", (a) => ratioCell(a.token, a.token + a.hardcoded)),
     row("토큰 사용률", (a) => ratioCell(a.token, a.token + a.hardcoded + a.tailwindDefault)),
@@ -152,28 +150,28 @@ export function renderReport(result: BenchResult, opts: { recordPath?: string } 
     );
   }
 
-  lines.push("## 요약", "", ...table(["지표", "baseline", "dsmith"], summaryRows(result.aggregate)), "");
+  const conds = displayConditions(result);
+  lines.push("## 요약", "", ...table(["지표", ...conds], summaryRows(result.aggregate, conds)), "");
 
   const ids = [...new Set([...result.prompts.map((p) => p.id), ...result.runs.map((r) => r.prompt)])].sort(byCodeUnit);
   const fileOf = new Map(result.prompts.map((p) => [p.id, p.file]));
   const tally: Record<Verdict, number> = { 개선: 0, 같음: 0, 악화: 0, "비교 불가": 0 };
   const promptRows: string[][] = [];
   for (const id of ids) {
-    const base = sumRuns(result.runs.filter((r) => r.prompt === id && r.condition === "baseline"));
-    const ds = sumRuns(result.runs.filter((r) => r.prompt === id && r.condition === "dsmith"));
-    const verdict = verdictOf(base, ds);
+    const sumsOfCond = (c: Condition): Sums | null => sumRuns(result.runs.filter((r) => r.prompt === id && r.condition === c));
+    const verdict = verdictOf(sumsOfCond("baseline"), sumsOfCond("dsmith"));
     tally[verdict] += 1;
-    promptRows.push([id, fileOf.get(id) ?? DASH, ...condCells(base), ...condCells(ds), verdict]);
+    promptRows.push([id, fileOf.get(id) ?? DASH, ...conds.flatMap((c) => condCells(sumsOfCond(c))), verdict]);
   }
   lines.push(
     "## 프롬프트별",
     "",
     ...table(
-      ["id", "파일", ...CONDITIONS.flatMap((c) => CONDITION_COLUMNS.map((col) => `${c} ${col}`)), "판정"],
+      ["id", "파일", ...conds.flatMap((c) => CONDITION_COLUMNS.map((col) => `${c} ${col}`)), "판정"],
       promptRows,
     ),
     "",
-    `개선 ${tally["개선"]} · 같음 ${tally["같음"]} · 악화 ${tally["악화"]} · 비교 불가 ${tally["비교 불가"]}`,
+    `${isLegacyConditions(result) ? "" : "판정은 baseline 대비 dsmith의 준수율 비교다. "}개선 ${tally["개선"]} · 같음 ${tally["같음"]} · 악화 ${tally["악화"]} · 비교 불가 ${tally["비교 불가"]}`,
     "",
   );
 
@@ -184,7 +182,16 @@ export function renderReport(result: BenchResult, opts: { recordPath?: string } 
   return lines.join("\n");
 }
 
-function originLine(result: BenchResult, recordPath: string): string {
+function originLine(result: BenchResult, recordPath: string): string | string[] {
+  if (result.merged !== undefined && result.mode !== "replay") {
+    return [
+      "- 여러 실행을 병합한 결과다. 산출물은 입력별로 아래에 있고, 저장소 루트에서 각 줄의 명령으로 같은 채점을 다시 낼 수 있다(병합은 `pnpm bench:report --in <a.json> --in <b.json> --out <보고서.md>`).",
+      ...result.merged.map((s) => {
+        const rec = `${s.file.replace(/\.json$/, "")}/outputs`;
+        return `  - \`${rec}\`: \`pnpm bench --repo ${result.repo} --replay ${rec} --conditions ${s.conditions.join(",")}\``;
+      }),
+    ];
+  }
   if (result.mode !== "replay") {
     return `- 산출물은 \`${recordPath}\`에 있고 저장소 루트에서 \`pnpm bench --repo ${result.repo} --replay ${recordPath}\`로 같은 채점을 다시 낼 수 있다.`;
   }
@@ -205,6 +212,7 @@ function originLine(result: BenchResult, recordPath: string): string {
 export function readmeLine(result: BenchResult, mdPath: string): string {
   if (result.mode === "replay") throw new Error("replay 결과로는 README 줄을 만들지 않음");
   if (isAborted(result)) throw new Error(`중단된 결과로는 README 줄을 만들지 않음: ${result.abortReason ?? "이유 기록 없음"}`);
+  if (!isLegacyConditions(result)) throw new Error(`조건이 baseline·dsmith 둘이 아니다(${result.conditions.join(", ")}) — 2×2 분리는 ablationLine을 쓴다`);
   const base = result.aggregate.baseline;
   const ds = result.aggregate.dsmith;
   if (base === undefined || ds === undefined) throw new Error("README 줄에는 baseline과 dsmith 조건이 둘 다 필요함");
@@ -221,33 +229,70 @@ export function readmeLine(result: BenchResult, mdPath: string): string {
 
 const LINE_TAIL = ". 렌더링은 하지 않았고 모델·레포 하나다(해석 한계는 보고서 참고).";
 
+/**
+ * 2×2 분리 README 줄(기존 2조건 줄과 별개, 컨트롤러가 붙여 넣는다). 한 줄.
+ * 네 조건이 모두 있는 complete한 agent 결과에서만 만든다.
+ */
+export function ablationLine(result: BenchResult, mdPath: string): string {
+  if (result.mode === "replay") throw new Error("replay 결과로는 README 줄을 만들지 않음");
+  if (isAborted(result)) throw new Error(`중단된 결과로는 README 줄을 만들지 않음: ${result.abortReason ?? "이유 기록 없음"}`);
+  if (result.agent.command === null) throw new Error("에이전트 명령이 없는 결과로는 README 줄을 만들지 않음");
+  const m = ablationUsageMeans(result);
+  if (m === null) throw new Error("2×2 분리 줄에는 baseline·agents-only·mcp-only·dsmith 네 조건이 모두 필요함");
+  const label = result.agent.command.trim().split(/\s+/).slice(0, 2).join(" ");
+  const dates = [...new Set(result.merged?.map((s) => s.date) ?? [result.date])].sort(byCodeUnit).join("·");
+  const link = `[${mdPath}](${mdPath})`;
+  const p = (c: Condition): string => pct(m.means[c]);
+  return `MCP·AGENTS.md 분리(프롬프트 ${m.prompts}개 × 조건 4 × 반복 ${result.repeat}, ${label}, ${dates}): 사용률 평균 baseline ${p("baseline")} · agents-only ${p("agents-only")} · mcp-only ${p("mcp-only")} · 둘 다 ${p("dsmith")} — ${link}${LINE_TAIL}`;
+}
+
 /** 모노레포 루트 기준 상대 경로(POSIX 구분자). 밖이면 `../…`로 시작한다 */
 export function toPosixRelative(file: string): string {
   return path.relative(MONOREPO_ROOT, file).split(path.sep).join("/");
 }
 
-const USAGE ="사용법: pnpm bench:report --in <결과.json> [--out <보고서.md>]  (상대 경로는 명령을 실행한 폴더 기준)";
+const USAGE =
+  "사용법: pnpm bench:report --in <결과.json> [--out <보고서.md>]  (상대 경로는 명령을 실행한 폴더 기준)\n" +
+  "        pnpm bench:report --in <a.json> --in <b.json> … --out <보고서.md>   (서로 다른 실행의 조건을 병합 — --out 필수, 병합 결과 JSON을 보고서 옆에 .json으로 씀)";
 
 /**
  * 결과 JSON을 읽어 같은 이름의 .md를 쓰고 README 줄을 돌려준다.
+ * `--in`을 여러 번 주면 같은 레포·베이스 스냅샷·프롬프트·에이전트 명령의 결과들을 병합해(merge.ts) 하나의 보고서를 쓴다.
  * `--`(pnpm 전달)는 몇 개든 무시하고, 상대 경로는 pnpm이 알려 주는 INIT_CWD(없으면 process.cwd()) 기준으로 푼다.
  */
-export function reportFromFile(argv: string[], env: NodeJS.ProcessEnv = process.env): { mdFile: string; line: string | null } {
+export function reportFromFile(argv: string[], env: NodeJS.ProcessEnv = process.env): { mdFile: string; line: string | null; jsonFile: string | null } {
   const { values } = parseArgs({
     args: argv.filter((a) => a !== "--"),
-    options: { in: { type: "string" }, out: { type: "string" } },
+    options: { in: { type: "string", multiple: true }, out: { type: "string" } },
     strict: true,
   });
-  if (values.in === undefined) throw new Error(USAGE);
+  const inputs = values.in ?? [];
+  if (inputs.length === 0) throw new Error(USAGE);
   const cwd = env.INIT_CWD !== undefined && env.INIT_CWD !== "" ? env.INIT_CWD : process.cwd();
-  const inFile = path.resolve(cwd, values.in);
-  const result = JSON.parse(readFileSync(inFile, "utf8")) as BenchResult;
-  if (result.version !== 1) throw new Error(`지원하지 않는 결과 형식: version ${String(result.version)}`);
+  const readResult = (file: string): BenchResult => {
+    const r = JSON.parse(readFileSync(file, "utf8")) as BenchResult;
+    if (r.version !== 1) throw new Error(`지원하지 않는 결과 형식: version ${String(r.version)} (${file})`);
+    return r;
+  };
+  const merging = inputs.length > 1;
+  if (merging && values.out === undefined) throw new Error(`--in을 여러 개 주면 --out <보고서.md>가 필요합니다\n${USAGE}`);
+  const inFiles = inputs.map((i) => path.resolve(cwd, i));
+  const inFile = inFiles[0] ?? "";
+  const relOrName = (file: string): string => {
+    const rel = toPosixRelative(file);
+    return rel === ".." || rel.startsWith("../") || path.isAbsolute(rel) ? path.basename(file) : rel;
+  };
+  const result = merging ? mergeResults(inFiles.map((f) => ({ file: relOrName(f), result: readResult(f) }))) : readResult(inFile);
   const mdFile = values.out === undefined ? inFile.replace(/\.json$/, "") + ".md" : path.resolve(cwd, values.out);
   mkdirSync(path.dirname(mdFile), { recursive: true });
-  // 산출물 폴더는 run.ts의 effectiveRecord와 같은 규칙: <결과 JSON 이름>/outputs
+  // 산출물 폴더는 run.ts의 effectiveRecord와 같은 규칙: <결과 JSON 이름>/outputs (병합 결과는 result.merged의 입력별 경로)
   const record = path.join(path.dirname(inFile), path.basename(inFile, ".json"), "outputs");
   writeFileSync(mdFile, renderReport(result, { recordPath: toPosixRelative(record) }));
+  let jsonFile: string | null = null;
+  if (merging) {
+    jsonFile = mdFile.replace(/\.md$/, "") + ".json";
+    writeFileSync(jsonFile, `${JSON.stringify(result, null, 2)}\n`);
+  }
   let mdPath = toPosixRelative(mdFile);
   if (mdPath === ".." || mdPath.startsWith("../") || path.isAbsolute(mdPath)) {
     process.stderr.write(`경고: 보고서가 모노레포 밖(${mdFile})에 있어 README 줄에는 파일 이름만 쓴다\n`);
@@ -255,18 +300,19 @@ export function reportFromFile(argv: string[], env: NodeJS.ProcessEnv = process.
   }
   let line: string | null = null;
   try {
-    line = readmeLine(result, mdPath);
+    line = isLegacyConditions(result) ? readmeLine(result, mdPath) : ablationLine(result, mdPath);
   } catch {
     line = null;
   }
-  return { mdFile, line };
+  return { mdFile, line, jsonFile };
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const { mdFile, line } = reportFromFile(process.argv.slice(2));
+    const { mdFile, line, jsonFile } = reportFromFile(process.argv.slice(2));
     process.stderr.write(`보고서: ${mdFile}\n`);
-    if (line === null) process.stderr.write("README 줄: 만들지 않음(replay 결과, 중단된 결과이거나 조건이 하나뿐임)\n");
+    if (jsonFile !== null) process.stderr.write(`병합 결과 JSON: ${jsonFile}\n`);
+    if (line === null) process.stderr.write("README 줄: 만들지 않음(replay 결과, 중단된 결과이거나 조건이 하나뿐이거나 2×2 분리에 필요한 조건이 없음)\n");
     else process.stdout.write(`${line}\n`);
   } catch (e) {
     process.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);

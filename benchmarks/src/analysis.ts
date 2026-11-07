@@ -1,4 +1,4 @@
-import type { BenchResult, Condition, RunRecord } from "./model.js";
+import { CONDITIONS, type BenchResult, type Condition, type RunRecord } from "./model.js";
 import { BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED, bootstrapMeanCI, mean, signTest, spearman, summarize, tMeanCI, type BootstrapCI, type SignTest, type Summary, type TInterval } from "./stats.js";
 
 /**
@@ -11,7 +11,28 @@ import { BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED, bootstrapMeanCI, mean, signTest, s
  *  - 대응 비교: 프롬프트마다 (dsmith 평균 − baseline 평균). 어느 한쪽이 요약 없으면 그 프롬프트는 뺀다.
  */
 
-export type MetricId = "compliance" | "usage" | "nonDs" | "dsUses" | "indepUsage" | "indepNonDs" | "typeErrors";
+/** 조건이 baseline·dsmith뿐이면(옛 결과 포함) 기존 2조건 보고서 형식을 그대로 쓴다 */
+export const isLegacyConditions = (result: BenchResult): boolean => result.conditions.every((c) => c === "baseline" || c === "dsmith");
+
+/** 표 열로 보여 줄 조건. 기존 2조건 결과는 한쪽이 없어도 (baseline, dsmith) 두 열을 유지하고, 그 밖에는 결과에 있는 조건을 CONDITIONS 순서로 */
+export function displayConditions(result: BenchResult): Condition[] {
+  return isLegacyConditions(result) ? ["baseline", "dsmith"] : CONDITIONS.filter((c) => result.conditions.includes(c));
+}
+
+/**
+ * 대응 비교 쌍 [기준, 비교] (diff = 비교 − 기준). 기존 2조건: (baseline, dsmith)가 있을 때만.
+ * 그 밖: baseline 대비 나머지 각 조건, 그리고 agents-only·mcp-only 대비 dsmith. 두 조건이 모두 있는 쌍만.
+ */
+export function comparisons(result: BenchResult): [Condition, Condition][] {
+  const has = (c: Condition): boolean => result.conditions.includes(c);
+  if (isLegacyConditions(result)) return has("baseline") && has("dsmith") ? [["baseline", "dsmith"]] : [];
+  const pairs: [Condition, Condition][] = [];
+  if (has("baseline")) for (const c of CONDITIONS) if (c !== "baseline" && has(c)) pairs.push(["baseline", c]);
+  if (has("dsmith")) for (const c of ["agents-only", "mcp-only"] as const) if (has(c)) pairs.push([c, "dsmith"]);
+  return pairs;
+}
+
+export type MetricId ="compliance" | "usage" | "nonDs" | "dsUses" | "indepUsage" | "indepNonDs" | "typeErrors";
 
 /** 합계 비율의 분자·분모 계산에 쓰는 실행별 합 */
 export interface RunSums {
@@ -114,11 +135,15 @@ export function perRepeatSeries(result: BenchResult, condition: Condition, metri
   return out;
 }
 
+/**
+ * 필드 이름 baseline·dsmith는 기본 쌍(기준 baseline, 비교 dsmith)에서 온 것이다.
+ * 다른 쌍이면 baseline = 기준 조건(ref), dsmith = 비교 조건(cmp)이다.
+ */
 export interface PairedRow {
   prompt: string;
   baseline: Summary | null;
   dsmith: Summary | null;
-  /** dsmith 평균 − baseline 평균, 한쪽이 없으면 null */
+  /** 비교 조건 평균 − 기준 조건 평균(기본: dsmith − baseline), 한쪽이 없으면 null */
   diff: number | null;
 }
 
@@ -127,7 +152,7 @@ export interface Paired {
   rows: PairedRow[];
   /** 포함된 프롬프트 수 */
   n: number;
-  /** 포함된 프롬프트들의 baseline·dsmith 평균의 평균, 차이의 평균 */
+  /** 포함된 프롬프트들의 기준·비교 조건 평균의 평균, 차이의 평균 */
   meanBaseline: number | null;
   meanDsmith: number | null;
   meanDiff: number | null;
@@ -138,11 +163,11 @@ export interface Paired {
   tci: TInterval | null;
 }
 
-/** 대응 비교: 두 조건이 다 있어야 의미가 있다. 없으면 모든 행이 diff null */
-export function pairedAnalysis(result: BenchResult, metric: MetricId): Paired {
+/** 대응 비교: 두 조건이 다 있어야 의미가 있다. 없으면 모든 행이 diff null. 기본 쌍은 (baseline, dsmith) */
+export function pairedAnalysis(result: BenchResult, metric: MetricId, ref: Condition = "baseline", cmp: Condition = "dsmith"): Paired {
   const rows: PairedRow[] = promptIds(result).map((prompt) => {
-    const baseline = perPromptSummary(result, prompt, "baseline", metric);
-    const dsmith = perPromptSummary(result, prompt, "dsmith", metric);
+    const baseline = perPromptSummary(result, prompt, ref, metric);
+    const dsmith = perPromptSummary(result, prompt, cmp, metric);
     return { prompt, baseline, dsmith, diff: baseline !== null && dsmith !== null ? dsmith.mean - baseline.mean : null };
   });
   const used = rows.filter((r): r is PairedRow & { baseline: Summary; dsmith: Summary; diff: number } => r.diff !== null);
@@ -182,10 +207,13 @@ function rho(pairs: { x: number; y: number }[]): { rho: number | null; n: number
   return { rho: pairs.length < 2 ? null : spearman(pairs.map((p) => p.x), pairs.map((p) => p.y)), n: pairs.length };
 }
 
-/** dsmith 점수와 독립 점수가 같은 방향을 가리키는지 */
-export function agreementOf(result: BenchResult): Agreement {
-  const usage = pairedAnalysis(result, "usage");
-  const indep = pairedAnalysis(result, "indepUsage");
+/**
+ * dsmith 점수와 독립 점수가 같은 방향을 가리키는지. 방향·스피어만 ρ는 (ref, cmp) 두 조건의 실행만 쓰고,
+ * nonDsTotals는 결과의 모든 조건을 담는다. 기본 쌍은 (baseline, dsmith)이라 2조건 결과에서는 전체 실행과 같다.
+ */
+export function agreementOf(result: BenchResult, ref: Condition = "baseline", cmp: Condition = "dsmith"): Agreement {
+  const usage = pairedAnalysis(result, "usage", ref, cmp);
+  const indep = pairedAnalysis(result, "indepUsage", ref, cmp);
   const indepByPrompt = new Map(indep.rows.map((r) => [r.prompt, r.diff]));
   const perPrompt: Agreement["perPrompt"] = usage.rows.map((r) => {
     const a = r.diff;
@@ -203,11 +231,12 @@ export function agreementOf(result: BenchResult): Agreement {
   for (const r of result.runs) {
     const s = sumsOf(r);
     if (s.indep === null) continue;
+    const inPair = r.condition === ref || r.condition === cmp;
     const u = runMetric(r, "usage");
     const iu = runMetric(r, "indepUsage");
-    if (u !== null && iu !== null) usagePairs.push({ x: u, y: iu });
-    nonDsPairs.push({ x: s.nonDs, y: s.indep.otherLocal });
-    if (s.nonDs === s.indep.otherLocal) equal += 1;
+    if (inPair && u !== null && iu !== null) usagePairs.push({ x: u, y: iu });
+    if (inPair) nonDsPairs.push({ x: s.nonDs, y: s.indep.otherLocal });
+    if (inPair && s.nonDs === s.indep.otherLocal) equal += 1;
     const t = totals[r.condition] ?? { dsmith: 0, independent: 0 };
     t.dsmith += s.nonDs;
     t.independent += s.indep.otherLocal;
