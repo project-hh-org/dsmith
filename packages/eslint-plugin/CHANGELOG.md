@@ -1,5 +1,19 @@
 # @dsmith-dev/eslint-plugin
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dsmith-dev/core@0.2.1
+  - @dsmith-dev/extractor-api@0.2.1
+  - @dsmith-dev/extractor-css@0.2.1
+  - @dsmith-dev/extractor-emotion@0.2.1
+  - @dsmith-dev/extractor-inline-style@0.2.1
+  - @dsmith-dev/extractor-mui-sx@0.2.1
+  - @dsmith-dev/extractor-styled@0.2.1
+  - @dsmith-dev/extractor-tailwind@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
