@@ -29,7 +29,7 @@ afterEach(() => {
 
 it("렌더러 하나가 실패하면 다른 도구 파일도 쓰기 전에 전체가 중단된다 (매니페스트 포함 무변경)", async () => {
   await expect(
-    runInstall({ root, home, version: "0.2.0", tools: ["claude-code", "cursor", "gemini"] }),
+    runInstall({ root, home, version: "0.2.0", tools: ["claude-code", "cursor", "gemini"], mcp: true, skills: true, ds: false }),
   ).rejects.toThrow(/gemini 렌더 실패/);
   expect(fs.readdirSync(root)).toEqual([]);
   expect(fs.readdirSync(home)).toEqual([]);

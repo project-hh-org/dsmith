@@ -26,8 +26,12 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+/**
+ * 이 파일의 기존 테스트는 MCP·스킬을 쓰는 설치(`--mcp --skills`)를 검증한다. 기본값(AGENTS.md DS 섹션만)은
+ * 아래 "기본 설치" 블록이 `runInstall`을 직접 불러 검증한다. ds:false — DS 섹션은 별도 블록이 본다.
+ */
 const install = (opts: Partial<InstallOptions> = {}): Promise<InstallResult> =>
-  runInstall({ root, home, version: VERSION, ...opts });
+  runInstall({ root, home, version: VERSION, mcp: true, skills: true, ds: false, ...opts });
 
 function write(base: string, rel: string, content: string): void {
   const abs = path.join(base, rel);
@@ -340,7 +344,7 @@ describe("runInstall: --global", () => {
   it("home을 주지 않으면 HOME 환경변수의 홈을 쓴다 (os.homedir)", async () => {
     vi.stubEnv("HOME", home);
     vi.stubEnv("USERPROFILE", home);
-    const r = await runInstall({ root, global: true, tools: ["claude-code"], version: VERSION });
+    const r = await runInstall({ root, global: true, tools: ["claude-code"], version: VERSION, skills: true });
     expect(r.outcomes).toHaveLength(9);
     expect(fs.existsSync(path.join(home, ".claude", "skills", "ds", "SKILL.md"))).toBe(true);
     expect(tree(root)).toEqual([]);
@@ -519,7 +523,8 @@ describe("formatInstallSummary", () => {
     const r = await install();
     const lines = formatInstallSummary(r).split("\n");
     expect(lines[0]).toBe("등록: claude-code (레포: .claude/, CLAUDE.md), cursor (홈: ~/.cursor/)");
-    expect(lines[1]).toBe("파일: 생성 20 · 변경 0 · 유지 0 · 건너뜀 0");
+    expect(lines[1]).toBe("설치: MCP 서버 · 슬래시 명령");
+    expect(lines[2]).toBe("파일: 생성 20 · 변경 0 · 유지 0 · 건너뜀 0");
     expect(lines.at(-1)).toBe("다음: AI 도구를 다시 열고 /ds 로 시작");
   });
 
@@ -556,6 +561,8 @@ describe("formatInstallSummary", () => {
       selection: "tool",
       detection: null,
       mcp: { command: "npx", args: ["-y", "dsmith@0.2", "mcp"] },
+      surfaces: { mcp: true, skills: true },
+      ds: { status: "skipped", reason: "건너뜀 요청" },
       outcomes: [],
       notes: ["a", "b", "a"],
       manifest: ".dsmith/install.json",
@@ -569,7 +576,7 @@ describe("formatInstallSummary", () => {
 
 describe("dsmith install (CLI)", () => {
   const run = (args: string[], env: Record<string, string> = {}): string =>
-    execFileSync(process.execPath, [bin, "install", "--root", root, "--mcp-command", "node /x/bin.js", ...args], {
+    execFileSync(process.execPath, [bin, "install", "--root", root, "--mcp-command", "node /x/bin.js", "--skills", ...args], {
       encoding: "utf-8",
       env: { ...process.env, HOME: home, USERPROFILE: home, ...env },
     });
@@ -616,7 +623,7 @@ describe("dsmith install (CLI)", () => {
     if (pkg.version !== "0.0.0") return;
     let status: number | undefined;
     try {
-      execFileSync(process.execPath, [bin, "install", "--root", root, "--dry-run"], { encoding: "utf-8", stdio: "pipe" });
+      execFileSync(process.execPath, [bin, "install", "--root", root, "--skills", "--dry-run"], { encoding: "utf-8", stdio: "pipe" });
     } catch (e) {
       status = (e as { status?: number }).status;
     }
@@ -676,7 +683,7 @@ describe("install: 스킬이 전부 건너뛰어진 경우 · dry-run 건너뜀 
 
   it("CLI: 스킬이 전부 건너뛰어지면 종료 코드 1, dry-run은 0", async () => {
     await editAllSkills();
-    const args = ["install", "--root", root, "--mcp-command", "node /x/bin.js", "--tool", "claude-code"];
+    const args = ["install", "--root", root, "--mcp-command", "node /x/bin.js", "--skills", "--tool", "claude-code"];
     const env = { ...process.env, HOME: home, USERPROFILE: home };
     expect(() => execFileSync(process.execPath, [bin, ...args], { encoding: "utf-8", env, stdio: "pipe" })).toThrow(
       expect.objectContaining({ status: 1 }),
@@ -687,10 +694,10 @@ describe("install: 스킬이 전부 건너뛰어진 경우 · dry-run 건너뜀 
   it("--global의 cursor·gemini 안내는 0.0.0 빌드일 때만 --mcp-command를 되풀이한다", async () => {
     const dev = await install({ global: true, tools: ["cursor", "gemini"], version: "0.0.0", mcpCommand: "node /x/bin.js" });
     for (const tool of ["cursor", "gemini"]) {
-      expect(dev.notes.join("\n")).toContain(`\`node /x/bin.js install --tool ${tool} --mcp-command "node /x/bin.js"\``);
+      expect(dev.notes.join("\n")).toContain(`\`node /x/bin.js install --tool ${tool} --mcp --skills --mcp-command "node /x/bin.js"\``);
     }
     const released = await install({ global: true, tools: ["cursor", "gemini"] });
-    expect(released.notes.join("\n")).toContain("`npx dsmith install --tool cursor`");
+    expect(released.notes.join("\n")).toContain("`npx dsmith install --tool cursor --mcp --skills`");
     expect(released.notes.join("\n")).not.toContain("--mcp-command");
   });
 });

@@ -424,7 +424,7 @@ describe("global 미지원 안내문", () => {
       const note = renderers[tool].render(FIXTURES, globalCtx).notes[0] ?? "";
       expect(note, tool).not.toContain("은(는)");
       expect(note, tool).toContain(`${tool}: --global을 지원하지 않습니다.`);
-      expect(note, tool).toContain(`\`npx dsmith install --tool ${tool}\``);
+      expect(note, tool).toContain(`\`npx dsmith install --tool ${tool} --mcp --skills\``);
     }
   });
 
@@ -432,8 +432,62 @@ describe("global 미지원 안내문", () => {
     for (const tool of ["cursor", "gemini", "agents-md"] as const) {
       const note =
         renderers[tool].render(FIXTURES, { ...globalCtx, cli: DEV_CLI, devMcpCommand: DEV_CLI }).notes[0] ?? "";
-      expect(note, tool).toContain(`\`${DEV_CLI} install --tool ${tool} --mcp-command "${DEV_CLI}"\``);
+      expect(note, tool).toContain(`\`${DEV_CLI} install --tool ${tool} --mcp --skills --mcp-command "${DEV_CLI}"\``);
       expect(note, tool).not.toContain("npx dsmith");
     }
+  });
+});
+
+describe("ctx.include (설치할 표면 선택)", () => {
+  const none = { mcp: false, skills: false };
+  const mcpOnly = { mcp: true, skills: false };
+  const skillsOnly = { mcp: false, skills: true };
+  const isMcp = (w: { region: { kind: string } }): boolean => w.region.kind === "json-key" || w.region.kind === "block";
+
+  it("include를 생략하면 둘 다 쓴다(기존 출력과 같다)", () => {
+    for (const tool of AI_TOOLS) {
+      const a = renderers[tool].render(FIXTURES, repoCtx);
+      const b = renderers[tool].render(FIXTURES, { ...repoCtx, include: { mcp: true, skills: true } });
+      expect(b, tool).toEqual(a);
+    }
+  });
+
+  it("둘 다 끄면 모든 렌더러가 쓸 파일도 note도 없다", () => {
+    for (const tool of AI_TOOLS) {
+      expect(renderers[tool].render(FIXTURES, { ...repoCtx, include: none }), tool).toEqual({ writes: [], notes: [] });
+    }
+  });
+
+  it("mcp만: MCP 설정 쓰기만 남고 스킬·명령 파일은 없다", () => {
+    for (const tool of ["claude-code", "codex", "cursor", "gemini"] as const) {
+      const { writes } = renderers[tool].render(FIXTURES, { ...repoCtx, include: mcpOnly });
+      expect(writes.length, tool).toBe(1);
+      expect(writes.every(isMcp), tool).toBe(true);
+    }
+  });
+
+  it("skills만: 스킬·명령 파일만 남고 MCP 설정 쓰기와 MCP 승인·신뢰 note는 없다", () => {
+    for (const tool of ["claude-code", "codex", "cursor", "gemini"] as const) {
+      const out = renderers[tool].render(FIXTURES, { ...repoCtx, include: skillsOnly });
+      expect(out.writes.length, tool).toBe(FIXTURES.length);
+      expect(out.writes.some(isMcp), tool).toBe(false);
+      expect(out.notes, tool).toEqual([]);
+    }
+  });
+
+  it("claude-code global: mcp만이면 claude mcp add 안내만, skills만이면 note 없음", () => {
+    const m = renderers["claude-code"].render(FIXTURES, { ...globalCtx, include: mcpOnly });
+    expect(m.writes).toEqual([]);
+    expect(m.notes[0]).toContain("claude mcp add --scope user dsmith");
+    expect(renderers["claude-code"].render(FIXTURES, { ...globalCtx, include: skillsOnly }).notes).toEqual([]);
+  });
+
+  it("agents-md 블록: mcp를 끄면 MCP 서버 줄과 resolve_token 규칙이 빠진다", () => {
+    const [w] = renderers["agents-md"].render(FIXTURES, { ...repoCtx, include: skillsOnly }).writes;
+    expect(w?.content).toContain("| 명령 | 하는 일 | 슬래시 없을 때 |");
+    expect(w?.content).not.toContain("MCP 서버 dsmith");
+    expect(w?.content).not.toContain("resolve_token");
+    const [full] = renderers["agents-md"].render(FIXTURES, repoCtx).writes;
+    expect(full?.content).toContain("resolve_token");
   });
 });

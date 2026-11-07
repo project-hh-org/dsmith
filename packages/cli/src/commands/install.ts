@@ -14,8 +14,10 @@ import {
   renderers,
   type AiTool,
   type McpLaunch,
+  type RenderContext,
   type ToolDetection,
 } from "@dsmith-dev/agent-skill";
+import { runAi } from "@dsmith-dev/catalog";
 import { regionKey, safeWrite, type PlannedWrite, type WriteOutcome } from "@dsmith-dev/core";
 import { cliVersion } from "../version.js";
 
@@ -30,8 +32,17 @@ export interface InstallOptions {
   global?: boolean;
   dryRun?: boolean;
   force?: boolean;
-  /** --mcp-command "<cmd> [args…]" (배포 전 로컬 개발용) */
+  /** --mcp-command "<cmd> [args…]" (배포 전 로컬 개발용). 주면 mcp도 켠다 */
   mcpCommand?: string;
+  /** --mcp: MCP 서버 등록(.mcp.json 등)을 쓴다. 기본은 쓰지 않는다 */
+  mcp?: boolean;
+  /** --skills: 슬래시 명령·스킬 파일(.claude/skills 등)을 쓴다. 기본은 쓰지 않는다 */
+  skills?: boolean;
+  /**
+   * 기본 true: AGENTS.md의 DS 섹션(`dsmith ai`가 만드는 `dsmith:ds` 블록)을 보장한다.
+   * 분석 결과가 없으면 쓰지 못하고 note를 남긴다. `--global`에서는 건너뛴다. 테스트가 끌 수 있다.
+   */
+  ds?: boolean;
   /** dsmith 버전. 기본은 cli package.json. 테스트가 주입한다 */
   version?: string;
 }
@@ -47,6 +58,10 @@ export interface InstallResult {
   /** --tool/--all이면 null. --global이면 홈 흔적만 담는다 */
   detection: ToolDetection | null;
   mcp: McpLaunch;
+  /** 이번 실행이 설치한 표면. false인 것은 쓰지 않았고, 이미 있는 파일도 지우지 않았다 */
+  surfaces: { mcp: boolean; skills: boolean };
+  /** AGENTS.md DS 섹션(`dsmith ai`) 결과 */
+  ds: DsOutcome;
   /** 명령 본문과 AGENTS.md 블록이 부르는 CLI 실행 명령(기본 `npx dsmith`) */
   cli: string;
   outcomes: WriteOutcome[];
@@ -57,6 +72,13 @@ export interface InstallResult {
   manifest: string;
   dryRun: boolean;
 }
+
+export type DsOutcome =
+  | { status: "ok"; file: string; outcome: WriteOutcome["status"]; components: number; catalogFile: string | null }
+  | { status: "skipped"; reason: string };
+
+/** 스킵된 표면 안내(기본 설치). 근거는 README `## 벤치마크`와 benchmarks/results/2026-11-08-legacy-demo-sameday.md */
+export const SURFACES_SKIPPED_REASON = "벤치마크: AGENTS.md만 있을 때 토큰 사용률이 가장 높았음";
 
 const CODEX_DUPLICATE_REASON = "config.toml에 dsmith가 관리하지 않는 [mcp_servers.dsmith]가 있음";
 const CODEX_INLINE_REASON = "config.toml이 mcp_servers를 인라인 테이블로 정의해 [mcp_servers.dsmith]를 추가할 수 없음";
@@ -200,6 +222,39 @@ function manualSnippet(w: PlannedWrite, mcp: McpLaunch, inlineToml: boolean): st
   return null;
 }
 
+/** `dsmith ai`와 같은 경로로 AGENTS.md DS 섹션을 만든다. 못 만들면 사유를 note로 남기고 설치는 계속한다. */
+async function ensureDsSection(a: {
+  root: string;
+  version: string;
+  scope: "repo" | "global";
+  dryRun: boolean;
+  force: boolean;
+  enabled: boolean;
+  notes: string[];
+}): Promise<DsOutcome> {
+  if (!a.enabled) return { status: "skipped", reason: "건너뜀 요청" };
+  if (a.scope === "global") return { status: "skipped", reason: "--global은 레포의 AGENTS.md를 쓰지 않음" };
+  try {
+    const r = await runAi({
+      root: a.root,
+      version: a.version,
+      ...(a.dryRun ? { dryRun: true } : {}),
+      ...(a.force ? { force: true } : {}),
+    });
+    a.notes.push(...r.notes, ...r.warnings.map((w) => `경고: ${w}`));
+    const outcome = r.outcomes[0];
+    if (outcome === undefined) return { status: "skipped", reason: r.warnings[0] ?? "AGENTS.md DS 섹션을 만들 컴포넌트가 없음" };
+    if (outcome.status.startsWith("skipped")) {
+      a.notes.push(`${outcome.file}의 DS 섹션을 건너뜀: ${outcome.reason ?? outcome.status} (--force로 덮어쓰기)`);
+    }
+    return { status: "ok", file: outcome.file, outcome: outcome.status, components: r.components, catalogFile: r.catalogFile };
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    a.notes.push(`AGENTS.md DS 섹션을 만들지 못함: ${reason}. \`${DEFAULT_CLI} audit\` → \`init\` → \`ai\` 뒤 다시 실행하세요.`);
+    return { status: "skipped", reason };
+  }
+}
+
 export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
   const scope = opts.global === true ? "global" : "repo";
   const root = path.resolve(opts.root);
@@ -207,9 +262,11 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
   const version = opts.version ?? cliVersion();
   const dryRun = opts.dryRun === true;
   const force = opts.force === true;
+  // MCP·스킬은 선택이다. --mcp-command는 MCP를 쓰겠다는 뜻이라 mcp를 함께 켠다.
+  const surfaces = { mcp: opts.mcp === true || opts.mcpCommand !== undefined, skills: opts.skills === true };
 
-  // 1. MCP·CLI 실행 명령 — 0.0.0(로컬 개발 빌드)이면 npx로 받을 배포판이 없으므로 --mcp-command가 필수
-  if (opts.mcpCommand === undefined && version === "0.0.0") {
+  // 1. MCP·CLI 실행 명령 — 0.0.0(로컬 개발 빌드)이면 npx로 받을 배포판이 없으므로 --mcp-command가 필수(MCP·스킬을 쓸 때만)
+  if (opts.mcpCommand === undefined && version === "0.0.0" && (surfaces.mcp || surfaces.skills)) {
     const bin = fileURLToPath(new URL("../bin.js", import.meta.url));
     throw new Error(
       `로컬 개발 빌드(0.0.0)에는 npx로 받을 배포판이 없습니다. 이 빌드를 쓰려면 --mcp-command 를 주세요: --mcp-command "node ${bin}"`,
@@ -219,7 +276,7 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
   // 슬래시 명령 본문의 CLI 호출도 같은 빌드를 쓴다: `node /abs/dist/bin.js mcp` → `node /abs/dist/bin.js`
   const cli = opts.mcpCommand !== undefined ? [mcp.command, ...mcp.args.slice(0, -1)].join(" ") : DEFAULT_CLI;
   const notes: string[] = [];
-  if (opts.mcpCommand !== undefined && scope === "repo") {
+  if (opts.mcpCommand !== undefined && scope === "repo" && (surfaces.mcp || surfaces.skills)) {
     notes.push(
       `경고: --mcp-command(${cli})의 경로는 이 컴퓨터에만 있습니다. 슬래시 명령·AGENTS.md·MCP 설정 등 레포에 쓰는 파일에 이 경로가 들어가므로 커밋하면 다른 사람 환경에서 동작하지 않습니다. 커밋하지 마세요.`,
     );
@@ -246,15 +303,19 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
   const planned: PlannedWrite[] = [];
   const unsupported: AiTool[] = [];
   for (const tool of tools) {
-    const out = renderers[tool].render(commands, {
+    const ctx: RenderContext = {
       root,
       home,
       scope,
       mcp,
       cli,
       ...(version === "0.0.0" && opts.mcpCommand !== undefined ? { devMcpCommand: opts.mcpCommand } : {}),
-    });
-    if (out.writes.length === 0) unsupported.push(tool);
+    };
+    const out = renderers[tool].render(commands, { ...ctx, include: surfaces });
+    if (out.writes.length === 0) {
+      // 표면을 안 골라 비었을 수 있다 — 전부 켜도 쓸 파일이 없을 때만(예: --global의 cursor) 미지원이다.
+      if (renderers[tool].render(commands, { ...ctx, include: { mcp: true, skills: true } }).writes.length === 0) unsupported.push(tool);
+    }
     planned.push(...out.writes);
     notes.push(...out.notes);
   }
@@ -329,6 +390,9 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
   const skillOutcomes = outcomes.filter((_, i) => !isMcpConfig(planned[i] as PlannedWrite));
   const allSkillsSkipped = !dryRun && skillOutcomes.length > 0 && skillOutcomes.every((o) => o.status.startsWith("skipped"));
 
+  // 7. AGENTS.md DS 섹션(`dsmith ai`). 기본 설치의 중심이다 — MCP·스킬 없이 이것만 있을 때 벤치마크 점수가 가장 높았다.
+  const ds = await ensureDsSection({ root, version, scope, dryRun, force, enabled: opts.ds !== false, notes });
+
   return {
     scope,
     tools,
@@ -336,6 +400,8 @@ export async function runInstall(opts: InstallOptions): Promise<InstallResult> {
     selection,
     detection,
     mcp,
+    surfaces,
+    ds,
     cli,
     outcomes,
     ...(allSkillsSkipped ? { allSkillsSkipped: true as const } : {}),
@@ -372,11 +438,32 @@ function registeredLine(r: InstallResult): string {
   return `등록: ${r.tools.map((t) => tagged(t, toolLabel(t, r))).join(", ")}`;
 }
 
+/** 이번 실행이 설치한 것(사람이 읽는 이름). 쓰지 않기로 한 DS 섹션(테스트 전용)은 적지 않는다. */
+function installedNames(r: InstallResult): string[] {
+  return [...(r.ds.status === "ok" ? ["AGENTS.md DS 섹션"] : []), ...(r.surfaces.mcp ? ["MCP 서버"] : []), ...(r.surfaces.skills ? ["슬래시 명령"] : [])];
+}
+
+/** MCP·슬래시 명령을 기본으로 설치하지 않는다는 한 줄. 둘 다 켰으면 null. */
+export function skippedSurfacesLine(r: InstallResult): string | null {
+  const skipped = [...(r.surfaces.mcp ? [] : [["MCP", "--mcp"]]), ...(r.surfaces.skills ? [] : [["슬래시 명령", "--skills"]])] as [string, string][];
+  if (skipped.length === 0) return null;
+  const names = skipped.map(([n]) => n).join("·");
+  const flags = skipped.map(([, f]) => f).join("·");
+  const topic = skipped.length === 1 && skipped[0]?.[0] === "MCP" ? "는" : "은"; // 받침: MCP는, 슬래시 명령은
+  return `${names}${topic} 기본으로 설치하지 않음(${SURFACES_SKIPPED_REASON}) — 필요하면 ${flags}`;
+}
+
 /** 설치한 도구마다 어떻게 시작하는지. 같은 방법끼리 묶는다. */
 function nextLines(r: InstallResult): string[] {
   if (r.dryRun) return ["다음: --dry-run 없이 다시 실행하면 위 내용을 씁니다"];
   if (r.allSkillsSkipped === true) return ["다음: 건너뜀 사유를 해결한 뒤 다시 실행"];
+  if (!r.surfaces.mcp && !r.surfaces.skills) {
+    return r.ds.status === "ok"
+      ? ["다음: AI 도구를 다시 열면 AGENTS.md의 DS 규칙을 읽습니다"]
+      : ["다음: 위 할 일을 확인하세요"];
+  }
   const active = r.tools.filter((t) => !r.unsupported.includes(t));
+  if (!r.surfaces.skills) return ["다음: AI 도구를 다시 열고 MCP 서버(dsmith)를 승인하세요"];
   const slash = active.filter((t) => t === "claude-code" || t === "cursor" || t === "gemini");
   const groups: { tools: AiTool[]; text: string }[] = [];
   if (slash.length > 0) groups.push({ tools: slash, text: "/ds 로 시작" });
@@ -400,8 +487,25 @@ export function formatInstallSummary(r: InstallResult): string {
   if (r.dryRun) lines.push("(dry-run — 아무것도 쓰지 않음)");
   lines.push(
     registeredLine(r),
+    ...(installedNames(r).length > 0 ? [`설치: ${installedNames(r).join(" · ")}`] : []),
     `파일: 생성 ${count("created")} · 변경 ${count("updated")} · 유지 ${count("unchanged")} · 건너뜀 ${skipped.length}`,
   );
+  if (r.ds.status === "ok") {
+    const label: Record<WriteOutcome["status"], string> = {
+      created: "생성",
+      updated: "변경",
+      unchanged: "유지",
+      "skipped-modified": "건너뜀",
+      "skipped-unowned": "건너뜀",
+      "skipped-invalid": "건너뜀",
+      "skipped-exists": "건너뜀",
+    };
+    lines.push(`AGENTS.md DS 섹션: ${label[r.ds.outcome]} (${r.ds.file}, 컴포넌트 ${r.ds.components}개)`);
+  } else if (r.ds.reason !== "건너뜀 요청") {
+    lines.push(`AGENTS.md DS 섹션: 쓰지 않음 — ${r.ds.reason}`);
+  }
+  const skippedLine = skippedSurfacesLine(r);
+  if (skippedLine !== null) lines.push(skippedLine);
   for (const o of skipped) lines.push(`건너뜀: ${o.file} — ${o.reason ?? o.status}`);
   if (skipped.some((o) => o.status === "skipped-modified" || o.status === "skipped-unowned")) {
     lines.push("건너뛴 파일은 --force로 덮어쓰기");

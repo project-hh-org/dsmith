@@ -16,6 +16,6 @@ exports[`runAi: with-ds-app > 생성된 DS 섹션 — 사용 수 순으로 Butto
 4. deprecated 컴포넌트·props는 쓰지 않는다.
 5. 끝나면 \`/ds-check\`(또는 MCP \`lint_snippet\`)로 검사한다.
 
-MCP 서버 \`dsmith\` 도구: resolve_token, lint_snippet, search_component, get_component, explain_decision, list_decisions — 등록은 \`npx dsmith install\`.
+MCP 서버 \`dsmith\` 도구: resolve_token, lint_snippet, search_component, get_component, explain_decision, list_decisions — 등록은 \`npx dsmith install --mcp\`.
 <!-- dsmith:ds:end -->"
 `;

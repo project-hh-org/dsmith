@@ -98,15 +98,14 @@ describe("runAi: with-ds-app", () => {
     expect(formatAiSummary(r)).toContain("dry-run");
   });
 
-  it("CLAUDE.md가 있으면 @AGENTS.md 안내, 이미 있으면 안내 없음; install.json 없으면 MCP 안내", async () => {
+  it("CLAUDE.md가 있으면 @AGENTS.md 안내, 이미 있으면 안내 없음; MCP는 선택이라 미등록 안내를 하지 않는다", async () => {
     const root = await withDsApp({ "CLAUDE.md": "# x\n" });
     const r = await runAi({ root, version: VERSION });
     expect(r.notes.some((n) => n.includes("@AGENTS.md"))).toBe(true);
-    expect(r.notes.some((n) => n.includes("npx dsmith install"))).toBe(true);
+    expect(r.notes.some((n) => n.includes("MCP"))).toBe(false);
     expect(read(root, "CLAUDE.md")).toBe("# x\n");
 
     fs.writeFileSync(path.join(root, "CLAUDE.md"), "# x\n@AGENTS.md\n");
-    fs.writeFileSync(path.join(root, ".dsmith", "install.json"), '{"version":1,"tool":"install","dsmith":"0","entries":{}}\n');
     const r2 = await runAi({ root, version: VERSION });
     expect(r2.notes).toEqual([]);
   });
@@ -223,20 +222,12 @@ describe("runAi: 보강 (fix round 1)", () => {
     expect(read(root, "AGENTS.md")).not.toContain("dsmith init");
   });
 
-  it("MCP 안내: .mcp.json·.cursor/mcp.json·.gemini/settings.json·.codex/config.toml의 dsmith 항목도 등록으로 본다", async () => {
-    const cases: Record<string, string> = {
-      ".mcp.json": '{"mcpServers":{"dsmith":{"command":"npx"}}}',
-      ".cursor/mcp.json": '{"mcpServers":{"dsmith":{"command":"npx"}}}',
-      ".gemini/settings.json": '{"mcpServers":{"dsmith":{"command":"npx"}}}',
-      ".codex/config.toml": '[mcp_servers.dsmith]\ncommand = "npx"\n',
-    };
-    for (const [file, content] of Object.entries(cases)) {
-      const root = await withDsApp({ [file]: content });
+  it("MCP 등록 여부와 상관없이 MCP 안내 note를 내지 않는다(MCP는 선택 설치)", async () => {
+    for (const files of [{}, { ".mcp.json": '{"mcpServers":{"other":{}}}' }, { ".mcp.json": '{"mcpServers":{"dsmith":{"command":"npx"}}}' }]) {
+      const root = await withDsApp(files);
       const r = await runAi({ root, version: VERSION });
-      expect(r.notes.some((n) => n.includes("MCP 서버 미등록")), file).toBe(false);
+      expect(r.notes.some((n) => n.includes("MCP")), JSON.stringify(files)).toBe(false);
     }
-    const none = await withDsApp({ ".mcp.json": '{"mcpServers":{"other":{}}}' });
-    expect((await runAi({ root: none, version: VERSION })).notes.some((n) => n.includes("MCP 서버 미등록"))).toBe(true);
   });
 
   it("--from init인데 init 컴포넌트가 없으면 기존 DS 섹션·카탈로그를 덮어쓰지 않고 안내한다", async () => {

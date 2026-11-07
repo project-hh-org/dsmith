@@ -11,7 +11,7 @@
 import path from "node:path";
 import type { PlannedWrite } from "@dsmith-dev/core";
 import type { CommandSource } from "../commands.js";
-import { launchLine, mcpJsonWrite, mcpServerEntry, skillMarkdown, withCli, type RenderContext, type Renderer, type RenderOutput } from "./shared.js";
+import { launchLine, mcpJsonWrite, mcpServerEntry, skillMarkdown, surfaces, withCli, type RenderContext, type Renderer, type RenderOutput } from "./shared.js";
 
 export const claudeCodeRenderer: Renderer = {
   tool: "claude-code",
@@ -26,11 +26,15 @@ export const claudeCodeRenderer: Renderer = {
   supportsGlobal: true,
   render(commands: CommandSource[], ctx: RenderContext): RenderOutput {
     const base = ctx.scope === "global" ? ctx.home : ctx.root;
-    const writes: PlannedWrite[] = withCli(commands, ctx.cli).map((c) => ({
-      file: path.join(base, ".claude", "skills", c.name, "SKILL.md"),
-      region: { kind: "file" },
-      content: skillMarkdown(c, "$ARGUMENTS", { argumentHint: true }),
-    }));
+    const on = surfaces(ctx);
+    const writes: PlannedWrite[] = on.skills
+      ? withCli(commands, ctx.cli).map((c) => ({
+          file: path.join(base, ".claude", "skills", c.name, "SKILL.md"),
+          region: { kind: "file" },
+          content: skillMarkdown(c, "$ARGUMENTS", { argumentHint: true }),
+        }))
+      : [];
+    if (!on.mcp) return { writes, notes: [] };
 
     if (ctx.scope === "global") {
       // 사용자 범위 MCP는 ~/.claude.json에 들어가고 그 파일 규약은 확인하지 않았다 — CLI에 맡긴다.

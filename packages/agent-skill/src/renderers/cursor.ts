@@ -18,6 +18,7 @@ import {
   mcpJsonWrite,
   mcpServerEntry,
   substituteArgs,
+  surfaces,
   unsupportedGlobal,
   withCli,
   type RenderContext,
@@ -44,12 +45,15 @@ export const cursorRenderer: Renderer = {
     if (ctx.scope === "global") {
       return unsupportedGlobal("cursor", ctx);
     }
-    const writes: PlannedWrite[] = withCli(commands, ctx.cli).map((c) => ({
-      file: path.join(ctx.root, ".cursor", "commands", `${c.name}.md`),
-      region: { kind: "file" },
-      content: commandMarkdown(c),
-    }));
-    writes.push(mcpJsonWrite(path.join(ctx.root, ".cursor", "mcp.json"), mcpServerEntry(ctx.mcp, { type: "stdio" })));
+    const on = surfaces(ctx);
+    const writes: PlannedWrite[] = on.skills
+      ? withCli(commands, ctx.cli).map((c) => ({
+          file: path.join(ctx.root, ".cursor", "commands", `${c.name}.md`),
+          region: { kind: "file" },
+          content: commandMarkdown(c),
+        }))
+      : [];
+    if (on.mcp) writes.push(mcpJsonWrite(path.join(ctx.root, ".cursor", "mcp.json"), mcpServerEntry(ctx.mcp, { type: "stdio" })));
     return { writes, notes: [] };
   },
 };

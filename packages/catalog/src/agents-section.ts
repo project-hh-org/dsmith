@@ -150,7 +150,7 @@ export function renderAgentsDsSection(catalog: Catalog, usageOrder: string[]): s
     "4. deprecated 컴포넌트·props는 쓰지 않는다.",
     "5. 끝나면 `/ds-check`(또는 MCP `lint_snippet`)로 검사한다.",
     "",
-    `MCP 서버 \`dsmith\` 도구: ${MCP_TOOL_NAMES_IN_SECTION.join(", ")} — 등록은 \`npx dsmith install\`.`,
+    `MCP 서버 \`dsmith\` 도구: ${MCP_TOOL_NAMES_IN_SECTION.join(", ")} — 등록은 \`npx dsmith install --mcp\`.`,
   );
 
   if (lines.length > SECTION_MAX_LINES) throw new Error(`AGENTS.md DS 섹션이 ${SECTION_MAX_LINES}줄을 넘음`);

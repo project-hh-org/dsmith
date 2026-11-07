@@ -8,7 +8,7 @@
  */
 import path from "node:path";
 import type { CommandSource } from "../commands.js";
-import { DEFAULT_CLI, MD_MARKERS, launchLine, unsupportedGlobal, type RenderContext, type Renderer, type RenderOutput } from "./shared.js";
+import { DEFAULT_CLI, MD_MARKERS, launchLine, surfaces, unsupportedGlobal, type RenderContext, type Renderer, type RenderOutput } from "./shared.js";
 
 export const MCP_TOOL_NAMES = [
   "resolve_token",
@@ -39,6 +39,7 @@ function fallbackCell(c: CommandSource, cliCmd: string): string {
 function block(commands: CommandSource[], ctx: RenderContext): string {
   const cliCmd = ctx.cli ?? DEFAULT_CLI;
   const rows = commands.map((c) => `| \`/${c.name}\` | ${firstSentence(c.description)} | ${fallbackCell(c, cliCmd)} |`);
+  const { mcp } = surfaces(ctx);
   return [
     "## dsmith (디자인 시스템 도구)",
     "",
@@ -48,12 +49,11 @@ function block(commands: CommandSource[], ctx: RenderContext): string {
     "| --- | --- | --- |",
     ...rows,
     "",
-    `MCP 서버 dsmith(\`${launchLine(ctx.mcp)}\`) 도구: ${MCP_TOOL_NAMES.join(", ")}`,
-    "",
+    ...(mcp ? [`MCP 서버 dsmith(\`${launchLine(ctx.mcp)}\`) 도구: ${MCP_TOOL_NAMES.join(", ")}`, ""] : []),
     "규칙:",
     "- 명령 출력 JSON에 없는 숫자는 말하지 않는다.",
     `- 결정은 사람이 고른 뒤 \`${cliCmd} decide --item "<이름>" --choose "<id>"\` 로 기록한다.`,
-    "- 스타일 값을 하드코딩하기 전에 `resolve_token`으로 토큰을 찾는다.",
+    ...(mcp ? ["- 스타일 값을 하드코딩하기 전에 `resolve_token`으로 토큰을 찾는다."] : []),
   ].join("\n");
 }
 
@@ -65,6 +65,9 @@ export const agentsMdRenderer: Renderer = {
     if (ctx.scope === "global") {
       return unsupportedGlobal("agents-md", ctx);
     }
+    // 명령 표·MCP 안내는 그 표면을 설치할 때만 쓴다 — DS 섹션(`dsmith ai`)만 두는 기본 설치에서는 AGENTS.md를 늘리지 않는다.
+    const on = surfaces(ctx);
+    if (!on.mcp && !on.skills) return { writes: [], notes: [] };
     return {
       writes: [
         {

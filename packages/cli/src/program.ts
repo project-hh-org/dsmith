@@ -78,6 +78,8 @@ interface InstallCliOptions {
   dryRun?: boolean;
   force?: boolean;
   mcpCommand?: string;
+  mcp?: boolean;
+  skills?: boolean;
 }
 
 interface InitCliOptions {
@@ -232,7 +234,7 @@ export function buildProgram(): Command {
   program
     .command("install")
     .description(
-      "사용 중인 AI 도구를 감지해 슬래시 명령과 MCP 서버 등록을 레포에 내려쓴다. 사용자가 고친 파일은 --force 없이 덮어쓰지 않음",
+      "AGENTS.md의 DS 섹션을 보장한다(dsmith ai와 같음). 기본은 이것만 — 슬래시 명령은 --skills, MCP 서버 등록은 --mcp로 더한다(사용 중인 AI 도구를 감지해 그 도구 형식으로 씀). 이미 있는 파일은 지우지 않고, 사용자가 고친 파일은 --force 없이 덮어쓰지 않음",
     )
     .option("--root <dir>", "대상 레포 경로", process.cwd())
     .option("--json", "결과를 JSON으로만 stdout에 출력")
@@ -240,13 +242,15 @@ export function buildProgram(): Command {
       "--tool <name...>",
       `감지 대신 지정할 AI 도구(${AI_TOOLS.join(" | ")}). 여러 번·여러 값으로 줄 수 있다`,
     )
-    .option("--all", "AI 도구 전부 설치")
+    .option("--mcp", "MCP 서버 등록(.mcp.json 등)도 쓴다. 기본은 쓰지 않음")
+    .option("--skills", "슬래시 명령·스킬 파일(.claude/skills 등)도 쓴다. 기본은 쓰지 않음")
+    .option("--all", "AI 도구 전부 대상으로 (--mcp·--skills를 함께 켜지는 않음)")
     .option("--global", "레포 대신 사용자 홈에 설치(claude-code·codex만 지원). 홈의 흔적만으로 도구를 고른다")
     .option("--dry-run", "아무것도 쓰지 않고 쓸 파일과 diff만 출력")
     .option("--force", "사용자가 고친 영역도 덮어쓴다")
     .option(
       "--mcp-command <cmd>",
-      '배포 전 로컬 개발용 MCP 실행 명령(예: "node /abs/packages/cli/dist/bin.js"). 끝의 mcp는 자동으로 붙는다',
+      '배포 전 로컬 개발용 MCP 실행 명령(예: "node /abs/packages/cli/dist/bin.js"). 끝의 mcp는 자동으로 붙는다. --mcp를 함께 켠다',
     )
     .action(async (opts: InstallCliOptions) => {
       const result = await runInstall({
@@ -257,6 +261,8 @@ export function buildProgram(): Command {
         ...(opts.dryRun === true ? { dryRun: true } : {}),
         ...(opts.force === true ? { force: true } : {}),
         ...(opts.mcpCommand === undefined ? {} : { mcpCommand: opts.mcpCommand }),
+        ...(opts.mcp === true ? { mcp: true } : {}),
+        ...(opts.skills === true ? { skills: true } : {}),
       });
       process.stdout.write(opts.json ? `${JSON.stringify(result, null, 2)}\n` : `${formatInstallSummary(result)}\n`);
       // 스킬·명령을 하나도 못 썼으면 설치가 안 된 것이다.
