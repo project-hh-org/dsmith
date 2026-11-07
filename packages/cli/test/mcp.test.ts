@@ -63,7 +63,7 @@ describe("findProjectRoot", () => {
     const other = path.join(tmp, "somewhere");
     fs.mkdirSync(path.join(home, "notes", "proto"), { recursive: true });
     fs.mkdirSync(other);
-    await runInstall({ root: other, home, global: true, tools: ["claude-code"], version: "0.2.0" });
+    await runInstall({ root: other, home, global: true, tools: ["claude-code"], version: "0.2.0", skills: true });
     expect(fs.existsSync(path.join(home, ".dsmith", "install.json"))).toBe(true);
     const sub = path.join(home, "notes", "proto");
     expect(findProjectRoot(sub, home)).toBe(sub);
@@ -96,7 +96,7 @@ describe("findProjectRoot", () => {
     fs.mkdirSync(deep, { recursive: true });
     fs.writeFileSync(path.join(repo, "package.json"), JSON.stringify({ name: "app", dependencies: { react: "^18" } }));
     fs.writeFileSync(path.join(repo, "src", "A.tsx"), "export const A = () => <div />;\n");
-    await runInstall({ root: repo, home: path.join(tmp, "h"), tools: ["claude-code"], version: "0.2.0" });
+    await runInstall({ root: repo, home: path.join(tmp, "h"), tools: ["claude-code"], version: "0.2.0", mcp: true, skills: true });
     expect(fs.existsSync(path.join(repo, ".dsmith", "install.json"))).toBe(true);
     expect(findProjectRoot(deep, path.join(tmp, "h"))).toBe(deep);
     await runAudit(repo);

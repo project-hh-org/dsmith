@@ -208,7 +208,8 @@ describe("examples/legacy-demo: audit → install → decide", () => {
         filter: (src) => !src.split(path.sep).includes(".dsmith"),
       });
       await runAudit(repo);
-      const result = await runInstall({ root: repo, home, tools: ["claude-code"], version: "0.2.0" });
+      // MCP·스킬은 선택 설치(--mcp --skills). 기본 설치(AGENTS.md DS 섹션만)는 install-defaults.test.ts가 본다.
+      const result = await runInstall({ root: repo, home, tools: ["claude-code"], version: "0.2.0", mcp: true, skills: true, ds: false });
       expect(result.outcomes.map((o) => o.status)).toEqual(Array(10).fill("created"));
 
       const list = (dir: string, prefix = ""): string[] =>

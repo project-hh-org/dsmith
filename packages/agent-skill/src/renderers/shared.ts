@@ -21,6 +21,20 @@ export interface RenderContext {
    * 0.0.0 빌드는 이 플래그 없이는 설치되지 않는다.
    */
   devMcpCommand?: string;
+  /**
+   * 어느 표면을 쓸지. 생략하면 둘 다(렌더러 단독 사용·기존 동작). `mcp`는 MCP 서버 등록,
+   * `skills`는 슬래시 명령·스킬 파일이다. 둘 다 false면 렌더러는 쓸 파일이 없다.
+   */
+  include?: SurfaceSelection;
+}
+
+export interface SurfaceSelection {
+  mcp: boolean;
+  skills: boolean;
+}
+
+export function surfaces(ctx: RenderContext): SurfaceSelection {
+  return ctx.include ?? { mcp: true, skills: true };
 }
 
 export const DEFAULT_CLI = "npx dsmith";
@@ -96,6 +110,6 @@ export function mcpJsonWrite(file: string, entry: Record<string, unknown>): Plan
  */
 export function unsupportedGlobal(tool: AiTool, ctx: RenderContext): RenderOutput {
   const flag = ctx.devMcpCommand === undefined ? "" : ` --mcp-command "${ctx.devMcpCommand}"`;
-  const hint = cliText(`레포에서 \`${DEFAULT_CLI} install --tool ${tool}${flag}\`를 실행하세요.`, ctx.cli);
+  const hint = cliText(`레포에서 \`${DEFAULT_CLI} install --tool ${tool} --mcp --skills${flag}\`를 실행하세요.`, ctx.cli);
   return { writes: [], notes: [`${tool}: --global을 지원하지 않습니다. ${hint}`] };
 }

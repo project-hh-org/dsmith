@@ -5,6 +5,8 @@ args: "[--files <glob> | --category <c>]"
 uses: ["cli:migrate"]
 ---
 
+새 UI 코드는 AGENTS.md의 DS 규칙(디자인 토큰·DS 컴포넌트)을 따른다. 이 명령은 그 규칙에 맞는 토큰·컴포넌트를 찾을 때 쓴다.
+
 계획은 파일을 쓰지 않는다. 이 레포에 audit·init 결과가 없으면 먼저 `/ds-audit`, `/ds-init`를 안내한다.
 
 1. `npx dsmith migrate --json {{args}}`를 실행하고 stdout JSON을 읽는다. stderr의 힌트·경고도 그대로 전한다. 토큰이 없다는 오류면 `/ds-init`을 안내하고 멈춘다.

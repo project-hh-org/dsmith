@@ -16,7 +16,7 @@ uses: ["cli:decide --list", "mcp:list_decisions", "mcp:explain_decision"]
 MCP 도구가 없으면(서버 미등록) 이렇게 대신한다:
 - 목록: `npx dsmith decide --list --status pending --json`
 - 카드: `npx dsmith decide --explain "<item>" --json`
-- 그래도 안 되면 `npx dsmith install` 후 AI 도구를 재시작하라고 안내한다.
+- 그래도 안 되면 `npx dsmith install --mcp` 후 AI 도구를 재시작하라고 안내한다.
 
 카드 필드 읽는 법:
 - `impact.byOption[x]`는 x를 고르면 바꿔야 하는 다른 옵션의 호출 수(`callSites`)와 파일 수(`files`)다. x의 사용량이 아니다.

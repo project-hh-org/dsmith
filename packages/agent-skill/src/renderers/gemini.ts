@@ -16,6 +16,7 @@ import {
   MANAGED_NOTICE,
   mcpJsonWrite,
   mcpServerEntry,
+  surfaces,
   unsupportedGlobal,
   withCli,
   type RenderContext,
@@ -45,12 +46,15 @@ export const geminiRenderer: Renderer = {
     if (ctx.scope === "global") {
       return unsupportedGlobal("gemini", ctx);
     }
-    const writes: PlannedWrite[] = withCli(commands, ctx.cli).map((c) => ({
-      file: path.join(ctx.root, ".gemini", "commands", `${c.name}.toml`),
-      region: { kind: "file" },
-      content: commandToml(c),
-    }));
-    writes.push(mcpJsonWrite(path.join(ctx.root, ".gemini", "settings.json"), mcpServerEntry(ctx.mcp)));
+    const on = surfaces(ctx);
+    const writes: PlannedWrite[] = on.skills
+      ? withCli(commands, ctx.cli).map((c) => ({
+          file: path.join(ctx.root, ".gemini", "commands", `${c.name}.toml`),
+          region: { kind: "file" },
+          content: commandToml(c),
+        }))
+      : [];
+    if (on.mcp) writes.push(mcpJsonWrite(path.join(ctx.root, ".gemini", "settings.json"), mcpServerEntry(ctx.mcp)));
     return { writes, notes: [] };
   },
 };

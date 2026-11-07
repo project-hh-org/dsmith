@@ -8,5 +8,7 @@ export { componentsFromDts } from "./dts.js";
 export { findStories, storyExample } from "./stories.js";
 export { findInitDir } from "@dsmith-dev/core";
 export { DS_MARKERS, MCP_TOOL_NAMES_IN_SECTION, SECTION_MAX_LINES, renderAgentsDsSection } from "./agents-section.js";
+export type { InstalledSurfaces } from "./agents-section.js";
+export { detectInstalledSurfaces } from "./surfaces.js";
 export type { AiOptions, AiResult } from "./run.js";
 export { formatAiSummary, runAi } from "./run.js";

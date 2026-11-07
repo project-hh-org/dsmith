@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CLI_BIN, MONOREPO_ROOT, defaultInstallTool, makeRunCopy, prepareBase, prepareCondition, type Base } from "../src/base.js";
+import { CLI_BIN, MONOREPO_ROOT, defaultInstallTool, dsmithInstallArgs, makeRunCopy, prepareBase, prepareCondition, type Base } from "../src/base.js";
 import { cleanupTmps, git, tmpDir } from "./helpers.js";
 
 afterAll(cleanupTmps);
@@ -73,6 +73,72 @@ describe("prepareBase / prepareCondition / makeRunCopy", () => {
     for (const f of a) expect(fs.readFileSync(path.join(baseline, f))).toEqual(fs.readFileSync(path.join(dsmith, f)));
   });
 
+  it("2×2: 네 조건의 파일 집합 — AGENTS.md 섹션·.mcp.json·.claude/skills·.dsmith 유무가 표와 같고, 그 밖의 파일은 네 복사본이 바이트까지 같다", async () => {
+    const agentsOnly = await prepareCondition(base, "agents-only", "claude-code");
+    const mcpOnly = await prepareCondition(base, "mcp-only", "claude-code");
+    try {
+      const dirs = { baseline, "agents-only": agentsOnly, "mcp-only": mcpOnly, dsmith };
+      const has = (d: string, rel: string): boolean => fs.existsSync(path.join(d, rel));
+      const section = (d: string): boolean => has(d, "AGENTS.md") && fs.readFileSync(path.join(d, "AGENTS.md"), "utf-8").includes("<!-- dsmith:ds:start -->");
+      // 표: [AGENTS.md DS 섹션, .mcp.json, .claude/skills, .dsmith]
+      const matrix = {
+        baseline: [false, false, false, false],
+        "agents-only": [true, false, false, true],
+        "mcp-only": [false, true, false, true],
+        dsmith: [true, true, true, true],
+      } as const;
+      for (const [c, d] of Object.entries(dirs)) {
+        expect([section(d), has(d, ".mcp.json"), has(d, ".claude/skills"), has(d, ".dsmith/catalog.json")], c).toEqual([...matrix[c as keyof typeof matrix]]);
+        expect(has(d, "benchmarks"), c).toBe(false);
+        expect(has(d, "design-system/tokens.css"), c).toBe(true);
+        // 섹션이 없는 조건에는 AGENTS.md 파일 자체가 없다(legacy-demo에는 원래 AGENTS.md가 없다)
+        if (!matrix[c as keyof typeof matrix][0]) expect(has(d, "AGENTS.md"), c).toBe(false);
+        // 스킬을 지운 뒤 빈 .claude 디렉터리도 남기지 않는다
+        if (!matrix[c as keyof typeof matrix][2]) expect(has(d, ".claude"), c).toBe(false);
+      }
+      // .mcp.json·.dsmith는 있는 조건끼리 같은 내용이다. AGENTS.md 섹션은 실제 install처럼 설치된 표면에 맞게 렌더링되므로
+      // agents-only(기본 install)에는 MCP·슬래시 명령 언급이 없고, dsmith(--mcp --skills)에는 있다.
+      const same = (rel: string, a: string, b: string): void => expect(fs.readFileSync(path.join(a, rel)), rel).toEqual(fs.readFileSync(path.join(b, rel)));
+      same(".mcp.json", mcpOnly, dsmith);
+      const agentsText = (d: string): string => fs.readFileSync(path.join(d, "AGENTS.md"), "utf-8");
+      expect(agentsText(agentsOnly)).not.toMatch(/resolve_token|search_component|lint_snippet|\/ds-check/);
+      expect(agentsText(dsmith)).toMatch(/resolve_token/);
+      expect(agentsText(dsmith)).toMatch(/\/ds-check/);
+      // ai.json은 섹션을 렌더링한 표면 정보를 담으므로 조건마다 다르다
+      for (const f of listFiles(agentsOnly).filter((x) => x.startsWith(".dsmith/") && !x.startsWith(".dsmith/reports/") && x !== ".dsmith/ai.json")) same(f, agentsOnly, dsmith);
+      expect(fs.readFileSync(path.join(mcpOnly, ".mcp.json"), "utf-8")).toContain(CLI_BIN);
+
+      // 네 복사본의 차이는 전환 경로(AGENTS.md·.mcp.json·.claude/·.dsmith/)뿐이고, 나머지 파일 집합과 내용은 같다
+      const SWITCH = (f: string): boolean => f === "AGENTS.md" || f === ".mcp.json" || f.startsWith(".claude/") || f.startsWith(".dsmith/");
+      const common = listFiles(baseline).filter((f) => !SWITCH(f));
+      expect(common.length).toBeGreaterThan(10);
+      for (const d of Object.values(dirs)) {
+        expect(listFiles(d).filter((f) => !SWITCH(f))).toEqual(common);
+        for (const f of common) expect(fs.readFileSync(path.join(d, f)), f).toEqual(fs.readFileSync(path.join(baseline, f)));
+      }
+    } finally {
+      for (const d of [agentsOnly, mcpOnly]) fs.rmSync(d, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("mcp-only는 AGENTS.md의 다른 내용은 남기고 dsmith 섹션만 뺀다(.mcp.json·.dsmith는 유지, 스킬은 삭제)", async () => {
+    const tool = "claude-code";
+    const probe = { dir: tmpDir("dsmith-bench-mcponly-") } as Base;
+    fs.cpSync(base.dir, probe.dir, { recursive: true });
+    // DS 섹션은 베이스의 `ai`가 쓴다 — 사용자 내용을 그 앞에 둔다
+    const section = fs.readFileSync(path.join(base.dir, "AGENTS.md"), "utf-8");
+    fs.writeFileSync(path.join(probe.dir, "AGENTS.md"), `# 내 규칙\n\n- 커밋 전에 린트\n\n${section}`);
+    const out = await prepareCondition(probe, "mcp-only", tool);
+    try {
+      expect(fs.readFileSync(path.join(out, "AGENTS.md"), "utf-8")).toBe("# 내 규칙\n\n- 커밋 전에 린트\n");
+      expect(fs.existsSync(path.join(out, ".mcp.json"))).toBe(true);
+      expect(fs.existsSync(path.join(out, ".dsmith/catalog.json"))).toBe(true);
+      expect(fs.existsSync(path.join(out, ".claude"))).toBe(false);
+    } finally {
+      fs.rmSync(out, { recursive: true, force: true });
+    }
+  }, 120_000);
+
   it("baseline은 AGENTS.md의 다른 내용은 남기고 dsmith 섹션만 뺀다", async () => {
     const dir = tmpDir("dsmith-bench-agentsmd-");
     fs.writeFileSync(path.join(dir, "AGENTS.md"), "# 내 규칙\n\n- 커밋 전에 린트\n\n<!-- dsmith:ds:start -->\nDS 섹션\n<!-- dsmith:ds:end -->\n");
@@ -113,6 +179,32 @@ describe("prepareBase / prepareCondition / makeRunCopy", () => {
       else process.env.TMPDIR = prev;
     }
   });
+});
+
+describe("dsmithInstallArgs", () => {
+  it("dsmith 조건은 install 기본값(AGENTS.md만)에 기대지 않고 --mcp --skills를 명시한다", () => {
+    const args = dsmithInstallArgs("claude-code");
+    expect(args).toEqual(["install", "--tool", "claude-code", "--mcp", "--skills", "--mcp-command", `node ${CLI_BIN}`, "--json"]);
+    // --all은 AI 도구 전부를 뜻하므로 단일 도구 조건에 쓰지 않는다
+    expect(args).not.toContain("--all");
+  });
+});
+
+describe("agents-mcp 조건", () => {
+  it("AGENTS.md 섹션 + .mcp.json + .dsmith, 스킬은 없다(.claude도 남기지 않는다)", async () => {
+    const base = await prepareBase("legacy-demo");
+    const dir = await prepareCondition(base, "agents-mcp", "claude-code");
+    try {
+      const has = (rel: string): boolean => fs.existsSync(path.join(dir, rel));
+      expect(fs.readFileSync(path.join(dir, "AGENTS.md"), "utf-8")).toContain("<!-- dsmith:ds:start -->");
+      expect(has(".mcp.json")).toBe(true);
+      expect(has(".dsmith/catalog.json")).toBe(true);
+      expect(has(".claude")).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(base.dir, { recursive: true, force: true });
+    }
+  }, 120_000);
 });
 
 describe("defaultInstallTool", () => {

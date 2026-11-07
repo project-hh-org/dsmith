@@ -1,5 +1,7 @@
 import type { Extractor } from "@dsmith-dev/extractor-api";
 
+export { DS_RULE_LINE } from "./rule-line.js";
+
 export const TOOL_NAMES = [
   "resolve_token",
   "lint_snippet",

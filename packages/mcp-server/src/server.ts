@@ -10,6 +10,7 @@ import * as z from "zod/v4";
 import { DEFAULT_TOKEN_BUDGET, clipJson, clipMessage, paginate, shrinkToBudget, toText, type Page } from "./budget.js";
 import type { ServerDeps } from "./index.js";
 import { componentsList, tokensList } from "./resources.js";
+import { DS_RULE_LINE } from "./rule-line.js";
 import { explainDecisionTool, shrinkCard } from "./tools/explain-decision.js";
 import { getComponent } from "./tools/get-component.js";
 import { lintSnippet, suggestionFor } from "./tools/lint-snippet.js";
@@ -22,6 +23,12 @@ import { openWorkspace, type Workspace, type WorkspaceHandle } from "./workspace
 const MAX_TEXT = 200;
 const MAX_PROPERTY = 64;
 const MAX_CURSOR = 64;
+
+/**
+ * 붙여 넣을 값을 돌려주는 도구(resolve_token·search_component·get_component)의 설명 앞에 붙이는 DS 규칙 한 줄(규칙은 AGENTS.md가 정한다).
+ * 서버 instructions에도 한 번 들어가므로 나머지 도구에는 반복하지 않는다 — tools/list 크기를 줄인다.
+ */
+const DS_PREFIX = `${DS_RULE_LINE}\n`;
 
 /** 모든 응답의 마지막 방어선: 상한을 넘는 본문은 잘라서 `truncated: true`로 보낸다. */
 function okWith(value: unknown, budget: number): CallToolResult {
@@ -56,7 +63,7 @@ function stampOf(ws: Workspace, ...args: unknown[]): string {
  */
 export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
   const budget = deps.tokenBudget ?? DEFAULT_TOKEN_BUDGET;
-  const server = new McpServer({ name: "dsmith", version: deps.version });
+  const server = new McpServer({ name: "dsmith", version: deps.version }, { instructions: DS_RULE_LINE });
   const readOnly = { readOnlyHint: true, openWorldHint: false };
 
   let opening: Promise<WorkspaceHandle> | undefined;
@@ -80,6 +87,7 @@ export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
     "resolve_token",
     {
       description:
+        DS_PREFIX +
         "Map a raw style value (#3B82F6, 13px, var(--x)) to the closest design token (source says where the token came from: token-file, catalog or proposal). distance is oklch ΔE_ok for colors and px for lengths; confidence is high for ΔE < 0.005 or 0px, medium for ΔE < 0.03 or ≤ 2px, else low. Pass property (padding, border-radius, ...) to compare only that category. Use before writing any hardcoded color or spacing.",
       inputSchema: z.object({ raw: z.string().min(1).max(MAX_TEXT), property: z.string().max(MAX_PROPERTY).optional() }),
       annotations: readOnly,
@@ -114,6 +122,7 @@ export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
     "search_component",
     {
       description:
+        DS_PREFIX +
         "Find existing components in this repo by intent (e.g. 'date picker', '버튼'), including design-system components in the catalog that nothing uses yet. Returns up to limit matches (matched = count before limit); status scaffold marks an unimplemented shell made by dsmith init, listed after real implementations — do not use it in new UI. Use before creating a new component to avoid duplicates.",
       inputSchema: z.object({
         intent: z.string().min(1).max(MAX_TEXT),
@@ -134,6 +143,7 @@ export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
     "get_component",
     {
       description:
+        DS_PREFIX +
         "Get a component's props (with allowed values), variants, usage count and definition file from this repo. When the repo has a catalog (dsmith ai), the answer comes from it (source catalog: also description, deprecated, one usage example, origin); otherwise from the usage index and the definition file (source index). When several modules export the same name, returns the one chosen with decide, else the design-system or catalog one, else the most used (isDs and decided say which; the rest are in otherModules). status scaffold (with a note) means an unimplemented shell made by dsmith init. Use before using or changing a component.",
       inputSchema: z.object({ name: z.string().min(1).max(MAX_TEXT), module: z.string().max(MAX_TEXT).optional() }),
       annotations: readOnly,

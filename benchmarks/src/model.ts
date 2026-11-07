@@ -2,8 +2,48 @@ import type { IndependentScore, TypeCheckRecord } from "./independent/types.js";
 
 export type { IndependentScore, TypeCheckRecord };
 
-export type Condition = "baseline" | "dsmith";
-export const CONDITIONS: readonly Condition[] = ["baseline", "dsmith"];
+/**
+ * 2×2 설계(AGENTS.md DS 섹션 × MCP 서버):
+ *  baseline = 둘 다 없음, agents-only = AGENTS.md만, mcp-only = MCP(.mcp.json)만, dsmith = 둘 다.
+ * `.dsmith/`는 agents-only·mcp-only·agents-mcp·dsmith에 있고, `.claude/skills`는 dsmith에만 있다.
+ * agents-mcp = AGENTS.md + MCP, 슬래시 명령 없음 (dsmith와 비교해 슬래시 명령의 몫을 가른다).
+ */
+export type Condition = "baseline" | "agents-only" | "mcp-only" | "agents-mcp" | "dsmith";
+/** 표시·정렬 순서 */
+export const CONDITIONS: readonly Condition[] = ["baseline", "agents-only", "mcp-only", "agents-mcp", "dsmith"];
+/** `--conditions`를 생략했을 때의 조건(기존 2조건 비교) */
+export const DEFAULT_CONDITIONS: readonly Condition[] = ["baseline", "dsmith"];
+
+/**
+ * 조건 복사본에서 dsmith가 에이전트에 보이는 파일의 sha256. 없는 파일은 null.
+ * 병합이 "같은 텍스트를 측정했는가"를 검사하는 근거라 날짜·커밋 같은 메타데이터는 넣지 않는다.
+ */
+export interface SetupFingerprint {
+  /** AGENTS.md의 dsmith 마커 블록 텍스트 */
+  agentsSection: string | null;
+  /** `.mcp.json` — 절대 경로를 `<abs>/이름`으로 바꾼 정규화본 */
+  mcpConfig: string | null;
+  /** `.claude/skills/**` 경로와 내용 */
+  skills: string | null;
+  /** 복사본에서 띄운 MCP 서버의 `instructions`와 `tools/list`(이름·설명) */
+  mcpTools: string | null;
+  /** 위 넷을 합친 sha256 */
+  all: string;
+}
+export const FINGERPRINT_PARTS = ["agentsSection", "mcpConfig", "skills", "mcpTools"] as const;
+export type FingerprintPart = (typeof FINGERPRINT_PARTS)[number];
+
+/** 병합된 결과(`bench:report --in a --in b`)에서 입력 하나의 출처 */
+export interface MergedSource {
+  /** 입력 결과 JSON의 모노레포 기준 상대 경로(밖이면 파일 이름) */
+  file: string;
+  conditions: Condition[];
+  date: string;
+  startedAt: string | null;
+  agentVersion: string | null;
+  models: string[];
+  dsmith: { version: string; commit: string | null };
+}
 
 /** 한 파일(또는 합계)에서 에이전트가 새로 만든 스타일 사용 수 */
 export interface UsageCounts {
@@ -128,6 +168,10 @@ export interface BenchResult {
   abortReason: string | null;
   /** replay 모드에서만: 산출물의 출처(replay 디렉터리 meta.json) */
   replaySource?: ReplaySource;
+  /** 조건별 설정 지문. 없으면 지문을 기록하기 전의 결과(legacy) — 병합은 legacy끼리만 허용한다 */
+  setupFingerprint?: Partial<Record<Condition, SetupFingerprint>>;
+  /** 여러 실행을 병합한 결과에서만: 입력별 출처(없으면 단일 실행) */
+  merged?: MergedSource[];
   runs: RunRecord[];
   aggregate: Partial<Record<Condition, Aggregate>>;
 }

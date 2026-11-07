@@ -16,7 +16,7 @@ DS를 카탈로그(`.dsmith/catalog.json`)와 AGENTS.md DS 섹션으로 내려�
 3. DS를 찾지 못했다는 오류면 `/ds-init`로 초안을 먼저 만들거나 `--from init`을 안내하고 멈춘다.
 4. 사람이 확인하면 1단계와 같은 인자로 `--dry-run` 없이 `npx dsmith ai --json`을 실행한다.
 5. `outcomes`의 AGENTS.md DS 섹션 결과를 설명한다. `skipped-modified`는 사람이 고친 섹션이다. `--force`로 덮어쓸지 묻고, 답 없이 붙이지 않는다.
-6. `notes`에 MCP 서버가 등록되지 않았다는 내용이 있으면 `npx dsmith install`을 제안한다. 등록 뒤에는 AI 도구가 `get_component`로 카탈로그를 먼저 읽는다.
+6. MCP 서버는 선택이다. 사람이 원할 때만 `npx dsmith install --mcp`를 안내한다. 등록하면 AI 도구가 `get_component`로 카탈로그를 읽을 수 있다.
 
 규칙:
 - JSON에 없는 숫자는 말하지 않는다. 백분율 변환 외의 계산을 하지 않는다.

@@ -1,5 +1,8 @@
 import {
   agreementOf,
+  comparisons,
+  displayConditions,
+  isLegacyConditions,
   pairedAnalysis,
   perPromptSummary,
   perRepeatSeries,
@@ -10,12 +13,12 @@ import {
   type Paired,
 } from "./analysis.js";
 import { DASH, num, pValue, pct, pp, ppNum, rangeCell, ratioCell, signedNum, table } from "./format.js";
-import type { BenchResult, Condition, RunRecord } from "./model.js";
+import type { BenchResult, Condition, MergedSource, RunRecord } from "./model.js";
+import { CONDITIONS } from "./model.js";
 import { BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED, summarize } from "./stats.js";
 
 /** 보고서의 통계·독립 채점 절. 숫자는 result 값과 analysis.ts의 순수 계산만 쓴다 */
 
-const hasBoth = (result: BenchResult): boolean => result.conditions.includes("baseline") && result.conditions.includes("dsmith");
 export const hasIndependent = (result: BenchResult): boolean => result.runs.some((r) => r.independent !== undefined);
 export const hasTypeCheck = (result: BenchResult): boolean => result.runs.some((r) => r.typeCheck !== undefined);
 
@@ -44,14 +47,10 @@ export function repeatSection(result: BenchResult): string[] {
     ["DS 외", "nonDs", "count"],
     ["DS 사용", "dsUses", "count"],
   ];
+  const conds = displayConditions(result);
   for (const id of promptIds(result)) {
     for (const [label, metric, kind] of promptMetrics) {
-      perPrompt.push([
-        id,
-        label,
-        rangeCell(perPromptSummary(result, id, "baseline", metric), kind),
-        rangeCell(perPromptSummary(result, id, "dsmith", metric), kind),
-      ]);
+      perPrompt.push([id, label, ...conds.map((c) => rangeCell(perPromptSummary(result, id, c, metric), kind))]);
     }
   }
   return [
@@ -60,11 +59,11 @@ export function repeatSection(result: BenchResult): string[] {
     `반복 ${k}회. 값은 평균 (최소–최대). 조건 표는 같은 반복 번호의 프롬프트 합계로 비율을 다시 계산한 뒤 반복 사이의 평균·최소·최대이고, 프롬프트별 표는 그 프롬프트의 반복별 값(분모 0인 반복은 제외)의 평균·최소·최대다.`,
     "",
     ...table(
-      ["지표", "baseline", "dsmith"],
-      rows.map(([label, metric, kind]) => [label, metricCell(result, "baseline", metric, kind), metricCell(result, "dsmith", metric, kind)]),
+      ["지표", ...conds],
+      rows.map(([label, metric, kind]) => [label, ...conds.map((c) => metricCell(result, c, metric, kind))]),
     ),
     "",
-    ...table(["id", "지표", "baseline", "dsmith"], perPrompt),
+    ...table(["id", "지표", ...conds], perPrompt),
     "",
   ];
 }
@@ -84,10 +83,43 @@ function pairedStatLines(p: Paired, label: string, kind: "pct" | "count", withCi
 
 /** `## 대응 비교` — 두 조건이 다 있을 때. 프롬프트마다 (dsmith 평균 − baseline 평균) */
 export function pairedSection(result: BenchResult): string[] {
-  if (!hasBoth(result)) return [];
-  const usage = pairedAnalysis(result, "usage");
-  const nonDs = pairedAnalysis(result, "nonDs");
-  const dsUses = pairedAnalysis(result, "dsUses");
+  const pairs = comparisons(result);
+  if (pairs.length === 0) return [];
+  if (isLegacyConditions(result)) {
+    return [
+      "## 대응 비교",
+      "",
+      "프롬프트마다 반복 평균을 구해 (dsmith − baseline)을 대응시킨다. 토큰 사용률의 분모가 0인 쪽은 그 프롬프트를 사용률 비교에서 뺀다(—).",
+      "",
+      ...pairedBlock(result, "baseline", "dsmith"),
+    ];
+  }
+  const out = [
+    "## 대응 비교",
+    "",
+    "프롬프트마다 반복 평균을 구해 (비교 조건 − 기준 조건)을 대응시킨다. 쌍은 baseline 대비 각 조건, 그리고 agents-only·mcp-only 대비 dsmith다. 토큰 사용률의 분모가 0인 쪽은 그 프롬프트를 사용률 비교에서 뺀다(—). `.claude/skills`는 dsmith 조건에만 있어 dsmith를 비교 조건으로 하는 쌍의 차이에는 스킬이 섞인다.",
+    "",
+  ];
+  for (const [ref, cmp] of pairs) out.push(`### ${cmp} − ${ref} (${PAIR_MEANING[`${ref}>${cmp}`] ?? "비교"})`, "", ...pairedBlock(result, ref, cmp));
+  return out;
+}
+
+const PAIR_MEANING: Record<string, string> = {
+  "baseline>agents-only": "AGENTS.md 섹션만 더한 효과",
+  "baseline>mcp-only": "MCP 서버만 더한 효과",
+  "baseline>dsmith": "전부 더한 효과",
+  "agents-only>dsmith": "MCP 서버·스킬을 더한 효과",
+  "mcp-only>dsmith": "AGENTS.md 섹션·스킬을 더한 효과",
+  "baseline>agents-mcp": "AGENTS.md 섹션·MCP 서버를 더한 효과(스킬 없음)",
+  "agents-mcp>dsmith": "스킬(슬래시 명령)만 더한 효과",
+  "agents-only>agents-mcp": "AGENTS.md 섹션 위에 MCP 서버만 더한 효과",
+};
+
+/** 대응 비교 한 쌍의 표와 통계 줄(끝에 빈 줄 포함). 필드 baseline = 기준 조건, dsmith = 비교 조건 */
+function pairedBlock(result: BenchResult, ref: Condition, cmp: Condition): string[] {
+  const usage = pairedAnalysis(result, "usage", ref, cmp);
+  const nonDs = pairedAnalysis(result, "nonDs", ref, cmp);
+  const dsUses = pairedAnalysis(result, "dsUses", ref, cmp);
   const byPrompt = new Map(nonDs.rows.map((r) => [r.prompt, r]));
   const rows = usage.rows.map((r) => {
     const n = byPrompt.get(r.prompt);
@@ -102,11 +134,7 @@ export function pairedSection(result: BenchResult): string[] {
     ];
   });
   return [
-    "## 대응 비교",
-    "",
-    "프롬프트마다 반복 평균을 구해 (dsmith − baseline)을 대응시킨다. 토큰 사용률의 분모가 0인 쪽은 그 프롬프트를 사용률 비교에서 뺀다(—).",
-    "",
-    ...table(["id", "baseline 사용률", "dsmith 사용률", "사용률 차이", "baseline DS 외", "dsmith DS 외", "DS 외 차이"], rows),
+    ...table(["id", `${ref} 사용률`, `${cmp} 사용률`, "사용률 차이", `${ref} DS 외`, `${cmp} DS 외`, "DS 외 차이"], rows),
     "",
     ...pairedStatLines(usage, "토큰 사용률", "pct", true),
     ...pairedStatLines(nonDs, "DS 외 컴포넌트", "count", false),
@@ -180,9 +208,10 @@ export function independentSection(result: BenchResult): string[] {
   const typed = hasTypeCheck(result);
   if (!indep && !typed) return [];
   const lines: string[] = ["## 독립 채점", ""];
-  const cs: Record<Condition, RunRecord[]> = { baseline: runsOf(result, "baseline"), dsmith: runsOf(result, "dsmith") };
+  const conds = displayConditions(result);
   const has = (c: Condition): boolean => result.conditions.includes(c);
-  const cell = (c: Condition, f: (runs: RunRecord[]) => string): string => (has(c) ? f(cs[c]) : DASH);
+  const cell = (c: Condition, f: (runs: RunRecord[]) => string): string => (has(c) ? f(runsOf(result, c)) : DASH);
+  const cells = (f: (runs: RunRecord[]) => string): string[] => conds.map((c) => cell(c, f));
 
   if (indep) {
     lines.push(
@@ -201,58 +230,72 @@ export function independentSection(result: BenchResult): string[] {
       ["파싱 실패", (s) => String(s.parseFailed)],
       ["정의 없는 var 이름", (s) => listNames(s.undefinedNames)],
     ];
-    const tableRows = rows.map(([label, f]) => [label, cell("baseline", (r) => f(indepSums(r))), cell("dsmith", (r) => f(indepSums(r)))]);
+    const tableRows = rows.map(([label, f]) => [label, ...cells((r) => f(indepSums(r)))]);
     if (typed) {
       tableRows.push(
-        ["타입 오류(바뀐 파일)", cell("baseline", (r) => String(typeSums(r).errors)), cell("dsmith", (r) => String(typeSums(r).errors))],
-        ["타입 오류가 있는 실행", cell("baseline", (r) => `${typeSums(r).runsWithErrors}/${typeSums(r).checkedRuns}`), cell("dsmith", (r) => `${typeSums(r).runsWithErrors}/${typeSums(r).checkedRuns}`)],
-        ["검사 방식", cell("baseline", (r) => typeSums(r).modes.join(", ") || DASH), cell("dsmith", (r) => typeSums(r).modes.join(", ") || DASH)],
+        ["타입 오류(바뀐 파일)", ...cells((r) => String(typeSums(r).errors))],
+        ["타입 오류가 있는 실행", ...cells((r) => `${typeSums(r).runsWithErrors}/${typeSums(r).checkedRuns}`)],
+        ["검사 방식", ...cells((r) => typeSums(r).modes.join(", ") || DASH)],
       );
     }
     if (result.repeat > 1) {
-      tableRows.push(["독립 사용률 (반복 평균, 최소–최대)", metricCell(result, "baseline", "indepUsage", "pct"), metricCell(result, "dsmith", "indepUsage", "pct")]);
-      if (typed) tableRows.push(["타입 오류 (반복당 평균, 최소–최대)", metricCell(result, "baseline", "typeErrors", "count"), metricCell(result, "dsmith", "typeErrors", "count")]);
+      tableRows.push(["독립 사용률 (반복 평균, 최소–최대)", ...conds.map((c) => metricCell(result, c, "indepUsage", "pct"))]);
+      if (typed) tableRows.push(["타입 오류 (반복당 평균, 최소–최대)", ...conds.map((c) => metricCell(result, c, "typeErrors", "count"))]);
     }
-    lines.push(...table(["지표", "baseline", "dsmith"], tableRows), "");
+    lines.push(...table(["지표", ...conds], tableRows), "");
 
-    // 프롬프트별
+    // 프롬프트별: 지표별로 조건 열을 묶는다
     const perPrompt = promptIds(result).map((id) => {
       const pooled = (c: Condition, metric: MetricId): number | null => metricOfSums(result.runs.filter((r) => r.prompt === id && r.condition === c).map(sumsOf), metric);
       const sums = (c: Condition) => indepSums(result.runs.filter((r) => r.prompt === id && r.condition === c));
       return [
         id,
-        pct(pooled("baseline", "indepUsage")),
-        pct(pooled("dsmith", "indepUsage")),
-        String(sums("baseline").varUndefined),
-        String(sums("dsmith").varUndefined),
-        typed ? num(pooled("baseline", "typeErrors"), 0) : DASH,
-        typed ? num(pooled("dsmith", "typeErrors"), 0) : DASH,
+        ...conds.map((c) => pct(pooled(c, "indepUsage"))),
+        ...conds.map((c) => String(sums(c).varUndefined)),
+        ...conds.map((c) => (typed ? num(pooled(c, "typeErrors"), 0) : DASH)),
       ];
     });
     lines.push(
-      ...table(["id", "baseline 독립 사용률", "dsmith 독립 사용률", "baseline 정의 없는 var", "dsmith 정의 없는 var", "baseline 타입 오류", "dsmith 타입 오류"], perPrompt),
+      ...table(["id", ...conds.map((c) => `${c} 독립 사용률`), ...conds.map((c) => `${c} 정의 없는 var`), ...conds.map((c) => `${c} 타입 오류`)], perPrompt),
       "",
       "프롬프트별 값은 그 프롬프트의 모든 반복을 합산했다.",
       "",
     );
 
-    if (hasBoth(result)) {
-      lines.push(...pairedStatLines(pairedAnalysis(result, "indepUsage"), "독립 사용률", "pct", true), "");
-      const a = agreementOf(result);
+    const pairs = comparisons(result);
+    if (pairs.length > 0) {
+      const legacy = isLegacyConditions(result);
+      for (const [ref, cmp] of pairs) {
+        lines.push(...pairedStatLines(pairedAnalysis(result, "indepUsage", ref, cmp), legacy ? "독립 사용률" : `독립 사용률 (${cmp} − ${ref})`, "pct", true));
+      }
+      lines.push("");
       const rho = (r: { rho: number | null; n: number }): string => (r.rho === null ? `${DASH} (n=${r.n})` : `${r.rho.toFixed(2)} (n=${r.n})`);
+      const totalsOf = agreementOf(result, pairs[0]?.[0], pairs[0]?.[1]).nonDsTotals;
       const totals = (c: Condition): string => {
-        const t = a.nonDsTotals[c];
+        const t = totalsOf[c];
         return t === undefined ? DASH : `${t.dsmith} vs ${t.independent}`;
       };
-      lines.push(
-        "### 일치도",
-        "",
-        `- 프롬프트별 방향(dsmith 토큰 사용률 차이 vs 독립 사용률 차이): 일치 ${a.agree} · 불일치 ${a.disagree} · 판정 불가 ${a.undetermined}(한쪽이 분모 0이거나 차이 0)`,
-        `- 실행 단위 스피어만 ρ(토큰 사용률, 독립 사용률): ${rho(a.rhoUsage)}`,
-        `- DS 외 컴포넌트(dsmith \`prefer-ds-component\`) vs 그 밖의 로컬 컴포넌트(독립, 가져온 로컬 JSX 요소 중 DS 모듈이 아닌 것) 합계: baseline ${totals("baseline")} · dsmith ${totals("dsmith")}. 같은 값인 실행 ${a.nonDsEqual.equal}/${a.nonDsEqual.n}, 스피어만 ρ ${rho(a.rhoNonDs)}`,
-        "- 두 지표는 정의가 다르다: dsmith는 \"DS에 대체 컴포넌트가 있는 로컬 컴포넌트\"만 세고, 독립 채점은 DS가 아닌 로컬 컴포넌트를 모두 센다. 값이 어긋나는 것이 곧 오류는 아니다.",
-        "",
-      );
+      const nonDsDef = "DS 외 컴포넌트(dsmith `prefer-ds-component`) vs 그 밖의 로컬 컴포넌트(독립, 가져온 로컬 JSX 요소 중 DS 모듈이 아닌 것)";
+      const definition = "- 두 지표는 정의가 다르다: dsmith는 \"DS에 대체 컴포넌트가 있는 로컬 컴포넌트\"만 세고, 독립 채점은 DS가 아닌 로컬 컴포넌트를 모두 센다. 값이 어긋나는 것이 곧 오류는 아니다.";
+      lines.push("### 일치도", "");
+      if (legacy) {
+        const a = agreementOf(result);
+        lines.push(
+          `- 프롬프트별 방향(dsmith 토큰 사용률 차이 vs 독립 사용률 차이): 일치 ${a.agree} · 불일치 ${a.disagree} · 판정 불가 ${a.undetermined}(한쪽이 분모 0이거나 차이 0)`,
+          `- 실행 단위 스피어만 ρ(토큰 사용률, 독립 사용률): ${rho(a.rhoUsage)}`,
+          `- ${nonDsDef} 합계: baseline ${totals("baseline")} · dsmith ${totals("dsmith")}. 같은 값인 실행 ${a.nonDsEqual.equal}/${a.nonDsEqual.n}, 스피어만 ρ ${rho(a.rhoNonDs)}`,
+          definition,
+          "",
+        );
+      } else {
+        for (const [ref, cmp] of pairs) {
+          const a = agreementOf(result, ref, cmp);
+          lines.push(
+            `- ${cmp} − ${ref}: 프롬프트별 방향(dsmith 토큰 사용률 차이 vs 독립 사용률 차이) 일치 ${a.agree} · 불일치 ${a.disagree} · 판정 불가 ${a.undetermined}. 실행 단위 스피어만 ρ(토큰 사용률, 독립 사용률) ${rho(a.rhoUsage)}. DS 외 vs 그 밖의 로컬 컴포넌트가 같은 값인 실행 ${a.nonDsEqual.equal}/${a.nonDsEqual.n}, 스피어만 ρ ${rho(a.rhoNonDs)}`,
+          );
+        }
+        lines.push(`- ${nonDsDef} 합계: ${conds.map((c) => `${c} ${totals(c)}`).join(" · ")}`, definition, "");
+      }
     }
   } else {
     lines.push("독립 채점기 기록이 없다(이전 형식의 결과 JSON).", "");
@@ -274,10 +317,12 @@ export function independentSection(result: BenchResult): string[] {
 }
 
 /** `## 해석 한계` 본문(제목 제외) */
-export function limitLines(result: BenchResult, originLine: string): string[] {
+export function limitLines(result: BenchResult, originLine: string | string[]): string[] {
   const n = result.prompts.length;
   const k = result.repeat;
-  const both = hasBoth(result);
+  const legacy = isLegacyConditions(result);
+  const pairs = comparisons(result);
+  const both = pairs.length > 0;
   const indep = hasIndependent(result);
   const typed = hasTypeCheck(result);
   const out: string[] = [];
@@ -305,30 +350,78 @@ export function limitLines(result: BenchResult, originLine: string): string[] {
     out.push("- 타입 검사는 의존성 타입 없이 했다(복사본에 node_modules 없음). react 등 외부 패키지 API 사용과 JSX 내장 요소 속성의 타입 오류는 검사 밖이다.");
   }
   out.push("- 모델 하나·에이전트 하나(관측 모델: " + (result.agent.models.length === 0 ? "기록 없음" : result.agent.models.join(", ")) + "), 레포 하나(" + result.repo + ")다. 다른 모델·에이전트·코드베이스로 일반화하지 못한다.");
-  out.push("- dsmith 조건의 개선이 AGENTS.md DS 섹션 때문인지 MCP 도구(`lint_snippet` 등) 때문인지 분리하지 않았다(AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`가 함께 켜진 조건 하나뿐). MCP 호출 수를 요약에 싣지만 그것만으로 원인을 가르지 못한다.");
+  if (legacy) {
+    out.push("- dsmith 조건의 개선이 AGENTS.md DS 섹션 때문인지 MCP 도구(`lint_snippet` 등) 때문인지 분리하지 않았다(AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`가 함께 켜진 조건 하나뿐). MCP 호출 수를 요약에 싣지만 그것만으로 원인을 가르지 못한다.");
+  } else {
+    out.push(
+      "- 2×2 분리: agents-only는 AGENTS.md DS 섹션과 `.dsmith/`만, mcp-only는 `.mcp.json`과 `.dsmith/`만 갖고, `.claude/skills`는 dsmith 조건에만 있다. 그래서 dsmith와 단일 요소 조건의 차이에는 스킬이 섞이고, agents-only의 AGENTS.md는 등록되지 않은 MCP 도구를 언급하며, mcp-only는 AGENTS.md 안내 없이 서버가 노출하는 도구 설명만 본다. 에이전트 명령은 네 조건이 같다(`--allowedTools mcp__dsmith` 포함). 요약의 `MCP 도구 호출`은 agents-only에서 0이어야 하고, mcp-only·dsmith에서 0이면 개선이 도구 호출에서 오지 않은 것이다. 두 요소의 상호작용은 네 조건의 차이로만 읽을 수 있다.",
+    );
+  }
+  const mergedNote = mergedLine(result);
+  if (mergedNote !== null) out.push(mergedNote);
   if (both) {
     const m = indep ? 4 : 3;
-    const usage = pairedAnalysis(result, "usage");
-    const nonDs = pairedAnalysis(result, "nonDs");
-    const bonf = (p: number | null): string => (p === null ? DASH : pValue(Math.min(1, p * m)));
+    const total = m * pairs.length;
+    const bonf = (p: number | null): string => (p === null ? DASH : pValue(Math.min(1, p * total)));
+    const usage = pairedAnalysis(result, "usage", pairs[0]?.[0], pairs[0]?.[1]);
+    const nonDs = pairedAnalysis(result, "nonDs", pairs[0]?.[0], pairs[0]?.[1]);
+    if (legacy) {
+      out.push(
+        `- 대응 비교에서 지표 ${m}개(토큰 사용률·DS 외 컴포넌트·DS 컴포넌트 사용${indep ? "·독립 사용률" : ""})를 각각 검정했고 다중 비교 보정은 하지 않았다. 참고로 Bonferroni(×${m})를 적용하면 토큰 사용률 p=${bonf(usage.sign.p)}, DS 외 컴포넌트 p=${bonf(nonDs.sign.p)}다.`,
+      );
+    } else {
+      const usageBonf = pairs.map(([ref, cmp]) => `${cmp} − ${ref} p=${bonf(pairedAnalysis(result, "usage", ref, cmp).sign.p)}`).join(", ");
+      out.push(
+        `- 대응 비교에서 쌍 ${pairs.length}개 × 지표 ${m}개(토큰 사용률·DS 외 컴포넌트·DS 컴포넌트 사용${indep ? "·독립 사용률" : ""})를 각각 검정했고 다중 비교 보정은 하지 않았다. 참고로 Bonferroni(×${total})를 적용하면 토큰 사용률의 부호 검정 p는 ${usageBonf}다.`,
+      );
+    }
     out.push(
-      `- 대응 비교에서 지표 ${m}개(토큰 사용률·DS 외 컴포넌트·DS 컴포넌트 사용${indep ? "·독립 사용률" : ""})를 각각 검정했고 다중 비교 보정은 하지 않았다. 참고로 Bonferroni(×${m})를 적용하면 토큰 사용률 p=${bonf(usage.sign.p)}, DS 외 컴포넌트 p=${bonf(nonDs.sign.p)}다.`,
       `- 95% CI는 프롬프트 ${n}개의 백분위 부트스트랩이라 표본이 작으면 실제 포함 확률이 95%보다 낮을 수 있다. 그래서 같은 차이의 t 구간을 \`## 대응 비교\`에 함께 적었다(정규 근사를 가정한 비교용 값).`,
     );
-    const negatives = usage.rows.filter((r) => r.diff !== null && r.diff < 0);
-    if (negatives.length > 0) {
-      const detail = negatives
-        .map((r) => `\`${r.prompt}\`(${pct(r.baseline?.mean)} → ${pct(r.dsmith?.mean)}, dsmith DS 컴포넌트 사용 평균 ${num(perPromptSummary(result, r.prompt, "dsmith", "dsUses")?.mean, 1)})`)
-        .join(", ");
-      out.push(
-        `- 토큰 사용률이 dsmith 쪽에서 오히려 낮아진 프롬프트: ${detail}. 사용률은 직접 쓴 스타일 값 중 토큰 참조의 비율이라, DS 컴포넌트로 조립하고 레이아웃용 기본 스케일 클래스만 몇 개 직접 쓰면 분자가 0이 돼 0%가 된다. 이는 지표의 한계이며 이런 프롬프트의 DS 활용은 \`DS 컴포넌트 사용\` 행에서 따로 본다.`,
-      );
+    for (const [ref, cmp] of pairs) {
+      const rows = pairedAnalysis(result, "usage", ref, cmp).rows;
+      const negatives = rows.filter((r) => r.diff !== null && r.diff < 0);
+      if (negatives.length > 0) {
+        const detail = negatives
+          .map((r) => `\`${r.prompt}\`(${pct(r.baseline?.mean)} → ${pct(r.dsmith?.mean)}, ${cmp} DS 컴포넌트 사용 평균 ${num(perPromptSummary(result, r.prompt, cmp, "dsUses")?.mean, 1)})`)
+          .join(", ");
+        out.push(
+          `- 토큰 사용률이 ${cmp} 쪽에서 ${legacy ? "" : `${ref}보다 `}오히려 낮아진 프롬프트: ${detail}. 사용률은 직접 쓴 스타일 값 중 토큰 참조의 비율이라, DS 컴포넌트로 조립하고 레이아웃용 기본 스케일 클래스만 몇 개 직접 쓰면 분자가 0이 돼 0%가 된다. 이는 지표의 한계이며 이런 프롬프트의 DS 활용은 \`DS 컴포넌트 사용\` 행에서 따로 본다.`,
+        );
+      }
     }
   }
   out.push("- 준수율 분모에서 Tailwind 기본 스케일 클래스는 뺐다(별도 행).");
   out.push("- 변수·상수에 담은 className은 dynamic으로만 세며 준수율 분모에 들어가지 않음.");
-  out.push(originLine);
+  out.push(...(Array.isArray(originLine) ? originLine : [originLine]));
   return out;
+}
+
+/** 병합 결과에서 조건별 측정일·버전이 다르면 그 목록. 같으면(또는 병합이 아니면) null */
+function mergedLine(result: BenchResult): string | null {
+  const src = result.merged;
+  if (src === undefined || src.length < 2) return null;
+  const key = (s: MergedSource): string => `${s.date}|${s.agentVersion ?? ""}|${s.dsmith.version}|${s.dsmith.commit ?? ""}`;
+  if (new Set(src.map(key)).size < 2) return null;
+  const datesDiffer = new Set(src.map((s) => s.date)).size > 1;
+  const detail = src
+    .map((s) => `${s.conditions.join("·")} ${s.date}(에이전트 ${s.agentVersion ?? DASH}, 관측 모델 ${s.models.length === 0 ? DASH : s.models.join("·")}, dsmith ${s.dsmith.version} ${s.dsmith.commit === null ? DASH : s.dsmith.commit.slice(0, 7)})`)
+    .join("; ");
+  return `- ${datesDiffer ? "조건별 측정일이 다름" : "조건별 에이전트·dsmith 버전이 다름"}: ${detail}. 베이스 스냅샷·프롬프트·에이전트 명령은 같지만 서로 다른 시점의 실행이라 모델 응답의 시점 변화나 에이전트 업데이트를 조건 효과와 분리하지 못한다.`;
+}
+
+/**
+ * 2×2 분리 README 줄용: 조건별 토큰 사용률 평균(프롬프트별 반복 평균의 평균).
+ * 네 조건이 모두 있어야 하고, 네 조건 모두에서 사용률이 정의된 프롬프트만 쓴다(조건끼리 같은 프롬프트 집합). 아니면 null.
+ */
+const ABLATION_2X2: readonly Condition[] = ["baseline", "agents-only", "mcp-only", "dsmith"];
+
+export function ablationUsageMeans(result: BenchResult): { means: Record<"baseline" | "agents-only" | "mcp-only" | "dsmith", number>; prompts: number } | null {
+  if (!ABLATION_2X2.every((c) => result.conditions.includes(c))) return null;
+  const common = promptIds(result).filter((id) => ABLATION_2X2.every((c) => perPromptSummary(result, id, c, "usage") !== null));
+  if (common.length === 0) return null;
+  const meanOf = (c: Condition): number => common.reduce((a, id) => a + (perPromptSummary(result, id, c, "usage")?.mean ?? 0), 0) / common.length;
+  return { means: { baseline: meanOf("baseline"), "agents-only": meanOf("agents-only"), "mcp-only": meanOf("mcp-only"), dsmith: meanOf("dsmith") }, prompts: common.length };
 }
 
 /** README 줄용 요약: 반복이 2회 이상일 때만 쓴다 */

@@ -1,0 +1,18 @@
+{
+  "status": "ok",
+  "exitCode": 0,
+  "durationMs": 17498,
+  "agentMeta": {
+    "costUsd": 0.0793711,
+    "turns": 5,
+    "subtype": "success",
+    "models": [
+      "claude-sonnet-5-5"
+    ],
+    "permissionDenials": 1,
+    "isError": false,
+    "mcpToolCalls": 0
+  },
+  "harnessPathSeen": false,
+  "deleted": []
+}

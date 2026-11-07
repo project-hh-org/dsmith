@@ -5,6 +5,8 @@ args: "[파일 경로 ...]"
 uses: ["mcp:lint_snippet", "mcp:resolve_token"]
 ---
 
+새 UI 코드는 AGENTS.md의 DS 규칙(디자인 토큰·DS 컴포넌트)을 따른다. 이 명령은 그 규칙에 맞는 토큰·컴포넌트를 찾을 때 쓴다.
+
 검사할 파일을 정한다. 인자로 받은 파일 경로: {{args}}
 - 위 인자가 비어 있으면 `git diff --name-only HEAD` 와 `git ls-files --others --exclude-standard` 결과 중 스타일 코드가 있는 파일(.tsx .jsx .ts .js .css .scss)을 쓴다.
 - 검사할 파일이 없으면 그렇게 말하고 멈춘다.
@@ -15,7 +17,7 @@ uses: ["mcp:lint_snippet", "mcp:resolve_token"]
 3. 위반마다 `suggestion`(제안 토큰)이 있으면 수정안을 낸다. 없으면 `resolve_token {raw, property}` 로 가까운 토큰을 찾는다.
 4. 수정안을 보여주고 사람이 확인한 뒤에만 파일에 적용한다.
 
-MCP 도구가 없으면(서버 미등록) 도구를 쓸 수 없다고 말하고 "`npx dsmith install` 후 AI 도구를 재시작"하라고 안내한다. 추측으로 토큰을 고르지 않는다.
+MCP 도구가 없으면(서버 미등록) 도구를 쓸 수 없다고 말하고 "`npx dsmith install --mcp` 후 AI 도구를 재시작"하라고 안내한다. 추측으로 토큰을 고르지 않는다.
 
 규칙:
 - `confidence`가 `low`인 제안은 후보로만 보여주고 자동 적용하지 않는다.

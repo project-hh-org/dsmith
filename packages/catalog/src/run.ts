@@ -10,7 +10,8 @@ import {
   type WriteOutcome,
 } from "@dsmith-dev/core";
 import { readDetect } from "@dsmith-dev/detect";
-import { DS_MARKERS, renderAgentsDsSection } from "./agents-section.js";
+import { DS_MARKERS, renderAgentsDsSection, type InstalledSurfaces } from "./agents-section.js";
+import { detectInstalledSurfaces } from "./surfaces.js";
 import { buildCatalog } from "./build.js";
 
 export interface AiOptions {
@@ -19,6 +20,11 @@ export interface AiOptions {
   dryRun?: boolean;
   force?: boolean;
   version: string;
+  /**
+   * 이번 실행이 곧 설치하는 표면(install이 넘긴다). 디스크에서 읽은 설치 상태에 더해져 AGENTS.md 규칙이
+   * MCP 도구·슬래시 명령을 가리킬지 정한다. 생략하면 디스크 상태만 본다.
+   */
+  surfaces?: Partial<InstalledSurfaces>;
 }
 
 export interface AiResult {
@@ -40,35 +46,6 @@ export interface AiResult {
 }
 
 const MANIFEST = ".dsmith/ai.json";
-
-async function exists(file: string): Promise<boolean> {
-  try {
-    await fs.access(file);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** AI 도구별 MCP 설정 파일에 dsmith 서버 항목이 있는지. install.json이 없어도(수동 등록) 인정한다. */
-async function mcpRegistered(root: string): Promise<boolean> {
-  if (await exists(path.join(root, ".dsmith", "install.json"))) return true;
-  for (const rel of [".mcp.json", ".cursor/mcp.json", ".gemini/settings.json"]) {
-    try {
-      const parsed = JSON.parse(await fs.readFile(path.join(root, rel), "utf-8")) as { mcpServers?: Record<string, unknown> };
-      if (parsed.mcpServers !== undefined && Object.hasOwn(parsed.mcpServers, "dsmith")) return true;
-    } catch {
-      // 없거나 JSON이 아님 — 다음 파일
-    }
-  }
-  try {
-    const toml = await fs.readFile(path.join(root, ".codex", "config.toml"), "utf-8");
-    if (/^\s*\[\s*mcp_servers\s*\.\s*"?dsmith"?\s*\]/m.test(toml)) return true;
-  } catch {
-    // 없음
-  }
-  return false;
-}
 
 async function claudeMdNote(root: string): Promise<string | null> {
   for (const rel of ["CLAUDE.md", ".claude/CLAUDE.md"]) {
@@ -144,7 +121,11 @@ export async function runAi(opts: AiOptions): Promise<AiResult> {
     };
   }
 
-  const section = renderAgentsDsSection(catalog, usageOrder);
+  const onDisk = await detectInstalledSurfaces(root);
+  const section = renderAgentsDsSection(catalog, usageOrder, {
+    mcp: onDisk.mcp || opts.surfaces?.mcp === true,
+    skills: onDisk.skills || opts.surfaces?.skills === true,
+  });
   const write = await safeWrite(
     [{ file: path.join(root, "AGENTS.md"), region: { kind: "block", ...DS_MARKERS }, content: section }],
     {
@@ -165,7 +146,6 @@ export async function runAi(opts: AiOptions): Promise<AiResult> {
 
   const claude = await claudeMdNote(root);
   if (claude !== null) notes.push(claude);
-  if (!(await mcpRegistered(root))) notes.push("MCP 서버 미등록 — `npx dsmith install`");
   const total = catalog.stats.components;
   if (total > 0 && total - catalog.stats.propsOk > total / 2) {
     notes.push("props를 못 읽은 컴포넌트가 많음 — 타입 정의 위치를 확인");
