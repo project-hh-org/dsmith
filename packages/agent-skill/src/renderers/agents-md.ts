@@ -39,16 +39,21 @@ function fallbackCell(c: CommandSource, cliCmd: string): string {
 function block(commands: CommandSource[], ctx: RenderContext): string {
   const cliCmd = ctx.cli ?? DEFAULT_CLI;
   const rows = commands.map((c) => `| \`/${c.name}\` | ${firstSentence(c.description)} | ${fallbackCell(c, cliCmd)} |`);
-  const { mcp } = surfaces(ctx);
+  const { mcp, skills } = surfaces(ctx);
   return [
     "## dsmith (디자인 시스템 도구)",
     "",
-    "이 레포의 디자인 시스템 진단·결정·검사를 `dsmith`로 한다. 슬래시 명령이 없으면 오른쪽 열의 명령을 실행하고 JSON 출력을 읽어 설명한다.",
-    "",
-    "| 명령 | 하는 일 | 슬래시 없을 때 |",
-    "| --- | --- | --- |",
-    ...rows,
-    "",
+    // 명령 표는 슬래시 명령을 설치했을 때만 — MCP만 설치했는데 표 머리가 없는 `/ds-*` 명령이 있는 것처럼 보이면 안 된다.
+    ...(skills
+      ? [
+          "이 레포의 디자인 시스템 진단·결정·검사를 `dsmith`로 한다. 슬래시 명령이 없으면 오른쪽 열의 명령을 실행하고 JSON 출력을 읽어 설명한다.",
+          "",
+          "| 명령 | 하는 일 | 슬래시 없을 때 |",
+          "| --- | --- | --- |",
+          ...rows,
+          "",
+        ]
+      : ["이 레포의 디자인 시스템 진단·결정·검사를 `dsmith`로 한다.", ""]),
     ...(mcp ? [`MCP 서버 dsmith(\`${launchLine(ctx.mcp)}\`) 도구: ${MCP_TOOL_NAMES.join(", ")}`, ""] : []),
     "규칙:",
     "- 명령 출력 JSON에 없는 숫자는 말하지 않는다.",

@@ -135,9 +135,10 @@ MCP·AGENTS.md 분리(프롬프트 12개 × 반복 3, claude -p, 2026-11-07·08)
   | `baseline` | 없음 | 없음 | 없음 | 없음 |
   | `agents-only` | 있음 | 없음 | 없음 | 있음 |
   | `mcp-only` | 없음 | 있음 | 없음 | 있음 |
+  | `agents-mcp` | 있음 | 있음 | 없음 | 있음 |
   | `dsmith` | 있음 | 있음 | 있음 | 있음 |
 
-  `.claude/skills`는 `dsmith`에만 있어 `dsmith`와 단일 요소 조건의 차이에는 스킬이 섞인다. 에이전트 명령은 네 조건이 같고, 서로 다른 날 돌린 조건은 `pnpm bench:report --in a.json --in b.json --out …`로 병합한다(스냅샷·프롬프트·에이전트 명령이 같을 때만). 자세한 것은 [benchmarks/README.md](benchmarks/README.md).
+  `.claude/skills`는 `dsmith`에만 있어 `dsmith`와 단일 요소 조건의 차이에는 스킬이 섞인다(`agents-mcp`는 슬래시 명령의 몫을 가르는 조건). 에이전트 명령은 모든 조건이 같고, 서로 다른 날 돌린 조건은 `pnpm bench:report --in a.json --in b.json --out …`로 병합한다(스냅샷·프롬프트·에이전트 명령이 같고, 조건 복사본의 AGENTS.md 섹션·MCP 도구 설명 지문이 같을 때만. 지문이 없는 옛 결과는 옛 결과끼리만 병합된다). 자세한 것은 [benchmarks/README.md](benchmarks/README.md).
 - 두 조건은 같은 베이스·같은 채점 기준(토큰·DS 컴포넌트·정책 스냅샷)·같은 에이전트 명령·같은 환경 변수로 돈다. 프롬프트는 stdin으로 넘기므로 `codex exec`처럼 stdin으로 프롬프트를 받는 명령이면 다른 에이전트로도 돌릴 수 있다(실측은 `claude -p`만 했다).
 
 ### 실행
@@ -206,7 +207,7 @@ npx dsmith install --mcp --skills  # 둘 다(예전 기본 설치와 같은 파�
 
 **기본은 AGENTS.md만이다.** 같은 날 12개 프롬프트 × 3회로 잰 토큰 사용률 평균이 AGENTS.md DS 섹션만 있을 때 90.5%였고, MCP 서버를 더하면 78.0%(−12.5%p), 슬래시 명령까지 더하면 61.9%(−16.1%p)였다. MCP 도구는 36회 실행 중 2~4회만 불렸고, 줄어든 몫은 Tailwind 기본 스케일 클래스로 갔다. 그래서 MCP·슬래시 명령은 켜야 설치된다. 근거와 한계는 [`## 벤치마크`](#벤치마크)와 [benchmarks/results/2026-11-08-legacy-demo-sameday.md](benchmarks/results/2026-11-08-legacy-demo-sameday.md). 한 레포·한 모델의 결과라 다른 환경에서는 다를 수 있다.
 
-기본 `install`은 `audit` 결과가 있어야 DS 섹션을 쓴다(없으면 "할 일"에 `audit` → `init` → `ai` 순서를 안내하고 끝난다). 이미 설치한 MCP·스킬 파일은 플래그 없이 다시 실행해도 지우지 않는다. `--json` 출력의 `surfaces`가 이번 실행이 설치한 표면, `ds`가 DS 섹션 결과다. MCP·스킬을 켠 설치에서는 MCP 서버 `instructions`와 모든 도구 설명, `/ds`·`/ds-check`·`/ds-migrate`가 "새 UI 코드는 AGENTS.md의 DS 규칙을 따른다"로 시작한다 — 이 도구들은 그 규칙에 맞는 값을 찾을 때 쓴다.
+기본 `install`은 `audit` 결과가 있어야 DS 섹션을 쓴다(없으면 "할 일"에 `audit` → `init` → `ai` 순서를 안내하고 끝난다). 이미 설치한 MCP·스킬 파일은 플래그 없이 다시 실행해도 지우지 않지만 **갱신하지도 않는다** — 요약이 "기존 MCP·슬래시 명령 파일은 그대로 둠(갱신하지 않음)"이라고 밝히고 `--json`의 `kept`에 그 파일을 담는다. 새 문구(규칙 줄·AGENTS.md 참조)로 갱신하려면 `--mcp --skills`로 다시 실행한다. `--json` 출력의 `surfaces`가 이번 실행이 설치한 표면, `ds`가 DS 섹션 결과다. 분석 결과가 없는 레포에서 기본 `install`은 첫 줄에 "아무것도 쓰지 않음"을 밝히고 종료 코드 0으로 끝난다. AGENTS.md DS 섹션의 규칙은 설치한 표면에 따라 달라진다: 기본은 토큰 파일과 `.dsmith/catalog.json`을 가리키고, MCP를 등록하면(`--mcp`) `resolve_token`·`search_component`·`get_component`·`lint_snippet`을, 슬래시 명령까지 설치하면 `/ds-check`도 가리킨다 — `install`이 DS 섹션을 다시 써서 반영한다. MCP 서버 `instructions`와 값을 찾아 주는 도구(`resolve_token`·`search_component`·`get_component`) 설명, `/ds`·`/ds-check`·`/ds-migrate`는 "새 UI 코드는 AGENTS.md의 DS 규칙(디자인 토큰·DS 컴포넌트)을 따른다"로 시작한다 — 이 도구들은 그 규칙에 맞는 토큰·컴포넌트를 찾을 때 쓴다.
 
 `install`은 AI 도구의 흔적을 찾아 그 도구 형식으로 `--mcp`·`--skills` 파일을 쓴다. 흔적이 없으면 `claude-code` + `agents-md`가 기본이다. 어떤 도구를 왜 골랐는지(레포의 흔적인지 홈의 흔적인지)는 출력 첫 줄에 나온다. 강제로 고르려면 `--tool <name>`(여러 번 가능), 도구 전부를 대상으로 하려면 `--all`(`--mcp`·`--skills`를 함께 켜지는 않는다).
 

@@ -42,6 +42,39 @@ describe("runAi: with-ds-app", () => {
     expect(fs.statSync(path.join(root, ".dsmith", "catalog.json")).mtimeMs).toBe(catalogMtime);
   });
 
+  it("MCP·슬래시 명령이 없으면 섹션에 도구 이름이 없고, .mcp.json·스킬이 생기면 다시 실행할 때 도구 이름이 생긴다", async () => {
+    const root = await withDsApp();
+    await runAi({ root, version: VERSION });
+    expect(read(root, "AGENTS.md")).not.toMatch(/resolve_token|\/ds-check|lint_snippet/);
+    expect(read(root, "AGENTS.md")).toContain(".dsmith/catalog.json");
+
+    // MCP만 등록
+    fs.writeFileSync(path.join(root, ".mcp.json"), JSON.stringify({ mcpServers: { dsmith: { command: "node", args: ["x"] } } }));
+    const withMcp = await runAi({ root, version: VERSION });
+    expect(withMcp.outcomes.map((o) => o.status)).toEqual(["updated"]);
+    expect(read(root, "AGENTS.md")).toContain("MCP `resolve_token`");
+    expect(read(root, "AGENTS.md")).not.toContain("/ds-check");
+
+    // 슬래시 명령(설치 매니페스트에 있고 파일도 있음)
+    fs.mkdirSync(path.join(root, ".claude", "skills", "ds"), { recursive: true });
+    fs.writeFileSync(path.join(root, ".claude", "skills", "ds", "SKILL.md"), "x\n");
+    fs.writeFileSync(path.join(root, ".dsmith", "install.json"), JSON.stringify({ version: 1, tool: "install", dsmith: "0.2.0", entries: { ".claude/skills/ds/SKILL.md": { sha256: "x" } } }));
+    await runAi({ root, version: VERSION });
+    expect(read(root, "AGENTS.md")).toContain("`/ds-check`(또는 MCP `lint_snippet`)");
+
+    // 다른 이름의 서버만 있으면 dsmith MCP가 아니다
+    fs.writeFileSync(path.join(root, ".mcp.json"), JSON.stringify({ mcpServers: { other: { command: "x" } } }));
+    fs.rmSync(path.join(root, ".claude"), { recursive: true });
+    await runAi({ root, version: VERSION });
+    expect(read(root, "AGENTS.md")).not.toMatch(/resolve_token|\/ds-check/);
+  });
+
+  it("surfaces 옵션은 디스크에서 읽은 표면에 더해진다(install이 아직 쓰지 않은 표면을 미리 반영 — dry-run)", async () => {
+    const root = await withDsApp();
+    const r = await runAi({ root, version: VERSION, surfaces: { mcp: true, skills: true }, dryRun: true });
+    expect(r.outcomes[0]?.diff ?? "").toContain("resolve_token");
+  });
+
   it("생성된 DS 섹션 — 사용 수 순으로 Button이 앞", async () => {
     const root = await withDsApp();
     await runAi({ root, version: VERSION });

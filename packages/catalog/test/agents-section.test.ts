@@ -14,6 +14,15 @@ describe("renderAgentsDsSection", () => {
     for (const m of Object.values(DS_MARKERS)) expect(text).not.toContain(m);
   });
 
+  it("with-ds-app 카탈로그 스냅샷 — MCP·슬래시 명령을 설치한 경우", async () => {
+    const root = copyFixture("with-ds-app", overlay);
+    const { index, detect } = await auditFixture(root);
+    const { catalog } = await buildCatalog({ root, detect, index, version: "0.0.0-test" });
+    const text = renderAgentsDsSection(catalog, ["Button", "Badge", "OldButton"], { mcp: true, skills: true });
+    expect(text).toMatchSnapshot();
+    expect(text.split("\n").length).toBeLessThanOrEqual(SECTION_MAX_LINES);
+  });
+
   it("컴포넌트 200개 합성 카탈로그도 80줄 이하 — 상위 20만, deprecated 10개까지", () => {
     const components: CatalogComponent[] = Array.from({ length: 200 }, (_, i) => ({
       name: `C${String(i).padStart(3, "0")}`,
@@ -40,13 +49,34 @@ describe("renderAgentsDsSection", () => {
     expect(text).toContain("토큰 파일: 없음");
   });
 
-  it("도구 이름 6개가 본문에 있다", () => {
-    const text = renderAgentsDsSection(
-      { version: 1, dsmith: "x", sources: [], components: [], tokens: [], stats: { components: 0, propsOk: 0, deprecated: 0, tokens: 0 } },
-      [],
-    );
+  const EMPTY: Catalog = { version: 1, dsmith: "x", sources: [], components: [], tokens: [], stats: { components: 0, propsOk: 0, deprecated: 0, tokens: 0 } };
+  const rules = (text: string): string => text.slice(text.indexOf("### 규칙"));
+
+  it("MCP가 등록되면 도구 이름 6개가 본문에 있다", () => {
+    const text = renderAgentsDsSection(EMPTY, [], { mcp: true, skills: false });
     expect(MCP_TOOL_NAMES_IN_SECTION).toHaveLength(6);
     for (const n of MCP_TOOL_NAMES_IN_SECTION) expect(text).toContain(n);
+    expect(text).toContain("`resolve_token`");
+    expect(text).toContain("`search_component`·`get_component`");
+    expect(text).toContain("MCP `lint_snippet`");
+    // 슬래시 명령은 설치되지 않았다
+    expect(text).not.toContain("/ds-check");
+    expect(text).not.toContain("--mcp");
+  });
+
+  it("MCP와 슬래시 명령이 모두 설치되면 /ds-check도 안내한다", () => {
+    const text = renderAgentsDsSection(EMPTY, [], { mcp: true, skills: true });
+    expect(text).toContain("`/ds-check`(또는 MCP `lint_snippet`)");
+  });
+
+  it("기본(아무것도 설치 안 함)에는 MCP 도구·슬래시 명령 이름이 없고 토큰 파일·카탈로그를 가리킨다", () => {
+    for (const surfaces of [undefined, { mcp: false, skills: false }, { mcp: false, skills: true }]) {
+      const text = renderAgentsDsSection(EMPTY, [], surfaces);
+      for (const n of MCP_TOOL_NAMES_IN_SECTION) expect(text, n).not.toContain(n);
+      expect(text).not.toMatch(/\/ds-|MCP|npx dsmith install/);
+      expect(rules(text)).toContain("토큰 파일에서 가장 가까운 토큰");
+      expect(text).toContain(".dsmith/catalog.json");
+    }
   });
 });
 

@@ -99,8 +99,23 @@ function orderedNames(components: CatalogComponent[], usageOrder: string[]): str
   return out;
 }
 
-/** 마커 사이에 들어갈 본문(마커 제외, ≤80줄, 결정적: 타임스탬프·절대 경로 없음). usageOrder = 사용 수 순 컴포넌트 이름 */
-export function renderAgentsDsSection(catalog: Catalog, usageOrder: string[]): string {
+/** 이 레포에 설치된 표면. 규칙이 MCP 도구·슬래시 명령을 이름으로 가리킬지 정한다 */
+export interface InstalledSurfaces {
+  /** dsmith MCP 서버가 등록됨 */
+  mcp: boolean;
+  /** `/ds-*` 슬래시 명령·스킬이 설치됨 */
+  skills: boolean;
+}
+
+/**
+ * 마커 사이에 들어갈 본문(마커 제외, ≤80줄, 결정적: 타임스탬프·절대 경로 없음). usageOrder = 사용 수 순 컴포넌트 이름.
+ * surfaces 기본값은 아무것도 설치하지 않은 레포(MCP·슬래시 명령 이름을 쓰지 않는다).
+ */
+export function renderAgentsDsSection(
+  catalog: Catalog,
+  usageOrder: string[],
+  surfaces: InstalledSurfaces = { mcp: false, skills: false },
+): string {
   const lines: string[] = [];
   lines.push("## 이 레포의 디자인 시스템 (dsmith ai가 생성 — 직접 고치면 다음 ai가 덮어쓰지 않음)", "");
 
@@ -139,19 +154,29 @@ export function renderAgentsDsSection(catalog: Catalog, usageOrder: string[]): s
     lines.push(`- 쓰지 말 것(deprecated): ${shown.join("; ")}${more}`);
   }
 
+  // MCP 도구·슬래시 명령을 이름으로 가리키는 규칙은 그것이 설치된 레포에서만 쓴다 — 없는 도구를 부르게 하지 않는다.
+  // 설치하지 않은 레포에는 설치 없이 되는 안내(토큰 파일·`.dsmith/catalog.json`)를 쓴다.
+  const { mcp, skills } = surfaces;
   lines.push(
     "",
     "### 규칙",
     catalog.tokens.length > 0
       ? "1. 색·간격·모서리·글꼴 크기 값을 하드코딩하지 않는다. 토큰 파일의 변수를 쓴다."
       : "1. 토큰 파일이 있으면 색·간격·모서리·글꼴 크기 값을 하드코딩하지 않고 그 변수를 쓴다.",
-    "2. 값이 필요하면 MCP `resolve_token`으로 가장 가까운 토큰을 찾는다.",
-    "3. 새 UI는 위 컴포넌트를 먼저 쓴다. 고르기 전에 `search_component`·`get_component`로 props를 확인한다.",
+    mcp
+      ? "2. 값이 필요하면 MCP `resolve_token`으로 가장 가까운 토큰을 찾는다."
+      : "2. 값이 필요하면 토큰 파일에서 가장 가까운 토큰을 찾는다. 목록은 `.dsmith/catalog.json`의 `tokens`에도 있다.",
+    mcp
+      ? "3. 새 UI는 위 컴포넌트를 먼저 쓴다. 고르기 전에 `search_component`·`get_component`로 props를 확인한다."
+      : "3. 새 UI는 위 컴포넌트를 먼저 쓴다. 고르기 전에 `.dsmith/catalog.json`의 `components`나 정의 파일에서 props를 확인한다.",
     "4. deprecated 컴포넌트·props는 쓰지 않는다.",
-    "5. 끝나면 `/ds-check`(또는 MCP `lint_snippet`)로 검사한다.",
-    "",
-    `MCP 서버 \`dsmith\` 도구: ${MCP_TOOL_NAMES_IN_SECTION.join(", ")} — 등록은 \`npx dsmith install --mcp\`.`,
+    mcp
+      ? skills
+        ? "5. 끝나면 `/ds-check`(또는 MCP `lint_snippet`)로 검사한다."
+        : "5. 끝나면 MCP `lint_snippet`으로 검사한다."
+      : "5. 끝나면 새로 쓴 코드에 하드코딩한 값이 남지 않았는지 확인한다.",
   );
+  if (mcp) lines.push("", `MCP 서버 \`dsmith\` 도구: ${MCP_TOOL_NAMES_IN_SECTION.join(", ")}`);
 
   if (lines.length > SECTION_MAX_LINES) throw new Error(`AGENTS.md DS 섹션이 ${SECTION_MAX_LINES}줄을 넘음`);
   return `${lines.join("\n")}\n`;

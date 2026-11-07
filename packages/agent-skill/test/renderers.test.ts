@@ -272,6 +272,22 @@ describe("agents-md", () => {
     expect(content).toContain("MCP 서버 필요");
     expect(content).toContain("아직 없음");
   });
+
+  it("MCP만 설치하면(슬래시 명령 없음) 명령 표를 쓰지 않고 MCP 서버 안내와 규칙만 둔다", () => {
+    const content = renderers["agents-md"].render(FIXTURES, { ...repoCtx, include: { mcp: true, skills: false } }).writes[0]?.content ?? "";
+    expect(content).toContain("MCP 서버 dsmith");
+    expect(content).toContain("`resolve_token`");
+    expect(content).not.toContain("| 명령 |");
+    expect(content).not.toMatch(/^\| `\//m);
+    expect(content).not.toContain("슬래시");
+  });
+
+  it("슬래시 명령만 설치하면 표는 있고 MCP 서버 줄·resolve_token 규칙은 없다", () => {
+    const content = renderers["agents-md"].render(FIXTURES, { ...repoCtx, include: { mcp: false, skills: true } }).writes[0]?.content ?? "";
+    expect(content).toContain("| 명령 |");
+    expect(content).not.toContain("MCP 서버 dsmith");
+    expect(content).not.toContain("`resolve_token`");
+  });
 });
 
 describe("실제 명령 9개 렌더 불변식", () => {

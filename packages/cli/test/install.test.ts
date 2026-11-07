@@ -563,6 +563,7 @@ describe("formatInstallSummary", () => {
       mcp: { command: "npx", args: ["-y", "dsmith@0.2", "mcp"] },
       surfaces: { mcp: true, skills: true },
       ds: { status: "skipped", reason: "건너뜀 요청" },
+      kept: [],
       outcomes: [],
       notes: ["a", "b", "a"],
       manifest: ".dsmith/install.json",

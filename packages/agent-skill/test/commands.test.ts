@@ -32,9 +32,9 @@ describe("loadCommands — 실제 명령 소스", () => {
     const byName = new Map((await loadCommands()).map((c) => [c.name, c]));
     for (const name of ["ds", "ds-check", "ds-migrate"]) {
       const first = (byName.get(name)?.body ?? "").split("\n")[0] ?? "";
-      expect(first, name).toContain("AGENTS.md의 DS 규칙");
-      expect(first, name).toContain("Tailwind 기본 스케일");
-      expect(first, name).toContain("하드코딩");
+      expect(first, name).toBe("새 UI 코드는 AGENTS.md의 DS 규칙(디자인 토큰·DS 컴포넌트)을 따른다. 이 명령은 그 규칙에 맞는 토큰·컴포넌트를 찾을 때 쓴다.");
+      // 모든 레포에서 참인 문구 — 특정 스타일링 방식을 전제하지 않는다
+      expect(first, name).not.toMatch(/var\(--|ds-|Tailwind/);
     }
   });
 

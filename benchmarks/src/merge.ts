@@ -1,4 +1,4 @@
-import { CONDITIONS, type BenchResult, type Condition, type MergedSource } from "./model.js";
+import { CONDITIONS, FINGERPRINT_PARTS, type BenchResult, type Condition, type FingerprintPart, type MergedSource, type SetupFingerprint } from "./model.js";
 
 /** 서로 다른 invocation의 결과(예: 07일 baseline·dsmith + 08일 agents-only·mcp-only)를 하나로 합친다. */
 
@@ -8,11 +8,55 @@ export interface MergeInput {
   result: BenchResult;
 }
 
-const sameJson = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+const PART_LABEL: Record<FingerprintPart, string> = {
+  agentsSection: "AGENTS.md 섹션",
+  mcpConfig: ".mcp.json",
+  skills: ".claude/skills",
+  mcpTools: "MCP 도구 설명·instructions",
+};
+
+/**
+ * 입력들의 설정 지문을 비교한다. 지문이 없는 옛(legacy) 결과는 legacy끼리만 병합한다.
+ * 지문이 있으면 AGENTS.md 섹션·.mcp.json·skills·MCP 도구 설명처럼 둘 이상의 입력이 가진 부분이 서로 같아야 한다.
+ */
+function checkFingerprints(inputs: MergeInput[]): void {
+  const withFp = inputs.filter((i) => i.result.setupFingerprint !== undefined);
+  if (withFp.length === 0) return;
+  const legacy = inputs.filter((i) => i.result.setupFingerprint === undefined);
+  const [fpIn] = withFp;
+  const [legacyIn] = legacy;
+  if (fpIn !== undefined && legacyIn !== undefined) {
+    throw new Error(
+      `병합 거부: 설정 지문이 없는 옛 결과(${legacy.map((i) => i.file).join(", ")})와 지문이 있는 결과(${withFp.map((i) => i.file).join(", ")})는 섞지 않습니다 — 옛 결과는 설정(AGENTS.md 문구·MCP 도구 설명)을 기록하지 않아 같은 텍스트를 측정했는지 확인할 수 없습니다`,
+    );
+  }
+  const diffs: string[] = [];
+  for (const part of FINGERPRINT_PARTS) {
+    const seenPart = new Map<string, string[]>();
+    for (const { file, result: r } of inputs) {
+      for (const c of CONDITIONS) {
+        const v = r.setupFingerprint?.[c]?.[part];
+        if (v === null || v === undefined) continue;
+        const list = seenPart.get(v) ?? [];
+        list.push(`${c} (${file})`);
+        seenPart.set(v, list);
+      }
+    }
+    if (seenPart.size > 1) {
+      diffs.push(`${PART_LABEL[part]}: ${[...seenPart.entries()].map(([v, who]) => `${who.join("·")} = ${v.slice(0, 12)}`).join(" ≠ ")}`);
+    }
+  }
+  if (diffs.length > 0) {
+    throw new Error(`병합 거부: 설정이 다릅니다 — 같은 파일이 입력마다 다른 텍스트입니다. 한쪽을 같은 빌드로 다시 재거나 따로 보고하세요.\n  ${diffs.join("\n  ")}`);
+  }
+}
+
+const sameJson =(a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * 같은 레포·베이스 스냅샷 해시·프롬프트 집합(id·파일·sha256)·에이전트 명령·install 도구·반복 수인 agent 결과만 합친다.
  * 날짜·에이전트 버전·dsmith 커밋·관측 모델은 달라도 되고, 입력별로 `merged`에 남겨 보고서의 해석 한계에 적는다.
+ * 단 설정 지문(AGENTS.md 섹션·MCP 도구 설명 등)은 겹치는 부분이 같아야 하고, 지문 없는 옛 결과는 옛 결과끼리만 합친다.
  * 같은 조건이 두 입력에 있거나, replay·중단된 입력이 있으면 거부한다.
  */
 export function mergeResults(inputs: MergeInput[]): BenchResult {
@@ -49,7 +93,11 @@ export function mergeResults(inputs: MergeInput[]): BenchResult {
     }
   }
 
+  checkFingerprints(inputs);
+
   const results = inputs.map((i) => i.result);
+  const fingerprints: Partial<Record<Condition, SetupFingerprint>> = {};
+  for (const r of results) Object.assign(fingerprints, r.setupFingerprint);
   const conditions: Condition[] = CONDITIONS.filter((c) => seen.has(c));
   const sources: MergedSource[] = inputs.flatMap(
     ({ file, result: r }) =>
@@ -84,6 +132,7 @@ export function mergeResults(inputs: MergeInput[]): BenchResult {
     timeoutSec: ref.timeoutSec,
     status: "complete",
     abortReason: null,
+    ...(Object.keys(fingerprints).length === 0 ? {} : { setupFingerprint: fingerprints }),
     merged: sources,
     runs,
     aggregate,
