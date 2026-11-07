@@ -19,6 +19,7 @@ import { formatInstallSummary, runInstall } from "./commands/install.js";
 import { runMcp } from "./commands/mcp.js";
 import { runMigrateCommand } from "./commands/migrate.js";
 import { auditWarnings } from "./report/audit-report.js";
+import { cliVersion } from "./version.js";
 
 interface CommonOptions {
   root: string;
@@ -123,7 +124,12 @@ interface MigrateCliOptions {
 /** `dsmith` 커맨드 트리. 실행(parse)은 bin.ts가 하고, 테스트는 이 트리를 직접 들여다본다. */
 export function buildProgram(): Command {
   const program = new Command();
-  program.name("dsmith").description("디자인시스템 라이프사이클 CLI").exitOverride().enablePositionalOptions();
+  program
+    .name("dsmith")
+    .description("디자인시스템 라이프사이클 CLI")
+    .version(cliVersion(), "-V, --version", "버전을 출력하고 종료")
+    .exitOverride()
+    .enablePositionalOptions();
 
   common(program.command("detect").description("레포 환경을 감지하고 .dsmith/detect.json에 저장")).action(
     async (opts: CommonOptions) => {

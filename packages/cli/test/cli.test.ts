@@ -430,6 +430,25 @@ describe("슬래시 명령 ↔ CLI·MCP 일관성", () => {
   });
 });
 
+describe("--version", () => {
+  const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/bin.js");
+  const pkgVersion = (JSON.parse(fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../package.json"), "utf-8")) as { version: string }).version;
+
+  it.each([["--version"], ["-V"]])("%s는 패키지 버전만 stdout에 출력하고 종료 코드 0이다", (flag) => {
+    const r = spawnSync(process.execPath, [bin, flag], { encoding: "utf-8" });
+    expect(r.status).toBe(0);
+    expect(r.stdout.trim()).toBe(pkgVersion);
+    expect(r.stderr).toBe("");
+  });
+
+  it("서브커맨드의 --root는 그대로 동작한다(버전 옵션과 충돌하지 않음)", () => {
+    const r = spawnSync(process.execPath, [bin, "detect", "--help"], { encoding: "utf-8" });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("--root <dir>");
+    expect(r.stdout).not.toContain("--version");
+  });
+});
+
 describe("audit --json 리포트 경로", () => {
   const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/bin.js");
 

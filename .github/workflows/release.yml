@@ -30,6 +30,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - uses: changesets/action@v1
+        id: changesets
         with:
           # `pnpm version`은 pnpm 내장 명령이 먼저 실행되므로 `pnpm run`으로 스크립트를 호출한다
           version: pnpm run version
@@ -41,3 +42,9 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+
+      # `pnpm release`의 `changeset tag`는 로컬 태그만 만든다. 게시가 일어난 실행에서만 GitHub로 push한다
+      # (checkout이 남긴 GITHUB_TOKEN 자격 증명과 위의 `contents: write` 권한을 쓴다)
+      - name: 릴리스 태그 push
+        if: steps.changesets.outputs.published == 'true'
+        run: git push origin --tags
