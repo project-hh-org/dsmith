@@ -128,6 +128,41 @@ export function bootstrapMeanCI(values: readonly number[], opts: { seed?: number
   };
 }
 
+/** 양쪽 95%(상위 0.975) t 임계값, 자유도 1..30 */
+const T975 = [
+  12.7062, 4.3027, 3.1824, 2.7764, 2.5706, 2.4469, 2.3646, 2.306, 2.2622, 2.2281, 2.2010, 2.1788, 2.1604, 2.1448, 2.1314, 2.1199, 2.1098,
+  2.1009, 2.093, 2.086, 2.0796, 2.0739, 2.0687, 2.0639, 2.0595, 2.0555, 2.0518, 2.0484, 2.0452, 2.0423,
+];
+
+/** 자유도 df의 t 분포 0.975 분위수. df ≤ 30은 표, 그 위는 정규 근사의 Cornish–Fisher 전개 */
+export function tCritical975(df: number): number {
+  if (!Number.isInteger(df) || df < 1) throw new Error(`잘못된 자유도: ${df}`);
+  const tabled = T975[df - 1];
+  if (tabled !== undefined) return tabled;
+  const z = 1.959964;
+  return z + (z ** 3 + z) / (4 * df) + (5 * z ** 5 + 16 * z ** 3 + 3 * z) / (96 * df ** 2);
+}
+
+export interface TInterval {
+  mean: number;
+  lo: number;
+  hi: number;
+  /** 자유도 n − 1 */
+  df: number;
+}
+
+/** 평균의 95% t 구간(표본 표준편차 기준). 값이 2개 미만이면 null */
+export function tMeanCI(values: readonly number[]): TInterval | null {
+  const n = values.length;
+  if (n < 2) return null;
+  const m = mean(values);
+  let ss = 0;
+  for (const v of values) ss += (v - m) ** 2;
+  const se = Math.sqrt(ss / (n - 1) / n);
+  const half = tCritical975(n - 1) * se;
+  return { mean: m, lo: m - half, hi: m + half, df: n - 1 };
+}
+
 /** 동순위는 평균 순위(1부터) */
 export function averageRanks(values: readonly number[]): number[] {
   const order = values.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v || a.i - b.i);

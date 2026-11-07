@@ -10,7 +10,7 @@
 
 ## 격리 (중요)
 
-`benchmarks/`는 **에이전트가 보는 복사본에 들어가면 안 된다.** 채점 코드·프롬프트 정답 기준이 에이전트에 노출되면 결과가 오염된다. 실행기(Task 2)는 `examples/legacy-demo`·`fixtures/with-ds-app` 원본만 `os.tmpdir()` 아래(모노레포 밖)로 복사하며, 복사본에 `benchmarks/`가 없다는 것을 강제한다.
+`benchmarks/`는 **에이전트가 보는 복사본에 들어가면 안 된다.** 채점 코드·프롬프트 정답 기준이 에이전트에 노출되면 결과가 오염된다. 실행기(`src/base.ts`·`src/run.ts`)는 `examples/legacy-demo`·`fixtures/with-ds-app` 원본만 `os.tmpdir()` 아래(모노레포 밖)로 복사하며, 복사본에 `benchmarks/`가 없다는 것을 강제한다.
 
 ## 채점 기준(스냅샷)
 
@@ -79,10 +79,10 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 보고�
 - 없는 `--replay` 폴더, 선택한 조건 폴더가 하나도 없는 폴더는 종료 코드 2와 메시지로 끝난다(전부 `missing`인 빈 보고서를 만들지 않는다).
 - 반복: `--repeat 3`이면 12 × 2 × 3 = 72회다. `--dry-run`은 `예상 비용: 실행 72회 × ~$0.075 ≈ $5.4`(24회 실측 평균 $0.075/회)와 중단 기준을 먼저 보여 준다.
 - 중단 기준: `--max-total-usd <n>`을 넘거나 `--max-failures <n>`에 닿으면(기본값은 실행 수에 맞춰 늘어난다 — 비용 `max(8, ceil(추정 비용 × 1.5))`: 24회 $8·72회 $9, 실패 `max(6, ceil(실행 수 / 8))`: 24회 6·72회 9. 명시한 값은 그대로 쓴다) 새 실행을 시작하지 않고 `status: "aborted"` + `abortReason`으로 저장하고 종료 코드 1로 끝난다. 결과 JSON은 실행마다 임시 파일에 쓴 뒤 rename으로 갱신하며(중간 저장본도 `aborted`), 정상 종료하면 `complete`로 덮어쓴다. 중단된 결과는 보고서에 경고를 쓰고 README 줄을 만들지 않는다. 하네스가 한 실행을 처리하다 던진 예외는 그 실행을 `harness-error`(`error`에 메시지)로 기록하고 다음 실행을 계속한다.
-- `bench:report`는 `--in`과 같은 이름의 `.md`를 쓴다(`--out`으로 바꿀 수 있다). README 줄은 stdout으로 나오고, 진행 메시지는 stderr로 나온다.
+- `bench:report`는 `--in`과 같은 이름의 `.md`를 쓴다(`--out`으로 바꿀 수 있다). README 줄은 stdout으로 나오고, 진행 메시지는 stderr로 나온다. 이 줄은 루트 README의 `<!-- bench:line -->` 아래 줄과 글자 그대로 같고(손으로 고치지 않고 붙여 넣는다), 링크는 모노레포 루트 기준 상대 경로다(`--out`이 모노레포 밖이면 파일 이름만 쓰고 stderr에 경고한다). 보고서의 재현 명령은 `--in` 이름에서 따온 `<이름>/outputs`를 가리킨다.
 - README 줄은 baseline·dsmith 두 조건이 다 있고 `complete`인 `agent` 실행 결과에서만 만든다. `replay` 결과, 중단된 결과, 조건이 하나뿐인 결과는 보고서만 쓰고 줄을 만들지 않는다. 실제 실행의 결과 JSON을 나중에 다시 렌더링하는 것은 `agent` 모드 그대로라 줄이 나온다.
 - 에이전트는 stdin으로 프롬프트를 받는 명령이면 된다. 두 조건에 같은 명령을 쓴다. 에이전트에는 PATH에서 모노레포 아래 항목(`benchmarks/node_modules/.bin`, 루트 `node_modules/.bin` 등)을 뺀 환경을 준다 — baseline에서 `dsmith`가 실행되지 않는다. `dsmith` 조건의 MCP 서버는 `.mcp.json`의 `node <절대 경로>/packages/cli/dist/bin.js`로 뜬다.
-- stream-json이면 실행마다 `mcp__*` 도구 호출 수(`mcpToolCalls`)와 `permission_denials` 수를 세어 결과 JSON(`agentMeta`·`aggregate`)과 보고서(요약 행, 프롬프트별 `MCP/거부` 열)에 넣는다. dsmith 조건의 MCP 호출이 0이면 개선은 MCP 도구가 아니라 AGENTS.md와 탐색에서 나온 것이다.
+- stream-json이면 실행마다 `mcp__*` 도구 호출 수(`mcpToolCalls`)와 `permission_denials` 수를 세어 결과 JSON(`agentMeta`·`aggregate`)과 보고서(요약 행, 프롬프트별 `MCP/거부` 열)에 넣는다. dsmith 조건의 MCP 호출이 0이면 개선은 MCP 도구가 아니라 AGENTS.md·`.claude/skills`·`.dsmith/` 파일과 탐색에서 나온 것이다.
 
 ## 결과 폴더 구조
 

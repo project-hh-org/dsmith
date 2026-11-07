@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { DASH, byCodeUnit, esc, ratioCell, table } from "./format.js";
 import { CONDITIONS } from "./model.js";
+import { MONOREPO_ROOT } from "./paths.js";
 import type { Aggregate, BenchResult, Condition, RunRecord } from "./model.js";
 import { independentSection, limitLines, pairedSection, repeatSection, statsLineParts } from "./sections.js";
 
@@ -110,7 +111,7 @@ function totalCost(result: BenchResult): string {
 }
 
 /** 결정적 마크다운. 숫자는 result 값만 */
-export function renderReport(result: BenchResult): string {
+export function renderReport(result: BenchResult, opts: { recordPath?: string } = {}): string {
   const lines: string[] = [];
   const n = result.prompts.length;
   const seen = result.runs.filter((r) => r.harnessPathSeen).length;
@@ -178,7 +179,7 @@ export function renderReport(result: BenchResult): string {
 
   lines.push(...repeatSection(result), ...pairedSection(result), ...independentSection(result));
 
-  const recordPath = `benchmarks/results/${result.date}-${result.repo}/outputs`;
+  const recordPath = opts.recordPath ?? `benchmarks/results/${result.date}-${result.repo}/outputs`;
   lines.push("## 해석 한계", "", ...limitLines(result, originLine(result, recordPath)), "");
   return lines.join("\n");
 }
@@ -198,7 +199,7 @@ function originLine(result: BenchResult, recordPath: string): string {
 }
 
 /**
- * README 상단 한 줄. 한 줄, 끝 마침표 없음.
+ * README 상단 한 줄(README.md의 `<!-- bench:line -->` 아래 줄과 글자 그대로 같다). 한 줄.
  * replay 결과이거나 조건이 하나뿐이면 Error.
  */
 export function readmeLine(result: BenchResult, mdPath: string): string {
@@ -211,13 +212,21 @@ export function readmeLine(result: BenchResult, mdPath: string): string {
   const label = result.agent.command.trim().split(/\s+/).slice(0, 2).join(" ");
   // 반복이 2회 이상이면 평균·CI·부호 검정 형식, 1회면 아래의 기존 형식 그대로
   const stats = statsLineParts(result);
+  const link = `[${mdPath}](${mdPath})`;
   if (stats !== null) {
-    return `벤치마크(프롬프트 ${result.prompts.length}개 × 조건 2 × 반복 ${result.repeat}, ${label}, ${result.date}): ${stats.usage}, ${stats.nonDs} — ${mdPath}`;
+    return `벤치마크(프롬프트 ${result.prompts.length}개 × 조건 2 × 반복 ${result.repeat}, ${label}, ${result.date}): ${[stats.usage, stats.nonDs, ...stats.extra].join(", ")} — ${link}${LINE_TAIL}`;
   }
-  return `벤치마크(프롬프트 ${result.prompts.length}개 × 조건 2, ${label}, ${result.date}): 토큰 준수율 ${ratioCell(base.token, base.token + base.hardcoded)} → ${ratioCell(ds.token, ds.token + ds.hardcoded)}, DS 외 컴포넌트 ${base.nonDs} → ${ds.nonDs} — ${mdPath}`;
+  return `벤치마크(프롬프트 ${result.prompts.length}개 × 조건 2, ${label}, ${result.date}): 토큰 준수율 ${ratioCell(base.token, base.token + base.hardcoded)} → ${ratioCell(ds.token, ds.token + ds.hardcoded)}, DS 외 컴포넌트 ${base.nonDs} → ${ds.nonDs} — ${link}${LINE_TAIL}`;
 }
 
-const USAGE = "사용법: pnpm bench:report --in <결과.json> [--out <보고서.md>]  (상대 경로는 명령을 실행한 폴더 기준)";
+const LINE_TAIL = ". 렌더링은 하지 않았고 모델·레포 하나다(해석 한계는 보고서 참고).";
+
+/** 모노레포 루트 기준 상대 경로(POSIX 구분자). 밖이면 `../…`로 시작한다 */
+export function toPosixRelative(file: string): string {
+  return path.relative(MONOREPO_ROOT, file).split(path.sep).join("/");
+}
+
+const USAGE ="사용법: pnpm bench:report --in <결과.json> [--out <보고서.md>]  (상대 경로는 명령을 실행한 폴더 기준)";
 
 /**
  * 결과 JSON을 읽어 같은 이름의 .md를 쓰고 README 줄을 돌려준다.
@@ -236,8 +245,14 @@ export function reportFromFile(argv: string[], env: NodeJS.ProcessEnv = process.
   if (result.version !== 1) throw new Error(`지원하지 않는 결과 형식: version ${String(result.version)}`);
   const mdFile = values.out === undefined ? inFile.replace(/\.json$/, "") + ".md" : path.resolve(cwd, values.out);
   mkdirSync(path.dirname(mdFile), { recursive: true });
-  writeFileSync(mdFile, renderReport(result));
-  const mdPath = `benchmarks/results/${path.basename(mdFile)}`;
+  // 산출물 폴더는 run.ts의 effectiveRecord와 같은 규칙: <결과 JSON 이름>/outputs
+  const record = path.join(path.dirname(inFile), path.basename(inFile, ".json"), "outputs");
+  writeFileSync(mdFile, renderReport(result, { recordPath: toPosixRelative(record) }));
+  let mdPath = toPosixRelative(mdFile);
+  if (mdPath === ".." || mdPath.startsWith("../") || path.isAbsolute(mdPath)) {
+    process.stderr.write(`경고: 보고서가 모노레포 밖(${mdFile})에 있어 README 줄에는 파일 이름만 쓴다\n`);
+    mdPath = path.basename(mdFile);
+  }
   let line: string | null = null;
   try {
     line = readmeLine(result, mdPath);

@@ -218,7 +218,9 @@ describe("가짜 에이전트 e2e (--agent)", () => {
     ]);
     expect(result.runs.every((r) => r.exitCode === 0 && r.agentMeta?.costUsd === 0.001 && !r.harnessPathSeen && r.score.expectedFile)).toBe(true);
     expect(JSON.parse(fs.readFileSync(out, "utf-8"))).toEqual(JSON.parse(JSON.stringify(result)));
-    expect(fs.readFileSync(path.join(outRoot, "result.md"), "utf-8")).toBe(renderReport(result));
+    // run.ts는 실제 산출물 폴더(<out 이름>/outputs)를 모노레포 기준 POSIX 상대 경로로 보고서에 적는다
+    const recordPath = path.relative(MONOREPO_ROOT, path.join(outRoot, "result", "outputs")).split(path.sep).join("/");
+    expect(fs.readFileSync(path.join(outRoot, "result.md"), "utf-8")).toBe(renderReport(result, { recordPath }));
 
     // 조건별 환경(가짜 에이전트가 본 cwd)
     for (const id of ["06-badge", "01-form"]) {
@@ -283,8 +285,8 @@ describe("가짜 에이전트 e2e (--agent)", () => {
 
     // 실제 실행 결과 JSON을 bench:report --in 으로 다시 렌더링해도 mode는 agent이고 README 줄이 나온다
     const reported = reportFromFile(["--", "--", "--in", out], {});
-    expect(reported.line).toMatch(/^벤치마크\(프롬프트 2개 × 조건 2, .*, 2026-11-01\): 토큰 준수율 0\.0% \(0\/2\) → 100\.0% \(4\/4\), DS 외 컴포넌트 2 → 0 — benchmarks\/results\/result\.md$/);
-    expect(fs.readFileSync(reported.mdFile, "utf-8")).toBe(renderReport(result));
+    expect(reported.line).toMatch(/^벤치마크\(프롬프트 2개 × 조건 2, .*, 2026-11-01\): 토큰 준수율 0\.0% \(0\/2\) → 100\.0% \(4\/4\), DS 외 컴포넌트 2 → 0 — \[result\.md\]\(result\.md\)\. 렌더링은 하지 않았고 모델·레포 하나다\(해석 한계는 보고서 참고\)\.$/);
+    expect(fs.readFileSync(reported.mdFile, "utf-8")).toBe(renderReport(result, { recordPath }));
     expect(again.runs.map((r) => r.score)).toEqual(result.runs.map((r) => r.score));
 
     // keep: false → 복사본·템플릿·베이스가 남지 않는다

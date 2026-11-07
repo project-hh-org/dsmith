@@ -3,7 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Aggregate, BenchResult, Condition, RunRecord, RunScore } from "../src/model.js";
-import { readmeLine, renderReport, reportFromFile } from "../src/report.js";
+import { MONOREPO_ROOT } from "../src/paths.js";
+import { readmeLine, renderReport, reportFromFile, toPosixRelative } from "../src/report.js";
 
 interface Counts {
   token?: number;
@@ -213,7 +214,7 @@ const EXPECTED = [
   "| 01-form | 16.7% | 75.0% | +58.3%p | 2.0 | 0.0 | -2.0 |",
   "| 06-badge | 0.0% | 100.0% | +100.0%p | 1.0 | 0.0 | -1.0 |",
   "",
-  "- 토큰 사용률: 평균 8.3% → 87.5%, 평균 차이 +79.2%p, 95% 부트스트랩 CI [+58.3, +100.0] (프롬프트 2개 복원추출 10,000회, 시드 20261107). 부호 검정(0 차이 0개 제외, n=2): 증가 2 · 감소 0, 양쪽 정확 p=0.5000.",
+  "- 토큰 사용률: 평균 8.3% → 87.5%, 평균 차이 +79.2%p, 95% 부트스트랩 CI [+58.3, +100.0] (프롬프트 2개 복원추출 10,000회, 시드 20261107), 95% t 구간 [-185.5, +343.9] (자유도 1, 비교용). 부호 검정(0 차이 0개 제외, n=2): 증가 2 · 감소 0, 양쪽 정확 p=0.5000.",
   "- DS 외 컴포넌트: 평균 1.50 → 0.00, 평균 차이 -1.50. 부호 검정(0 차이 0개 제외, n=2): 증가 0 · 감소 2, 양쪽 정확 p=0.5000.",
   "- DS 컴포넌트 사용: 평균 0.00 → 1.50, 평균 차이 +1.50. 부호 검정(0 차이 0개 제외, n=2): 증가 2 · 감소 0, 양쪽 정확 p=0.5000.",
   "",
@@ -229,7 +230,9 @@ const EXPECTED = [
   "- 렌더링하지 않았다. 화면에서 어떻게 보이는지(색 대비·레이아웃 깨짐)와 `tokens.css`가 실제로 로드되는지는 측정 밖이다 — 정의된 var 참조는 \"CSS 어딘가에 선언돼 있다\"까지만 확인한다.",
   "- 타입 검사는 의존성 타입 없이 했다(복사본에 node_modules 없음). react 등 외부 패키지 API 사용과 JSX 내장 요소 속성의 타입 오류는 검사 밖이다.",
   "- 모델 하나·에이전트 하나(관측 모델: claude-sonnet-5-5), 레포 하나(legacy-demo)다. 다른 모델·에이전트·코드베이스로 일반화하지 못한다.",
-  "- dsmith 조건의 개선이 AGENTS.md DS 섹션 때문인지 MCP 도구(`lint_snippet` 등) 때문인지 분리하지 않았다(두 가지가 함께 켜진 조건 하나뿐). MCP 호출 수를 요약에 싣지만 그것만으로 원인을 가르지 못한다.",
+  "- dsmith 조건의 개선이 AGENTS.md DS 섹션 때문인지 MCP 도구(`lint_snippet` 등) 때문인지 분리하지 않았다(AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`가 함께 켜진 조건 하나뿐). MCP 호출 수를 요약에 싣지만 그것만으로 원인을 가르지 못한다.",
+  "- 대응 비교에서 지표 3개(토큰 사용률·DS 외 컴포넌트·DS 컴포넌트 사용)를 각각 검정했고 다중 비교 보정은 하지 않았다. 참고로 Bonferroni(×3)를 적용하면 토큰 사용률 p=1.0000, DS 외 컴포넌트 p=1.0000다.",
+  "- 95% CI는 프롬프트 2개의 백분위 부트스트랩이라 표본이 작으면 실제 포함 확률이 95%보다 낮을 수 있다. 그래서 같은 차이의 t 구간을 `## 대응 비교`에 함께 적었다(정규 근사를 가정한 비교용 값).",
   "- 준수율 분모에서 Tailwind 기본 스케일 클래스는 뺐다(별도 행).",
   "- 변수·상수에 담은 className은 dynamic으로만 세며 준수율 분모에 들어가지 않음.",
   "- 산출물은 `benchmarks/results/2026-11-01-legacy-demo/outputs`에 있고 저장소 루트에서 `pnpm bench --repo legacy-demo --replay benchmarks/results/2026-11-01-legacy-demo/outputs`로 같은 채점을 다시 낼 수 있다.",
@@ -377,7 +380,9 @@ describe("renderReport", () => {
 });
 
 const LINE =
-  "벤치마크(프롬프트 2개 × 조건 2, claude -p, 2026-11-01): 토큰 준수율 12.5% (1/8) → 87.5% (7/8), DS 외 컴포넌트 3 → 0 — benchmarks/results/2026-11-01-legacy-demo.md";
+  "벤치마크(프롬프트 2개 × 조건 2, claude -p, 2026-11-01): 토큰 준수율 12.5% (1/8) → 87.5% (7/8), DS 외 컴포넌트 3 → 0 — [benchmarks/results/2026-11-01-legacy-demo.md](benchmarks/results/2026-11-01-legacy-demo.md). 렌더링은 하지 않았고 모델·레포 하나다(해석 한계는 보고서 참고).";
+
+const OUTSIDE_LINE = LINE.replaceAll("benchmarks/results/2026-11-01-legacy-demo.md", "2026-11-01-legacy-demo.md");
 
 describe("readmeLine", () => {
   const MD = "benchmarks/results/2026-11-01-legacy-demo.md";
@@ -418,12 +423,34 @@ describe("reportFromFile (CLI)", () => {
     const json = path.join(dir, "2026-11-01-legacy-demo.json");
     writeFileSync(json, `${JSON.stringify(fixture(), null, 2)}\n`);
     // pnpm bench:report -- --in … 는 `-- --`로 들어온다
+    // 모노레포 밖 임시 폴더라 산출물 경로는 모노레포 기준 상대 경로, README 줄의 링크는 파일 이름만 쓴다
+    const record = toPosixRelative(path.join(dir, "2026-11-01-legacy-demo", "outputs"));
     for (const argv of [["--", "--", "--in", json], ["--", "--in", json], ["--in", json]]) {
       const out = reportFromFile(argv, {});
       expect(out.mdFile).toBe(path.join(dir, "2026-11-01-legacy-demo.md"));
-      expect(readFileSync(out.mdFile, "utf8")).toBe(EXPECTED);
-      expect(out.line).toBe(LINE);
+      expect(readFileSync(out.mdFile, "utf8")).toBe(renderReport(fixture(), { recordPath: record }));
+      expect(out.line).toBe(OUTSIDE_LINE);
     }
+  });
+
+  it("산출물 경로는 --in 이름 기준: x-k3.json이면 x-k3/outputs를 가리킨다(k1 폴더가 아니다)", () => {
+    dir = mkdtempSync(path.join(MONOREPO_ROOT, "benchmarks", ".report-test-"));
+    const rel = toPosixRelative(dir);
+    writeFileSync(path.join(dir, "x-k3.json"), JSON.stringify(fixture()));
+    const out = reportFromFile(["--in", path.join(dir, "x-k3.json")], {});
+    const md = readFileSync(out.mdFile, "utf8");
+    expect(md).toContain(`\`${rel}/x-k3/outputs\``);
+    expect(md).toContain(`--replay ${rel}/x-k3/outputs\``);
+    expect(md).not.toContain("2026-11-01-legacy-demo/outputs");
+    expect(renderReport(fixture(), { recordPath: "a/b-k3/outputs" })).toContain("--replay a/b-k3/outputs");
+  });
+
+  it("README 줄의 링크는 모노레포 루트 기준 상대 경로(하위 폴더 포함)", () => {
+    dir = mkdtempSync(path.join(MONOREPO_ROOT, "benchmarks", ".report-test-"));
+    const rel = toPosixRelative(dir);
+    writeFileSync(path.join(dir, "r.json"), JSON.stringify(fixture()));
+    const out = reportFromFile(["--in", path.join(dir, "r.json"), "--out", path.join(dir, "sub", "y.md")], {});
+    expect(out.line).toContain(`— [${rel}/sub/y.md](${rel}/sub/y.md).`);
   });
 
   it("상대 --in·--out은 INIT_CWD(pnpm을 부른 cwd) 기준으로 푼다", () => {
@@ -431,8 +458,8 @@ describe("reportFromFile (CLI)", () => {
     writeFileSync(path.join(dir, "r.json"), JSON.stringify(fixture()));
     const out = reportFromFile(["--in", "r.json", "--out", "sub/report.md"], { INIT_CWD: dir });
     expect(out.mdFile).toBe(path.join(dir, "sub/report.md"));
-    expect(readFileSync(out.mdFile, "utf8")).toBe(EXPECTED);
-    expect(out.line).toBe(LINE.replace("2026-11-01-legacy-demo.md", "report.md"));
+    expect(readFileSync(out.mdFile, "utf8")).toBe(renderReport(fixture(), { recordPath: toPosixRelative(path.join(dir, "r", "outputs")) }));
+    expect(out.line).toBe(OUTSIDE_LINE.replaceAll("2026-11-01-legacy-demo.md", "report.md"));
   });
 
   it("옛 결과 JSON(status 없음)도 complete로 읽어 README 줄을 만든다", () => {
@@ -442,7 +469,7 @@ describe("reportFromFile (CLI)", () => {
     delete old.status;
     delete old.abortReason;
     writeFileSync(json, JSON.stringify(old));
-    expect(reportFromFile(["--in", json], {}).line).toBe(LINE);
+    expect(reportFromFile(["--in", json], {}).line).toBe(OUTSIDE_LINE);
   });
 
   it("replay 결과는 md만 쓰고 줄은 null", () => {

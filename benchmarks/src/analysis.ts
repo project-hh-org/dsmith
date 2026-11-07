@@ -1,5 +1,5 @@
 import type { BenchResult, Condition, RunRecord } from "./model.js";
-import { BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED, bootstrapMeanCI, mean, signTest, spearman, summarize, type BootstrapCI, type SignTest, type Summary } from "./stats.js";
+import { BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED, bootstrapMeanCI, mean, signTest, spearman, summarize, tMeanCI, type BootstrapCI, type SignTest, type Summary, type TInterval } from "./stats.js";
 
 /**
  * 결과 JSON(BenchResult)에서 반복·대응 통계를 뽑는 순수 함수들. 파일시스템·난수 없음(부트스트랩은 고정 시드).
@@ -134,6 +134,8 @@ export interface Paired {
   sign: SignTest;
   /** 평균 차이의 95% 부트스트랩 구간(프롬프트 재표본) */
   ci: BootstrapCI | null;
+  /** 같은 차이의 95% t 구간(비교용). 프롬프트가 2개 미만이면 null */
+  tci: TInterval | null;
 }
 
 /** 대응 비교: 두 조건이 다 있어야 의미가 있다. 없으면 모든 행이 diff null */
@@ -154,6 +156,7 @@ export function pairedAnalysis(result: BenchResult, metric: MetricId): Paired {
     meanDiff: used.length === 0 ? null : mean(diffs),
     sign: signTest(diffs),
     ci: bootstrapMeanCI(diffs, { seed: BOOTSTRAP_SEED, resamples: BOOTSTRAP_RESAMPLES }),
+    tci: tMeanCI(diffs),
   };
 }
 

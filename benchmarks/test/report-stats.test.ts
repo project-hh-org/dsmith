@@ -150,7 +150,7 @@ describe("renderReport — 반복 3회", () => {
   });
 
   it("대응 비교 절: 평균 차이·CI·부호 검정", () => {
-    expect(md).toContain("- 토큰 사용률: 평균 12.5% → 62.5%, 평균 차이 +50.0%p, 95% 부트스트랩 CI [+50.0, +50.0] (프롬프트 4개 복원추출 10,000회, 시드 20261107). 부호 검정(0 차이 0개 제외, n=4): 증가 4 · 감소 0, 양쪽 정확 p=0.1250.");
+    expect(md).toContain("- 토큰 사용률: 평균 12.5% → 62.5%, 평균 차이 +50.0%p, 95% 부트스트랩 CI [+50.0, +50.0] (프롬프트 4개 복원추출 10,000회, 시드 20261107), 95% t 구간 [+50.0, +50.0] (자유도 3, 비교용). 부호 검정(0 차이 0개 제외, n=4): 증가 4 · 감소 0, 양쪽 정확 p=0.1250.");
     expect(md).toContain("- DS 외 컴포넌트: 평균 1.00 → 0.00, 평균 차이 -1.00. 부호 검정(0 차이 1개 제외, n=3): 증가 0 · 감소 3, 양쪽 정확 p=0.2500.");
   });
 
@@ -161,7 +161,7 @@ describe("renderReport — 반복 3회", () => {
 
   it("README 줄: 평균·CI·부호 검정 형식", () => {
     expect(readmeLine(constantResult(), "benchmarks/results/x.md")).toBe(
-      "벤치마크(프롬프트 4개 × 조건 2 × 반복 3, claude -p, 2026-11-01): 토큰 사용률 평균 12.5% → 62.5% (차이 +50.0%p, 95% CI [+50.0, +50.0], 부호 검정 p=0.1250), DS 외 컴포넌트 반복당 평균 4.0 → 0.0 (부호 검정 p=0.2500) — benchmarks/results/x.md",
+      "벤치마크(프롬프트 4개 × 조건 2 × 반복 3, claude -p, 2026-11-01): 토큰 사용률 평균 12.5% → 62.5% (차이 +50.0%p, 95% CI [+50.0, +50.0], 부호 검정 p=0.1250), DS 외 컴포넌트 반복당 합계 4.0 → 0.0 (프롬프트 단위 부호 검정 n=3, p=0.2500) — [benchmarks/results/x.md](benchmarks/results/x.md). 렌더링은 하지 않았고 모델·레포 하나다(해석 한계는 보고서 참고).",
     );
   });
 
@@ -185,7 +185,7 @@ describe("renderReport — 반복 1회는 README 줄 형식이 그대로", () =>
   it("반복 1회 결과의 README 줄에는 CI·부호 검정이 없다", () => {
     const runs = [run("01-a", "baseline", 1, { token: 1, hardcoded: 3 }), run("01-a", "dsmith", 1, { token: 3, hardcoded: 1 })];
     const line = readmeLine(build(runs, 1, ["01-a"]), "benchmarks/results/x.md");
-    expect(line).toBe("벤치마크(프롬프트 1개 × 조건 2, claude -p, 2026-11-01): 토큰 준수율 25.0% (1/4) → 75.0% (3/4), DS 외 컴포넌트 0 → 0 — benchmarks/results/x.md");
+    expect(line).toBe("벤치마크(프롬프트 1개 × 조건 2, claude -p, 2026-11-01): 토큰 준수율 25.0% (1/4) → 75.0% (3/4), DS 외 컴포넌트 0 → 0 — [benchmarks/results/x.md](benchmarks/results/x.md). 렌더링은 하지 않았고 모델·레포 하나다(해석 한계는 보고서 참고).");
     expect(line).not.toContain("CI");
   });
 });
@@ -238,6 +238,27 @@ describe("독립 채점 절·일치도", () => {
     expect(md).toContain("- 채점 독립성: dsmith 엔진과 코드를 공유하지 않는 별도 채점기가");
     expect(md).toContain("- 타입 검사: 바뀐 파일을 TypeScript 컴파일러로 검사했다");
     expect(md).toContain("`baseline/01-a#1` src/components/X.tsx:3 TS2322");
+  });
+
+  it("반복 3회: README 줄에 독립 채점기 대응 평균·타입 오류가 들어가고, 사용률이 낮아진 프롬프트를 해석 한계에 설명한다", () => {
+    const runs: RunRecord[] = [];
+    for (const rep of [1, 2, 3]) {
+      // 01-a: 독립 0 → 1 (개선). 02-b: dsmith 쪽은 DS 컴포넌트 2번 + 기본 스케일 1개 → 사용률 0% (악화)
+      runs.push(
+        run("01-a", "baseline", rep, { token: 1, tailwindDefault: 1 }, { independent: indep({ tailwindPalette: 2 }), typeCheck: tc(0) }),
+        run("01-a", "dsmith", rep, { token: 3, tailwindDefault: 1 }, { independent: indep({ varDefined: 2 }), typeCheck: tc(0) }),
+        run("02-b", "baseline", rep, { token: 1, tailwindDefault: 1 }, { independent: indep({ varDefined: 1, tailwindPalette: 1 }), typeCheck: tc(0) }),
+        run("02-b", "dsmith", rep, { tailwindDefault: 1, dsComponentUses: 2 }, { independent: indep({ tailwindPalette: 1 }), typeCheck: tc(0) }),
+      );
+    }
+    const result = build(runs, 3, ["01-a", "02-b"]);
+    const line = readmeLine(result, "benchmarks/results/x.md");
+    // 독립 사용률은 프롬프트 평균의 평균: baseline (0 + 0.5)/2 = 25.0%, dsmith (1 + 0)/2 = 50.0%
+    expect(line).toContain("독립 채점기 기준 사용률 평균 25.0% → 50.0% (+25.0%p, 95% CI [");
+    expect(line).toContain("부호 검정 p=1.0000), 타입 오류 0 → 0 — [benchmarks/results/x.md]");
+    const md = renderReport(result);
+    expect(md).toContain("- 토큰 사용률이 dsmith 쪽에서 오히려 낮아진 프롬프트: `02-b`(50.0% → 0.0%, dsmith DS 컴포넌트 사용 평균 2.0)");
+    expect(md).toContain("지표 4개(토큰 사용률·DS 외 컴포넌트·DS 컴포넌트 사용·독립 사용률)");
   });
 
   it("독립·타입 기록이 없는 결과(옛 JSON)에는 독립 채점 절이 없다", () => {

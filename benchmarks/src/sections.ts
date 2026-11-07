@@ -76,7 +76,8 @@ function pairedStatLines(p: Paired, label: string, kind: "pct" | "count", withCi
   if (kind === "pct") {
     const ci =
       withCi && p.ci !== null ? `, 95% 부트스트랩 CI [${ppNum(p.ci.lo)}, ${ppNum(p.ci.hi)}] (프롬프트 ${p.n}개 복원추출 ${BOOTSTRAP_RESAMPLES.toLocaleString("en-US")}회, 시드 ${BOOTSTRAP_SEED})` : "";
-    return [`- ${label}: 평균 ${pct(p.meanBaseline)} → ${pct(p.meanDsmith)}, 평균 차이 ${pp(p.meanDiff)}${ci}. ${sign}.`];
+    const t = withCi && p.tci !== null ? `, 95% t 구간 [${ppNum(p.tci.lo)}, ${ppNum(p.tci.hi)}] (자유도 ${p.tci.df}, 비교용)` : "";
+    return [`- ${label}: 평균 ${pct(p.meanBaseline)} → ${pct(p.meanDsmith)}, 평균 차이 ${pp(p.meanDiff)}${ci}${t}. ${sign}.`];
   }
   return [`- ${label}: 평균 ${num(p.meanBaseline)} → ${num(p.meanDsmith)}, 평균 차이 ${signedNum(p.meanDiff)}. ${sign}.`];
 }
@@ -290,7 +291,7 @@ export function limitLines(result: BenchResult, originLine: string): string[] {
   if (both) out.push(`- 표본 단위는 프롬프트다. 프롬프트 수가 작아(N=${n}) 검정력이 낮고, 프롬프트는 이 하네스에 들어 있는 UI 생성 요청이라 "일반 UI 생성"으로 확장하지 못한다.`);
   out.push(
     indep
-      ? "- 채점 독립성: dsmith 엔진과 코드를 공유하지 않는 별도 채점기가 같은 산출물을 다시 셌고(`## 독립 채점`), dsmith 점수와의 방향 일치도를 `### 일치도`에 밝혔다. 다만 독립 채점기도 같은 저자가 쓴 정규식·AST 휴리스틱이라 완전한 제3자 평가는 아니고, 베이스의 토큰·프리셋 정의는 같은 것을 읽는다."
+      ? "- 채점 독립성: dsmith 엔진과 코드를 공유하지 않는 별도 채점기가 같은 산출물을 다시 셌고(`## 독립 채점`), dsmith 점수와의 방향 일치도를 `### 일치도`에 밝혔다. 다만 독립 채점기도 같은 저자가 쓴 정규식·AST 휴리스틱이라 완전한 제3자 평가는 아니고, 베이스의 토큰·프리셋 정의는 같은 것을 읽고, DS 모듈 목록도 dsmith 스냅샷(`ds.modules`)에서 받는다."
       : "- 독립 채점기 기록이 없는 결과(이전 형식)다. 채점은 dsmith 자신의 규칙 엔진뿐이고 dsmith 조건의 에이전트는 같은 엔진(`lint_snippet`)을 쓸 수 있어, 같은 기준에 맞추도록 돕는 효과를 잰 것이지 독립 평가가 아니다.",
   );
   out.push(
@@ -304,7 +305,26 @@ export function limitLines(result: BenchResult, originLine: string): string[] {
     out.push("- 타입 검사는 의존성 타입 없이 했다(복사본에 node_modules 없음). react 등 외부 패키지 API 사용과 JSX 내장 요소 속성의 타입 오류는 검사 밖이다.");
   }
   out.push("- 모델 하나·에이전트 하나(관측 모델: " + (result.agent.models.length === 0 ? "기록 없음" : result.agent.models.join(", ")) + "), 레포 하나(" + result.repo + ")다. 다른 모델·에이전트·코드베이스로 일반화하지 못한다.");
-  out.push("- dsmith 조건의 개선이 AGENTS.md DS 섹션 때문인지 MCP 도구(`lint_snippet` 등) 때문인지 분리하지 않았다(두 가지가 함께 켜진 조건 하나뿐). MCP 호출 수를 요약에 싣지만 그것만으로 원인을 가르지 못한다.");
+  out.push("- dsmith 조건의 개선이 AGENTS.md DS 섹션 때문인지 MCP 도구(`lint_snippet` 등) 때문인지 분리하지 않았다(AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`가 함께 켜진 조건 하나뿐). MCP 호출 수를 요약에 싣지만 그것만으로 원인을 가르지 못한다.");
+  if (both) {
+    const m = indep ? 4 : 3;
+    const usage = pairedAnalysis(result, "usage");
+    const nonDs = pairedAnalysis(result, "nonDs");
+    const bonf = (p: number | null): string => (p === null ? DASH : pValue(Math.min(1, p * m)));
+    out.push(
+      `- 대응 비교에서 지표 ${m}개(토큰 사용률·DS 외 컴포넌트·DS 컴포넌트 사용${indep ? "·독립 사용률" : ""})를 각각 검정했고 다중 비교 보정은 하지 않았다. 참고로 Bonferroni(×${m})를 적용하면 토큰 사용률 p=${bonf(usage.sign.p)}, DS 외 컴포넌트 p=${bonf(nonDs.sign.p)}다.`,
+      `- 95% CI는 프롬프트 ${n}개의 백분위 부트스트랩이라 표본이 작으면 실제 포함 확률이 95%보다 낮을 수 있다. 그래서 같은 차이의 t 구간을 \`## 대응 비교\`에 함께 적었다(정규 근사를 가정한 비교용 값).`,
+    );
+    const negatives = usage.rows.filter((r) => r.diff !== null && r.diff < 0);
+    if (negatives.length > 0) {
+      const detail = negatives
+        .map((r) => `\`${r.prompt}\`(${pct(r.baseline?.mean)} → ${pct(r.dsmith?.mean)}, dsmith DS 컴포넌트 사용 평균 ${num(perPromptSummary(result, r.prompt, "dsmith", "dsUses")?.mean, 1)})`)
+        .join(", ");
+      out.push(
+        `- 토큰 사용률이 dsmith 쪽에서 오히려 낮아진 프롬프트: ${detail}. 사용률은 직접 쓴 스타일 값 중 토큰 참조의 비율이라, DS 컴포넌트로 조립하고 레이아웃용 기본 스케일 클래스만 몇 개 직접 쓰면 분자가 0이 돼 0%가 된다. 이는 지표의 한계이며 이런 프롬프트의 DS 활용은 \`DS 컴포넌트 사용\` 행에서 따로 본다.`,
+      );
+    }
+  }
   out.push("- 준수율 분모에서 Tailwind 기본 스케일 클래스는 뺐다(별도 행).");
   out.push("- 변수·상수에 담은 className은 dynamic으로만 세며 준수율 분모에 들어가지 않음.");
   out.push(originLine);
@@ -312,8 +332,21 @@ export function limitLines(result: BenchResult, originLine: string): string[] {
 }
 
 /** README 줄용 요약: 반복이 2회 이상일 때만 쓴다 */
-export function statsLineParts(result: BenchResult): { usage: string; nonDs: string } | null {
+export function statsLineParts(result: BenchResult): { usage: string; nonDs: string; extra: string[] } | null {
   if (result.repeat <= 1) return null;
+  const extra: string[] = [];
+  if (hasIndependent(result)) {
+    // 두 사용률 모두 프롬프트별 반복 평균을 대응시킨 평균이다(합산 비율이 아니다)
+    const ind = pairedAnalysis(result, "indepUsage");
+    if (ind.n > 0 && ind.meanDiff !== null && ind.meanBaseline !== null && ind.meanDsmith !== null && ind.ci !== null) {
+      extra.push(
+        `독립 채점기 기준 사용률 평균 ${pct(ind.meanBaseline)} → ${pct(ind.meanDsmith)} (${pp(ind.meanDiff)}, 95% CI [${ppNum(ind.ci.lo)}, ${ppNum(ind.ci.hi)}], 부호 검정 p=${pValue(ind.sign.p)})`,
+      );
+    }
+  }
+  if (hasTypeCheck(result)) {
+    extra.push(`타입 오류 ${typeSums(runsOf(result, "baseline")).errors} → ${typeSums(runsOf(result, "dsmith")).errors}`);
+  }
   const usage = pairedAnalysis(result, "usage");
   const nonDs = pairedAnalysis(result, "nonDs");
   const series = (c: Condition): number | null => {
@@ -327,6 +360,6 @@ export function statsLineParts(result: BenchResult): { usage: string; nonDs: str
   const b = series("baseline");
   const d = series("dsmith");
   const n =
-    b === null || d === null ? DASH : `DS 외 컴포넌트 반복당 평균 ${num(b, 1)} → ${num(d, 1)} (부호 검정 p=${pValue(nonDs.sign.p)})`;
-  return { usage: u, nonDs: n };
+    b === null || d === null ? DASH : `DS 외 컴포넌트 반복당 합계 ${num(b, 1)} → ${num(d, 1)} (프롬프트 단위 부호 검정 n=${nonDs.sign.n}, p=${pValue(nonDs.sign.p)})`;
+  return { usage: u, nonDs: n, extra };
 }

@@ -435,7 +435,7 @@ export async function runBench(args: BenchArgs, log: (line: string) => void = ()
       await writeFileAtomic(out, `${JSON.stringify(result, null, 2)}\n`);
       log(`결과 JSON: ${out}`);
       const md = mdPathOf(out);
-      await writeFileAtomic(md, renderReport(result));
+      await writeFileAtomic(md, renderReport(result, record === null ? {} : { recordPath: path.relative(MONOREPO_ROOT, record).split(path.sep).join("/") }));
       log(`결과 보고서: ${md}`);
     }
     return result;

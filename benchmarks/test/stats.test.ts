@@ -10,6 +10,8 @@ import {
   signTest,
   spearman,
   summarize,
+  tCritical975,
+  tMeanCI,
 } from "../src/stats.js";
 
 describe("mean / summarize", () => {
@@ -121,6 +123,27 @@ describe("bootstrapMeanCI", () => {
     expect(ci?.resamples).toBe(40);
     expect(ci?.lo).toBeGreaterThanOrEqual(0);
     expect(ci?.hi).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("tMeanCI", () => {
+  it("[1..5]: 평균 3, s=√2.5, se=√0.5, t(4)=2.7764 → [1.0368, 4.9632]", () => {
+    const ci = tMeanCI([1, 2, 3, 4, 5]);
+    expect(ci?.df).toBe(4);
+    expect(ci?.mean).toBe(3);
+    expect(ci?.lo).toBeCloseTo(3 - 2.7764 * Math.sqrt(0.5), 10);
+    expect(ci?.hi).toBeCloseTo(3 + 2.7764 * Math.sqrt(0.5), 10);
+  });
+  it("상수 입력이면 구간이 한 점, 값이 2개 미만이면 null", () => {
+    expect(tMeanCI([0.5, 0.5, 0.5])).toMatchObject({ lo: 0.5, hi: 0.5 });
+    expect(tMeanCI([1])).toBeNull();
+    expect(tMeanCI([])).toBeNull();
+  });
+  it("임계값: 표(df=11 → 2.2010)와 df>30 근사(df=60 → 약 2.0003, df=31 → 약 2.0395)", () => {
+    expect(tCritical975(11)).toBeCloseTo(2.201, 3);
+    expect(tCritical975(60)).toBeCloseTo(2.0003, 3);
+    expect(tCritical975(31)).toBeCloseTo(2.0395, 3);
+    expect(() => tCritical975(0)).toThrow();
   });
 });
 
