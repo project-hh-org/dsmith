@@ -1,0 +1,20 @@
+# dsmith guard init이 생성한 파일입니다. 직접 고치면 다음 guard init이 덮어쓰지 않습니다(--force로 덮어씀).
+name: dsmith guard
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npx --yes dsmith@0.2.0 guard --ci --base "origin/${{ github.base_ref }}" --comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

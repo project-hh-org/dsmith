@@ -1,0 +1,304 @@
+{
+  "version": 1,
+  "dsmith": "0.2.0",
+  "extractors": [
+    "tailwind",
+    "inline-style",
+    "css"
+  ],
+  "tokens": [
+    {
+      "name": "--color-blue-400",
+      "value": "#3b82f6",
+      "category": "color",
+      "normalized": {
+        "kind": "color",
+        "hex": "#3b82f6",
+        "l": 0.6230830326348528,
+        "c": 0.18801473450792208,
+        "h": 259.81452852548136
+      },
+      "path": "color.blue-400"
+    },
+    {
+      "name": "--color-blue-900",
+      "value": "#111827",
+      "category": "color",
+      "normalized": {
+        "kind": "color",
+        "hex": "#111827",
+        "l": 0.2100844908199934,
+        "c": 0.03176261291165215,
+        "h": 264.66452749147317
+      },
+      "path": "color.blue-900"
+    },
+    {
+      "name": "--color-red-500",
+      "value": "#e53e3e",
+      "category": "color",
+      "normalized": {
+        "kind": "color",
+        "hex": "#e53e3e",
+        "l": 0.613711266711459,
+        "c": 0.20390851231187043,
+        "h": 25.56451021527886
+      },
+      "path": "color.red-500"
+    },
+    {
+      "name": "--color-gray-50",
+      "value": "#f9fafb",
+      "category": "color",
+      "normalized": {
+        "kind": "color",
+        "hex": "#f9fafb",
+        "l": 0.9846253159451991,
+        "c": 0.001706075627243846,
+        "h": 247.83938351399394
+      },
+      "path": "color.gray-50"
+    },
+    {
+      "name": "--color-gray-500",
+      "value": "#6b7280",
+      "category": "color",
+      "normalized": {
+        "kind": "color",
+        "hex": "#6b7280",
+        "l": 0.5510191075146065,
+        "c": 0.02336091733217706,
+        "h": 264.36374727266286
+      },
+      "path": "color.gray-500"
+    },
+    {
+      "name": "--color-gray-100",
+      "value": "#e5e7eb",
+      "category": "color",
+      "normalized": {
+        "kind": "color",
+        "hex": "#e5e7eb",
+        "l": 0.9275823098127417,
+        "c": 0.005813542372075684,
+        "h": 264.5313231484507
+      },
+      "path": "color.gray-100"
+    },
+    {
+      "name": "--space-2",
+      "value": "8px",
+      "category": "spacing",
+      "normalized": {
+        "kind": "length",
+        "px": 8
+      },
+      "path": "space.2"
+    },
+    {
+      "name": "--space-3",
+      "value": "12px",
+      "category": "spacing",
+      "normalized": {
+        "kind": "length",
+        "px": 12
+      },
+      "path": "space.3"
+    },
+    {
+      "name": "--space-4",
+      "value": "16px",
+      "category": "spacing",
+      "normalized": {
+        "kind": "length",
+        "px": 16
+      },
+      "path": "space.4"
+    },
+    {
+      "name": "--space-5",
+      "value": "20px",
+      "category": "spacing",
+      "normalized": {
+        "kind": "length",
+        "px": 20
+      },
+      "path": "space.5"
+    },
+    {
+      "name": "--radius-sm",
+      "value": "4px",
+      "category": "radius",
+      "normalized": {
+        "kind": "length",
+        "px": 4
+      },
+      "path": "radius.sm"
+    },
+    {
+      "name": "--radius-full",
+      "value": "9999px",
+      "category": "radius",
+      "normalized": {
+        "kind": "length",
+        "px": 9999
+      },
+      "path": "radius.full"
+    },
+    {
+      "name": "--text-xs",
+      "value": "13px",
+      "category": "font-size",
+      "normalized": {
+        "kind": "length",
+        "px": 13
+      },
+      "path": "text.xs"
+    },
+    {
+      "name": "--text-xl",
+      "value": "22px",
+      "category": "font-size",
+      "normalized": {
+        "kind": "length",
+        "px": 22
+      },
+      "path": "text.xl"
+    }
+  ],
+  "tokenSource": "token-file",
+  "tokenFiles": [
+    {
+      "file": "design-system/tailwind.preset.ts",
+      "sha256": "eeb2d216b0217cb7e40d1cb21cabf0f19174bd4ed8ea2e1100cb9ccec48f032b"
+    },
+    {
+      "file": "design-system/tokens.css",
+      "sha256": "72284879adc0db5e448522d059d036abb3d3f08fd3e3b396e011a39a4e726837"
+    },
+    {
+      "file": "design-system/tokens.json",
+      "sha256": "0e1e82981dbccf2958944237dbd6044f4c4b64e0156dd194f4aa63c19d319201"
+    },
+    {
+      "file": "tailwind.config.ts",
+      "sha256": "8e50ca998d16e01d16bd581785a0e67dcda9544f35f19b3a3469f6006a1cd43f"
+    }
+  ],
+  "ds": {
+    "modules": [
+      "design-system/components/Badge",
+      "src/components/ui",
+      "src/components/ui/button",
+      "src/components/ui/dialog"
+    ],
+    "components": [
+      {
+        "name": "Button",
+        "module": "src/components/ui/button"
+      },
+      {
+        "name": "Dialog",
+        "module": "src/components/ui/dialog"
+      },
+      {
+        "name": "DialogContent",
+        "module": "src/components/ui/dialog"
+      },
+      {
+        "name": "DialogTitle",
+        "module": "src/components/ui/dialog"
+      },
+      {
+        "name": "DialogTrigger",
+        "module": "src/components/ui/dialog"
+      },
+      {
+        "name": "Badge",
+        "module": "design-system/components/Badge",
+        "status": "scaffold"
+      }
+    ]
+  },
+  "preferred": [
+    {
+      "name": "Button",
+      "module": "src/components/ui/button"
+    }
+  ],
+  "preset": {
+    "version": 3,
+    "file": "design-system/tailwind.preset.ts",
+    "linked": false,
+    "keys": {
+      "--color-blue-400": "ds-blue-400",
+      "--color-blue-900": "ds-blue-900",
+      "--color-red-500": "ds-red-500",
+      "--color-gray-50": "ds-gray-50",
+      "--color-gray-500": "ds-gray-500",
+      "--color-gray-100": "ds-gray-100",
+      "--space-2": "ds-2",
+      "--space-3": "ds-3",
+      "--space-4": "ds-4",
+      "--space-5": "ds-5",
+      "--radius-sm": "ds-sm",
+      "--radius-full": "ds-full",
+      "--text-xs": "ds-xs",
+      "--text-xl": "ds-xl"
+    }
+  },
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/.dsmith/**",
+    "**/*.min.css",
+    "**/*.min.scss",
+    "**/vendor/**",
+    "design-system/**",
+    "design-system/tokens.css",
+    "design-system/tokens.json"
+  ],
+  "moduleContext": {
+    "tsPaths": {
+      "baseUrl": "",
+      "baseUrlExplicit": true,
+      "paths": {
+        "@/*": [
+          "./src/*"
+        ]
+      }
+    },
+    "baseUrlEntries": [
+      "app",
+      "design-system",
+      "postcss.config",
+      "src",
+      "tailwind.config"
+    ],
+    "dependencies": [
+      "@radix-ui/react-dialog",
+      "@types/react",
+      "clsx",
+      "date-fns",
+      "next",
+      "react",
+      "react-dom",
+      "tailwindcss",
+      "typescript"
+    ]
+  },
+  "policy": {
+    "allow": {
+      "files": [],
+      "properties": []
+    },
+    "minConfidence": "close",
+    "failOn": {
+      "newHardcoded": 0,
+      "deprecated": 0
+    }
+  }
+}

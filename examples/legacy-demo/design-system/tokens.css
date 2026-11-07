@@ -1,0 +1,17 @@
+/* dsmith init이 생성한 파일입니다. 직접 고치면 다음 init이 덮어쓰지 않습니다(--force로 덮어씀). */
+:root {
+  --color-blue-400: #3b82f6;
+  --color-blue-900: #111827;
+  --color-red-500: #e53e3e;
+  --color-gray-50: #f9fafb;
+  --color-gray-500: #6b7280;
+  --color-gray-100: #e5e7eb;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --radius-sm: 4px;
+  --radius-full: 9999px;
+  --text-xs: 13px;
+  --text-xl: 22px;
+}
