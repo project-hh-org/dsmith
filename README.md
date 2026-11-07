@@ -114,6 +114,8 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 
 `migrate`가 후보를 고르는 규칙, ESLint 플러그인이 보고하는 규칙, `guard --ci`가 세는 규칙, MCP `lint_snippet`의 답은 모두 `@dsmith-dev/core`의 같은 함수(`evaluateFile`·`bestReplacement`)에서 나온다. 그래서 migrate가 바꾼 것은 guard가 신규로 세지 않고, ESLint가 보고한 것은 guard가 같은 위치에서 같은 값으로 센다. `packages/cli/test/e2e-migrate-guard.test.ts`가 `examples/legacy-demo`에서 `init → migrate → guard`를 끝까지 돌려 이를 고정한다.
 
+쇼케이스: [docs/showcase/legacy-demo.md](docs/showcase/legacy-demo.md)
+
 ## 벤치마크
 
 `benchmarks/`(비공개 워크스페이스, 배포 안 함)는 같은 UI 생성 프롬프트 12개를 같은 에이전트에 두 조건으로 돌리고, 만들어진 파일을 위 "같은 규칙 엔진"(`evaluateFile`)으로 채점한다.
