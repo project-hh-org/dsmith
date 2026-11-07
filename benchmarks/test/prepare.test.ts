@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CLI_BIN, MONOREPO_ROOT, defaultInstallTool, makeRunCopy, prepareBase, prepareCondition, type Base } from "../src/base.js";
+import { CLI_BIN, MONOREPO_ROOT, defaultInstallTool, dsmithInstallArgs, makeRunCopy, prepareBase, prepareCondition, type Base } from "../src/base.js";
 import { cleanupTmps, git, tmpDir } from "./helpers.js";
 
 afterAll(cleanupTmps);
@@ -174,6 +174,32 @@ describe("prepareBase / prepareCondition / makeRunCopy", () => {
       else process.env.TMPDIR = prev;
     }
   });
+});
+
+describe("dsmithInstallArgs", () => {
+  it("dsmith 조건은 install 기본값(AGENTS.md만)에 기대지 않고 --mcp --skills를 명시한다", () => {
+    const args = dsmithInstallArgs("claude-code");
+    expect(args).toEqual(["install", "--tool", "claude-code", "--mcp", "--skills", "--mcp-command", `node ${CLI_BIN}`, "--json"]);
+    // --all은 AI 도구 전부를 뜻하므로 단일 도구 조건에 쓰지 않는다
+    expect(args).not.toContain("--all");
+  });
+});
+
+describe("agents-mcp 조건", () => {
+  it("AGENTS.md 섹션 + .mcp.json + .dsmith, 스킬은 없다(.claude도 남기지 않는다)", async () => {
+    const base = await prepareBase("legacy-demo");
+    const dir = await prepareCondition(base, "agents-mcp", "claude-code");
+    try {
+      const has = (rel: string): boolean => fs.existsSync(path.join(dir, rel));
+      expect(fs.readFileSync(path.join(dir, "AGENTS.md"), "utf-8")).toContain("<!-- dsmith:ds:start -->");
+      expect(has(".mcp.json")).toBe(true);
+      expect(has(".dsmith/catalog.json")).toBe(true);
+      expect(has(".claude")).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(base.dir, { recursive: true, force: true });
+    }
+  }, 120_000);
 });
 
 describe("defaultInstallTool", () => {

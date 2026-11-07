@@ -112,9 +112,18 @@ async function stripSkills(dir: string): Promise<void> {
 }
 
 /**
+ * `dsmith` 조건이 부르는 install 인자. `install`의 기본은 AGENTS.md DS 섹션뿐이라(`--mcp`·`--skills`는 선택),
+ * "dsmith 조건 = 전부"라는 뜻을 유지하려고 `--mcp --skills`를 명시한다. (`--all`은 AI 도구 전부를 뜻해 쓰지 않는다.)
+ * agents-only·mcp-only·agents-mcp는 이 결과에서 빼는 방식으로 만든다.
+ */
+export function dsmithInstallArgs(installTool: string): string[] {
+  return ["install", "--tool", installTool, "--mcp", "--skills", "--mcp-command", `node ${CLI_BIN}`, "--json"];
+}
+
+/**
  * base.dir을 새 mkdtemp로 복사한 조건 템플릿. 2×2: AGENTS.md DS 섹션 × MCP 서버(.mcp.json).
  * baseline: `.dsmith/`·`.mcp.json`·AGENTS.md의 dsmith 섹션(그것뿐이면 파일째) 삭제 → dsmith 흔적 없음.
- * dsmith: `install --tool <installTool> --mcp-command "node <CLI_BIN>"` (ai는 베이스에서 이미 실행됨) → AGENTS.md에 DS 마커가 있어야 한다.
+ * dsmith: `install --tool <installTool> --mcp --skills --mcp-command "node <CLI_BIN>"` (ai는 베이스에서 이미 실행됨) → AGENTS.md에 DS 마커가 있어야 한다.
  * agents-only: dsmith 복사본에서 `.mcp.json`·`.claude/skills` 삭제 (AGENTS.md 섹션과 섹션이 가리키는 `.dsmith/`는 유지).
  * mcp-only: dsmith 복사본에서 AGENTS.md dsmith 섹션(그것뿐이면 파일째)·`.claude/skills` 삭제 (`.mcp.json`·`.dsmith/` 유지).
  * agents-mcp: dsmith 복사본에서 `.claude/skills`만 삭제 (AGENTS.md 섹션·`.mcp.json`·`.dsmith/` 유지) — 슬래시 명령의 몫을 가르는 조건.
@@ -129,7 +138,7 @@ export async function prepareCondition(base: Base, condition: Condition, install
       await fs.rm(path.join(dir, ".mcp.json"), { force: true });
       await stripAgentsSection(dir);
     } else {
-      await runCli(dir, ["install", "--tool", installTool, "--mcp-command", `node ${CLI_BIN}`, "--json"]);
+      await runCli(dir, dsmithInstallArgs(installTool));
       const agents = await fs.readFile(path.join(dir, "AGENTS.md"), "utf-8").catch(() => "");
       if (!agents.includes("<!-- dsmith:ds:start -->")) throw new Error(`dsmith 조건 템플릿의 AGENTS.md에 DS 섹션이 없습니다: ${dir}`);
       if (condition === "agents-only") {

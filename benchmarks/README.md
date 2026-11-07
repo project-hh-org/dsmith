@@ -13,7 +13,7 @@
 | `mcp-only` | 없음(섹션뿐이라 AGENTS.md 파일째 없음) | 있음 | 없음 | 있음 |
 | `dsmith` | 있음 | 있음 | 있음 | 있음 |
 
-- 만드는 법: `baseline`은 베이스에서 `.dsmith/`·`.mcp.json`·AGENTS.md의 dsmith 마커 블록을 지운다. `dsmith`는 베이스에 `install --tool <도구> --mcp-command "node <CLI_BIN>"`을 한다(AGENTS.md DS 섹션은 베이스의 `ai`가 쓰고, `install`은 `.mcp.json`과 `.claude/skills`를 더한다). `agents-only`와 `mcp-only`는 같은 `dsmith` 복사본에서 각각 `.mcp.json`·`.claude/skills`, 또는 AGENTS.md 섹션·`.claude/skills`를 지운 것이다(`.claude/`가 비면 그것도 지운다).
+- 만드는 법: `baseline`은 베이스에서 `.dsmith/`·`.mcp.json`·AGENTS.md의 dsmith 마커 블록을 지운다. `dsmith`는 베이스에 `install --tool <도구> --mcp --skills --mcp-command "node <CLI_BIN>"`을 한다(AGENTS.md DS 섹션은 베이스의 `ai`가 쓰고, `install`은 `--mcp`·`--skills`로 `.mcp.json`과 `.claude/skills`를 더한다. `install`의 기본은 AGENTS.md DS 섹션뿐이라 `dsmith` 조건은 두 플래그를 명시한다). `agents-only`와 `mcp-only`는 같은 `dsmith` 복사본에서 각각 `.mcp.json`·`.claude/skills`, 또는 AGENTS.md 섹션·`.claude/skills`를 지운 것이다(`.claude/`가 비면 그것도 지운다).
 - `.dsmith/`는 AGENTS.md 섹션이 가리키는 곳이고 MCP 서버가 읽는 곳이라 `agents-only`·`mcp-only` 모두에 남긴다. `baseline`에는 없다.
 - `.claude/skills`는 `dsmith`에만 있다. 그래서 `dsmith`와 단일 요소 조건의 차이(`dsmith − agents-only`, `dsmith − mcp-only`)에는 스킬이 섞인다. 스킬까지 따로 분리한 조건은 없다.
 - 에이전트 명령은 네 조건이 같다(`--allowedTools mcp__dsmith` 포함 — 서버가 없으면 아무 일도 하지 않는다). `agents-only`의 AGENTS.md 섹션은 MCP 도구(`resolve_token`·`lint_snippet` 등)를 언급하지만 서버는 등록되지 않았다. `mcp-only`는 AGENTS.md 안내 없이 서버가 노출하는 도구 설명만 본다. 요약의 `MCP 도구 호출`로 확인한다: `agents-only`는 0이어야 한다.

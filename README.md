@@ -7,7 +7,7 @@
 ```
 detect    # 레포를 읽어 스타일링 방식·DS 유무·시작 상태 판별 → .dsmith/detect.json
 audit     # 하드코딩 값 분포, 중복 컴포넌트, 토큰 후보 → .dsmith/reports/audit-<날짜>.md
-install   # 쓰는 AI 도구를 감지해 슬래시 명령(/ds …)과 MCP 서버 등록을 레포에 내려씀 → .dsmith/install.json
+install   # AGENTS.md의 DS 섹션을 보장(기본). --skills로 슬래시 명령(/ds …), --mcp로 MCP 서버 등록을 더함 → .dsmith/install.json
 mcp       # MCP 서버(stdio). AI 도구가 띄운다 — 직접 실행할 일은 없음
 decide    # 중복·지역 재정의 컴포넌트의 결정 카드 보기(--list/--explain), 고른 결과 기록(--item/--choose) → .dsmith/decisions.json
 init      # audit 결과로 DS 초안 생성: W3C 토큰 파일·CSS 변수·TS 상수, 컴포넌트 골격, 커버리지 → design-system/
@@ -126,7 +126,7 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 MCP·AGENTS.md 분리(프롬프트 12개 × 반복 3, claude -p, 2026-11-07·08): 토큰 사용률 평균 baseline 5.9% · AGENTS.md 섹션만 90.5% · MCP만 18.7% · 둘 다(+슬래시 명령) 69.4% — [benchmarks/results/2026-11-08-legacy-demo-2x2.md](benchmarks/results/2026-11-08-legacy-demo-2x2.md). "둘 다"를 같은 날 다시 재도 AGENTS.md 섹션만 있을 때보다 낮았다(61.9%, 차이 −28.7%p, 95% CI [−48.2, −11.1], 프롬프트 11개 중 10개 감소, 부호 검정 p=0.0117; 독립 채점기 −21.8%p) — [benchmarks/results/2026-11-08-legacy-demo-sameday.md](benchmarks/results/2026-11-08-legacy-demo-sameday.md). 효과의 대부분은 AGENTS.md 섹션에서 오고, MCP 서버·슬래시 명령을 더하면 오히려 줄어든다. 같은 날 슬래시 명령만 뺀 조건(AGENTS.md + MCP)으로 둘을 가르면 MCP 서버가 −12.5%p(90.5% → 78.0%, 95% CI [−21.6, −4.3]), 슬래시 명령이 다시 −16.1%p(78.0% → 61.9%, 부트스트랩 CI [−31.9, −3.0], t 구간 [−33.6, +1.3])로 둘 다 낮추는 쪽이고, 독립 채점기도 같은 방향(−10.2%p, −11.6%p)이다. 줄어든 몫은 대부분 Tailwind 기본 스케일 클래스로 갔다(30 → 69 → 94).
 
 - `baseline`: dsmith 연결 없음. `audit → init --all`을 거친 같은 베이스에서 `.dsmith/`·AGENTS.md DS 섹션·MCP·슬래시 명령만 뺀 복사본
-- `dsmith`: 같은 베이스에 `install` + `ai`를 끝낸 복사본
+- `dsmith`: 같은 베이스에 `install --mcp --skills` + `ai`를 끝낸 복사본(모든 표면. `install`의 기본은 AGENTS.md만이라 두 플래그를 명시한다)
 - 두 조건 모두 `init --all`이 만든 `design-system/`(토큰·프리셋·Badge 스캐폴드)를 갖고 있다. 의도된 설계이고, 두 조건의 차이는 AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`뿐이다.
 - AGENTS.md와 MCP의 효과를 가르는 2×2 분리 조건(`--conditions agents-only,mcp-only`)도 있다. 네 조건의 구성(나머지 파일은 모두 같다):
 
@@ -198,10 +198,17 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 ## AI 도구 연결
 
 ```
-npx dsmith install       # 쓰는 AI 도구를 감지해 설치. 그 뒤 AI 도구를 다시 열고 /ds 로 시작
+npx dsmith install                 # 기본: AGENTS.md의 DS 섹션만 보장(dsmith ai와 같음). 그 뒤 AI 도구를 다시 연다
+npx dsmith install --skills        # + 슬래시 명령(/ds …)
+npx dsmith install --mcp           # + MCP 서버 등록
+npx dsmith install --mcp --skills  # 둘 다(예전 기본 설치와 같은 파일)
 ```
 
-`install`은 AI 도구의 흔적을 찾아 그 도구에만 쓴다. 흔적이 없으면 `claude-code` + `agents-md`가 기본이다. 어떤 도구를 왜 골랐는지(레포의 흔적인지 홈의 흔적인지)는 출력 첫 줄에 나온다. 강제로 고르려면 `--tool <name>`(여러 번 가능), 전부 쓰려면 `--all`.
+**기본은 AGENTS.md만이다.** 같은 날 12개 프롬프트 × 3회로 잰 토큰 사용률 평균이 AGENTS.md DS 섹션만 있을 때 90.5%였고, MCP 서버를 더하면 78.0%(−12.5%p), 슬래시 명령까지 더하면 61.9%(−16.1%p)였다. MCP 도구는 36회 실행 중 2~4회만 불렸고, 줄어든 몫은 Tailwind 기본 스케일 클래스로 갔다. 그래서 MCP·슬래시 명령은 켜야 설치된다. 근거와 한계는 [`## 벤치마크`](#벤치마크)와 [benchmarks/results/2026-11-08-legacy-demo-sameday.md](benchmarks/results/2026-11-08-legacy-demo-sameday.md). 한 레포·한 모델의 결과라 다른 환경에서는 다를 수 있다.
+
+기본 `install`은 `audit` 결과가 있어야 DS 섹션을 쓴다(없으면 "할 일"에 `audit` → `init` → `ai` 순서를 안내하고 끝난다). 이미 설치한 MCP·스킬 파일은 플래그 없이 다시 실행해도 지우지 않는다. `--json` 출력의 `surfaces`가 이번 실행이 설치한 표면, `ds`가 DS 섹션 결과다. MCP·스킬을 켠 설치에서는 MCP 서버 `instructions`와 모든 도구 설명, `/ds`·`/ds-check`·`/ds-migrate`가 "새 UI 코드는 AGENTS.md의 DS 규칙을 따른다"로 시작한다 — 이 도구들은 그 규칙에 맞는 값을 찾을 때 쓴다.
+
+`install`은 AI 도구의 흔적을 찾아 그 도구 형식으로 `--mcp`·`--skills` 파일을 쓴다. 흔적이 없으면 `claude-code` + `agents-md`가 기본이다. 어떤 도구를 왜 골랐는지(레포의 흔적인지 홈의 흔적인지)는 출력 첫 줄에 나온다. 강제로 고르려면 `--tool <name>`(여러 번 가능), 도구 전부를 대상으로 하려면 `--all`(`--mcp`·`--skills`를 함께 켜지는 않는다).
 
 | 도구 | 감지 흔적 | 슬래시 명령 | MCP 등록 | `--global` |
 | --- | --- | --- | --- | --- |
@@ -209,9 +216,9 @@ npx dsmith install       # 쓰는 AI 도구를 감지해 설치. 그 뒤 AI 도�
 | `codex` | `.agents/`, `.codex/`, `~/.codex/` | `.agents/skills/ds*/SKILL.md` | `.codex/config.toml`의 `[mcp_servers.dsmith]` 마커 블록 (신뢰한 프로젝트에서만 읽힌다) | `~/.agents/skills/`, `~/.codex/config.toml` |
 | `cursor` | `.cursor/`, `~/.cursor/` | `.cursor/commands/ds*.md` | `.cursor/mcp.json` | 미지원 |
 | `gemini` | `.gemini/`, `~/.gemini/` | `.gemini/commands/ds*.toml` | `.gemini/settings.json` | 미지원 |
-| `agents-md` | `AGENTS.md` | 없음 — `AGENTS.md`의 마커 블록에 명령 표와 `npx dsmith … --json` 대체 명령 | — | 미지원 |
+| `agents-md` | `AGENTS.md` | 없음 — `--skills`나 `--mcp`를 켜면 `AGENTS.md`의 마커 블록에 명령 표와 `npx dsmith … --json` 대체 명령 | — | 미지원 |
 
-`codex`를 쓰면 `agents-md`가 함께 설치된다. Cursor의 명령 규약은 일부만 확인됐다 — 렌더러 상단 주석(`packages/agent-skill/src/renderers/`)에 확인 날짜·URL과 미확인 항목이 있다.
+표의 "슬래시 명령" 열은 `--skills`, "MCP 등록" 열은 `--mcp`를 줄 때 쓰는 파일이다. `codex`를 쓰면 `agents-md`가 함께 설치된다. Cursor의 명령 규약은 일부만 확인됐다 — 렌더러 상단 주석(`packages/agent-skill/src/renderers/`)에 확인 날짜·URL과 미확인 항목이 있다.
 
 슬래시 명령은 CLI를 `--json`으로 실행해 읽고 설명하는 데까지만 한다. 판단은 CLI·MCP에 있다.
 
@@ -251,8 +258,10 @@ MCP 서버 `dsmith`(`npx -y dsmith@<설치된 0.x 마이너> mcp` — 0.x는 마
 
 ```
 pnpm install && pnpm -r build
-node <abs>/packages/cli/dist/bin.js install --root <repo> --mcp-command "node <abs>/packages/cli/dist/bin.js"
+node <abs>/packages/cli/dist/bin.js install --root <repo> --mcp --skills --mcp-command "node <abs>/packages/cli/dist/bin.js"
 ```
+
+`--mcp-command`는 `--mcp`를 함께 켠다. `package.json` 버전이 `0.0.0`인 빌드도 `--mcp`·`--skills` 없이 기본 설치(AGENTS.md DS 섹션만)를 할 때는 `--mcp-command`가 필요 없다.
 
 그러면 `.mcp.json`은 `{ "command": "node", "args": ["<abs>/packages/cli/dist/bin.js", "mcp"] }`를 가리키고, `/ds-audit` 등은 `node <abs>/packages/cli/dist/bin.js audit --json`을 실행하라고 적힌다. 값은 공백으로 나뉘어 `command`와 `args`가 되고 끝에 `mcp`가 붙는다(따옴표는 지원하지 않아 공백이 든 경로는 쓸 수 없다). 이 경로는 이 컴퓨터에만 있으므로 레포 모드에서는 산출 파일(`.mcp.json`, `.claude/skills/`, `AGENTS.md` 등)을 커밋하지 말라는 경고가 나온다.
 
