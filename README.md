@@ -135,9 +135,10 @@ MCP·AGENTS.md 분리(프롬프트 12개 × 반복 3, claude -p, 2026-11-07·08)
   | `baseline` | 없음 | 없음 | 없음 | 없음 |
   | `agents-only` | 있음 | 없음 | 없음 | 있음 |
   | `mcp-only` | 없음 | 있음 | 없음 | 있음 |
+  | `agents-mcp` | 있음 | 있음 | 없음 | 있음 |
   | `dsmith` | 있음 | 있음 | 있음 | 있음 |
 
-  `.claude/skills`는 `dsmith`에만 있어 `dsmith`와 단일 요소 조건의 차이에는 스킬이 섞인다. 에이전트 명령은 네 조건이 같고, 서로 다른 날 돌린 조건은 `pnpm bench:report --in a.json --in b.json --out …`로 병합한다(스냅샷·프롬프트·에이전트 명령이 같을 때만). 자세한 것은 [benchmarks/README.md](benchmarks/README.md).
+  `.claude/skills`는 `dsmith`에만 있어 `dsmith`와 단일 요소 조건의 차이에는 스킬이 섞인다(`agents-mcp`는 슬래시 명령의 몫을 가르는 조건). 에이전트 명령은 모든 조건이 같고, 서로 다른 날 돌린 조건은 `pnpm bench:report --in a.json --in b.json --out …`로 병합한다(스냅샷·프롬프트·에이전트 명령이 같고, 조건 복사본의 AGENTS.md 섹션·MCP 도구 설명 지문이 같을 때만. 지문이 없는 옛 결과는 옛 결과끼리만 병합된다). 자세한 것은 [benchmarks/README.md](benchmarks/README.md).
 - 두 조건은 같은 베이스·같은 채점 기준(토큰·DS 컴포넌트·정책 스냅샷)·같은 에이전트 명령·같은 환경 변수로 돈다. 프롬프트는 stdin으로 넘기므로 `codex exec`처럼 stdin으로 프롬프트를 받는 명령이면 다른 에이전트로도 돌릴 수 있다(실측은 `claude -p`만 했다).
 
 ### 실행

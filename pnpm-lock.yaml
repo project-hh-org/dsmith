@@ -59,6 +59,9 @@ importers:
       '@dsmith-dev/guard':
         specifier: workspace:*
         version: link:../packages/guard
+      '@modelcontextprotocol/client':
+        specifier: ^2.4.0
+        version: 2.4.0
       picomatch:
         specifier: ^4.0.7
         version: 4.0.7

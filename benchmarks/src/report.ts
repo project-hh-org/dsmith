@@ -284,6 +284,11 @@ export function reportFromFile(argv: string[], env: NodeJS.ProcessEnv = process.
   };
   const result = merging ? mergeResults(inFiles.map((f) => ({ file: relOrName(f), result: readResult(f) }))) : readResult(inFile);
   const mdFile = values.out === undefined ? inFile.replace(/\.json$/, "") + ".md" : path.resolve(cwd, values.out);
+  if (merging) {
+    const mergedJson = mdFile.replace(/\.md$/, "") + ".json";
+    const clash = inFiles.find((f) => f === mergedJson || f === mdFile);
+    if (clash !== undefined) throw new Error(`--out ${values.out ?? ""}의 병합 결과 JSON(${mergedJson})이 입력 ${clash}와 같은 파일이라 입력을 덮어씁니다 — 다른 --out을 쓰세요`);
+  }
   mkdirSync(path.dirname(mdFile), { recursive: true });
   // 산출물 폴더는 run.ts의 effectiveRecord와 같은 규칙: <결과 JSON 이름>/outputs (병합 결과는 result.merged의 입력별 경로)
   const record = path.join(path.dirname(inFile), path.basename(inFile, ".json"), "outputs");

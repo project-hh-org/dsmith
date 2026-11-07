@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { comparisons, displayConditions } from "../src/analysis.js";
 import { mergeResults } from "../src/merge.js";
-import { CONDITIONS, DEFAULT_CONDITIONS, type BenchResult, type Condition, type IndependentScore, type RunRecord, type RunScore } from "../src/model.js";
+import { CONDITIONS, DEFAULT_CONDITIONS, type BenchResult, type Condition, type IndependentScore, type RunRecord, type RunScore, type SetupFingerprint } from "../src/model.js";
 import { ablationLine, renderReport, reportFromFile, toPosixRelative } from "../src/report.js";
 import { parseBenchArgs, planBench } from "../src/run.js";
 import { MONOREPO_ROOT } from "../src/paths.js";
@@ -33,6 +33,7 @@ const SPEC: Record<Condition, { c: C; mcp: number }> = {
   baseline: { c: { token: 1, tailwindDefault: 3, nonDs: 2 }, mcp: 0 },
   "agents-only": { c: { token: 2, tailwindDefault: 2, nonDs: 1 }, mcp: 0 },
   "mcp-only": { c: { token: 3, tailwindDefault: 1, nonDs: 1 }, mcp: 2 },
+  "agents-mcp": { c: { token: 3, tailwindDefault: 1, nonDs: 1 }, mcp: 2 },
   dsmith: { c: { token: 4, tailwindDefault: 0, nonDs: 0, dsUses: 2 }, mcp: 3 },
 };
 const PROMPTS = ["01-a", "02-b", "03-c", "04-d"];
@@ -66,6 +67,17 @@ function result(conditions: Condition[], over: Partial<BenchResult> = {}): Bench
     aggregate: agg,
     ...over,
   };
+}
+
+/** 조건이 가진 표면에 따라 채운 가짜 지문(같은 표면이면 같은 값) */
+function fp(c: Condition): SetupFingerprint {
+  const agents = c === "agents-only" || c === "agents-mcp" || c === "dsmith";
+  const mcp = c === "mcp-only" || c === "agents-mcp" || c === "dsmith";
+  const h = (s: string): string => s.repeat(64).slice(0, 64);
+  return { agentsSection: agents ? h("a") : null, mcpConfig: mcp ? h("b") : null, skills: c === "dsmith" ? h("c") : null, mcpTools: mcp ? h("d") : null, all: h(c.slice(0, 1)) };
+}
+function withFp(r: BenchResult): BenchResult {
+  return { ...r, setupFingerprint: Object.fromEntries(r.conditions.map((c) => [c, fp(c)])) };
 }
 
 const first = (): BenchResult => result(["baseline", "dsmith"]);
@@ -187,8 +199,41 @@ describe("mergeResults", () => {
     refuse(first(), { ...second(), mode: "replay" }, /replay 결과/);
   });
 
-  it("날짜·에이전트 버전·dsmith 커밋·관측 모델이 달라도 합친다", () => {
+  it("날짜·에이전트 버전·dsmith 커밋·관측 모델이 달라도 지문이 같으면(또는 둘 다 legacy면) 합친다", () => {
     expect(() => mergeResults([{ file: "a.json", result: first() }, { file: "b.json", result: { ...second(), agent: { ...second().agent, models: ["other"] } } }])).not.toThrow();
+    const fa = withFp(first());
+    const fb = withFp(second());
+    expect(() => mergeResults([{ file: "a.json", result: fa }, { file: "b.json", result: fb }])).not.toThrow();
+  });
+
+  describe("설정 지문", () => {
+    const mergeFp = (a: BenchResult, b: BenchResult): BenchResult => mergeResults([{ file: "a.json", result: a }, { file: "b.json", result: b }]);
+
+    it("공유하는 AGENTS.md 섹션이 다르면 무엇이 다른지 적어 거부한다", () => {
+      const b = withFp(second());
+      b.setupFingerprint = { ...b.setupFingerprint, "agents-only": { ...fp("agents-only"), agentsSection: "x".repeat(64) } };
+      expect(() => mergeFp(withFp(result(["agents-mcp", "dsmith"])), b)).toThrow(/병합 거부: 설정이 다릅니다.*AGENTS\.md 섹션.*agents-mcp \(a\.json\).*agents-only \(b\.json\)/s);
+    });
+
+    it("MCP 서버 도구 설명·instructions 지문이 다르면 거부한다", () => {
+      const a = withFp(first());
+      const b = withFp(second());
+      b.setupFingerprint = { ...b.setupFingerprint, "mcp-only": { ...fp("mcp-only"), mcpTools: "y".repeat(64) } };
+      expect(() => mergeFp(a, b)).toThrow(/MCP 도구 설명·instructions/);
+    });
+
+    it("지문이 있는 결과와 없는(legacy) 결과를 섞으면 거부하고, legacy끼리는 허용한다", () => {
+      expect(() => mergeFp(first(), withFp(second()))).toThrow(/지문이 없는 옛 결과.*a\.json.*지문이 있는 결과.*b\.json/s);
+      expect(() => mergeFp(withFp(first()), second())).toThrow(/지문이 없는 옛 결과.*b\.json/s);
+      expect(() => mergeFp(first(), second())).not.toThrow();
+    });
+
+    it("병합 결과는 입력의 지문을 조건별로 이어받고, 다시 병합해도 지문이 유지된다", () => {
+      const m = mergeFp(withFp(first()), withFp(second()));
+      expect(Object.keys(m.setupFingerprint ?? {}).sort()).toEqual(["agents-only", "baseline", "dsmith", "mcp-only"]);
+      const again = mergeResults([{ file: "m.json", result: m }, { file: "c.json", result: withFp(result(["agents-mcp"])) }]);
+      expect(again.setupFingerprint?.["agents-mcp"]).toBeDefined();
+    });
   });
 });
 
@@ -231,5 +276,15 @@ describe("bench:report --in a --in b", () => {
     // 다른 스냅샷이면 파일을 쓰기 전에 거부
     writeFileSync(b, JSON.stringify({ ...second(), base: { ...second().base, snapshotSha256: "0".repeat(64) } }));
     expect(() => reportFromFile(["--in", a, "--in", b, "--out", path.join(dir, "bad.md")], {})).toThrow(/병합 거부/);
+  });
+
+  it("병합 결과 JSON 경로가 --in 파일과 같으면 입력을 덮어쓰지 않고 거부한다", () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "dsmith-merge-test-"));
+    const a = path.join(dir, "a.json");
+    const b = path.join(dir, "b.json");
+    writeFileSync(a, JSON.stringify(first()));
+    writeFileSync(b, JSON.stringify(second()));
+    expect(() => reportFromFile(["--in", a, "--in", b, "--out", path.join(dir, "a.md")], {})).toThrow(/입력.*a\.json.*덮어씁니다/);
+    expect(JSON.parse(readFileSync(a, "utf8")).conditions).toEqual(["baseline", "dsmith"]);
   });
 });
