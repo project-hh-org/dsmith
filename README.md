@@ -123,6 +123,8 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 <!-- bench:line -->
 벤치마크(프롬프트 12개 × 조건 2 × 반복 3, claude -p, 2026-11-07): 토큰 사용률 평균 5.9% → 69.4% (차이 +63.5%p, 95% CI [+42.0, +82.6], 부호 검정 p=0.0117), DS 외 컴포넌트 반복당 합계 6.0 → 0.0 (프롬프트 단위 부호 검정 n=5, p=0.0625), 독립 채점기 기준 사용률 평균 3.0% → 64.7% (+61.8%p, 95% CI [+42.7, +78.5], 부호 검정 p=0.0020), 타입 오류 0 → 0 — [benchmarks/results/2026-11-07-legacy-demo-k3.md](benchmarks/results/2026-11-07-legacy-demo-k3.md). 렌더링은 하지 않았고 모델·레포 하나다(해석 한계는 보고서 참고).
 
+MCP·AGENTS.md 분리(프롬프트 12개 × 반복 3, claude -p, 2026-11-07·08): 토큰 사용률 평균 baseline 5.9% · AGENTS.md 섹션만 90.5% · MCP만 18.7% · 둘 다(+슬래시 명령) 69.4% — [benchmarks/results/2026-11-08-legacy-demo-2x2.md](benchmarks/results/2026-11-08-legacy-demo-2x2.md). "둘 다"를 같은 날 다시 재도 AGENTS.md 섹션만 있을 때보다 낮았다(61.9%, 차이 −28.7%p, 95% CI [−48.2, −11.1], 프롬프트 11개 중 10개 감소, 부호 검정 p=0.0117; 독립 채점기 −21.8%p) — [benchmarks/results/2026-11-08-legacy-demo-sameday.md](benchmarks/results/2026-11-08-legacy-demo-sameday.md). 효과의 대부분은 AGENTS.md 섹션에서 오고, MCP 서버·슬래시 명령을 더하면 오히려 줄어든다. 원인(MCP 쪽인지 슬래시 명령 쪽인지)은 아직 분리하지 않았다.
+
 - `baseline`: dsmith 연결 없음. `audit → init --all`을 거친 같은 베이스에서 `.dsmith/`·AGENTS.md DS 섹션·MCP·슬래시 명령만 뺀 복사본
 - `dsmith`: 같은 베이스에 `install` + `ai`를 끝낸 복사본
 - 두 조건 모두 `init --all`이 만든 `design-system/`(토큰·프리셋·Badge 스캐폴드)를 갖고 있다. 의도된 설계이고, 두 조건의 차이는 AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`뿐이다.
