@@ -20,10 +20,10 @@ export function Badge({ status }: { status: OrderStatus }) {
     <span
       style={{
         backgroundColor: BG[status],
-        color: "#fff",
+        color: "var(--color-gray-50)",
         padding: "2px 8px",
-        borderRadius: 999,
-        fontSize: 12,
+        borderRadius: "var(--radius-full)",
+        fontSize: "var(--text-xs)",
         borderColor: status === "refunded" ? "#F04545" : "rgb(59,130,246)",
       }}
     >

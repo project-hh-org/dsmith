@@ -10,7 +10,7 @@ export default function PrimaryButton({ loading, children, ...rest }: Props) {
     <button
       {...rest}
       disabled={loading || rest.disabled}
-      className="px-[18px] py-2 rounded-md text-white text-sm font-medium bg-[color:var(--color-blue-400)] hover:bg-[#2F7BEE] disabled:opacity-50"
+      className="px-[var(--space-4)] py-2 rounded-md text-white text-sm font-medium bg-[color:var(--color-blue-400)] hover:bg-[color:var(--color-blue-400)] disabled:opacity-50"
     >
       {loading ? "처리 중..." : children}
     </button>

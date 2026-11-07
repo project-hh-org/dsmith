@@ -11,7 +11,7 @@ export function Topbar({ userName, unreadCount = 0 }: TopbarProps) {
       style={{
         background: "var(--color-blue-900)",
         border: "1px solid var(--color-gray-100)",
-        color: "#fff",
+        color: "var(--color-gray-50)",
         padding: "10px 24px",
         display: "flex",
         justifyContent: "space-between",

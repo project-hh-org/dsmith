@@ -17,7 +17,7 @@ export function Sidebar() {
 
   return (
     <aside className="w-56 bg-white border-r border-gray-200 px-3 py-6">
-      <h1 className="px-3 mb-[22px] text-lg font-bold text-[color:var(--color-blue-400)]">모노마켓</h1>
+      <h1 className="px-3 mb-[var(--space-5)] text-lg font-bold text-[color:var(--color-blue-400)]">모노마켓</h1>
       <nav className="flex flex-col gap-1">
         {MENUS.map((menu) => {
           const active = menu.href === "/" ? pathname === "/" : pathname.startsWith(menu.href);

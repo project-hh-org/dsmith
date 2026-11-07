@@ -23,7 +23,7 @@ export default function SettingsPage() {
     <div className="max-w-xl">
       <h1 className="page-title">설정</h1>
 
-      <section className="bg-white rounded-lg p-[13px] space-y-4 border border-[#2F7BEE]">
+      <section className="bg-white rounded-lg p-[var(--space-3)] space-y-4 border border-[color:var(--color-blue-400)]">
         <h2 className="font-semibold text-gray-900">스토어 정보</h2>
         <Input id="storeName" label="스토어 이름" value={storeName} onChange={(e) => setStoreName(e.target.value)} />
         <Input
@@ -46,7 +46,7 @@ export default function SettingsPage() {
         />
       </section>
 
-      <div style={{ marginTop: 18 }}>
+      <div style={{ marginTop: "var(--space-4)" }}>
         <PrimaryButton loading={saving} onClick={handleSave}>
           저장
         </PrimaryButton>

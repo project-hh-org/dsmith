@@ -37,7 +37,7 @@ export default function DashboardPage() {
             { key: "amount", header: "금액", align: "right", render: (r) => formatWon(r.amount) },
           ]}
         />
-        <div style={{ marginTop: 18, display: "flex", gap: "10px" }}>
+        <div style={{ marginTop: "var(--space-4)", display: "flex", gap: "var(--space-2)" }}>
           <Button size="sm">주문 전체 보기</Button>
           <Button variant="ghost" size="sm">정산 내역</Button>
         </div>

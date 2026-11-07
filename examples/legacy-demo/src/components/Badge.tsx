@@ -12,7 +12,7 @@ export function Badge({ color = "gray", children }: BadgeProps) {
       className={clsx(
         "inline-block rounded-full px-2 py-[3px] text-xs",
         color === "blue" && "bg-[color:var(--color-blue-400)] text-white",
-        color === "red" && "bg-[#EF4444] text-white",
+        color === "red" && "bg-[color:var(--color-red-500)] text-white",
         color === "gray" && "bg-gray-100 text-gray-700",
       )}
     >

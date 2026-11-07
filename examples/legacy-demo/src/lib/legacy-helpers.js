@@ -7,7 +7,7 @@ export function sumBy(list, key) {
 
 export function EmptyNote({ text }) {
   return (
-    <p style={{ padding: 7, color: "var(--color-gray-500)", fontSize: "var(--text-xs)" }}>
+    <p style={{ padding: "var(--space-2)", color: "var(--color-gray-500)", fontSize: "var(--text-xs)" }}>
       {text || "표시할 내용이 없습니다."}
     </p>
   );

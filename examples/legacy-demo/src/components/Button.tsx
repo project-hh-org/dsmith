@@ -9,7 +9,7 @@ export function Button({ variant = "primary", size = "md", className, ...rest }:
   return (
     <button
       {...rest}
-      className={`rounded-lg font-medium ${variant === "primary" ? "bg-[color:var(--color-blue-400)] text-white" : variant === "danger" ? "bg-[#F04545] text-white" : "bg-white text-gray-900 border border-gray-300"} ${size === "sm" ? "px-2 py-1 text-xs" : "px-[18px] py-2 text-sm"} ${className ?? ""}`}
+      className={`rounded-lg font-medium ${variant === "primary" ? "bg-[color:var(--color-blue-400)] text-white" : variant === "danger" ? "bg-[color:var(--color-red-500)] text-white" : "bg-white text-gray-900 border border-gray-300"} ${size === "sm" ? "px-2 py-1 text-xs" : "px-[var(--space-4)] py-2 text-sm"} ${className ?? ""}`}
     />
   );
 }

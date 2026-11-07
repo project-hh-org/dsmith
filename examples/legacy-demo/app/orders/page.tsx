@@ -32,7 +32,7 @@ export default function OrdersPage() {
     <div>
       <h1 className="page-title">주문 관리</h1>
 
-      <div className="flex items-end gap-2 mb-[22px]">
+      <div className="flex items-end gap-2 mb-[var(--space-5)]">
         <div className="w-48">
           <Select
             label="주문 상태"
@@ -73,7 +73,7 @@ export default function OrdersPage() {
 
       <Modal open={target !== null} title="주문 취소" onClose={() => setTarget(null)}>
         <p className="text-sm text-gray-700">{target?.id} 주문을 취소하시겠습니까?</p>
-        <div style={{ marginTop: 18, textAlign: "right" }}>
+        <div style={{ marginTop: "var(--space-4)", textAlign: "right" }}>
           <Button variant="destructive" onClick={() => setTarget(null)}>
             주문 취소
           </Button>

@@ -20,7 +20,7 @@ export function Modal({ open, title, onClose, children }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg w-[480px] p-[13px]"
+        className="bg-white rounded-lg w-[480px] p-[var(--space-3)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">

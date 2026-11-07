@@ -16,7 +16,7 @@ export function Select({ label, options, ...rest }: SelectProps) {
       {label}
       <select
         {...rest}
-        className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-[18px] py-2"
+        className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-[var(--space-4)] py-2"
         style={{ color: "var(--color-blue-900)" }}
       >
         {options.map((o) => (

@@ -19,10 +19,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     <div>
       <h1 className="page-title">상품 상세 #{params.id}</h1>
 
-      <div className="bg-white rounded-lg px-[18px] py-4 border border-gray-200">
+      <div className="bg-white rounded-lg px-[var(--space-4)] py-4 border border-gray-200">
         <h2 className="text-lg font-semibold text-[color:var(--color-blue-900)]">{PRODUCT.name}</h2>
         <p className="mt-2 text-2xl font-bold text-gray-900">{formatWon(PRODUCT.price)}</p>
-        <p className="mt-[22px] text-sm text-gray-500">
+        <p className="mt-[var(--space-5)] text-sm text-gray-500">
           재고 {total}개 (옵션별 비중: {PRODUCT.variants.map((v) => `${v.color} ${percent(v.stock, total)}`).join(", ")})
         </p>
         <ul className="mt-4 gap-2 flex flex-col">
@@ -35,7 +35,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         {PRODUCT.variants.length === 0 && <EmptyNote text="등록된 옵션이 없습니다." />}
       </div>
 
-      <div style={{ marginTop: 18, display: "flex", gap: "10px" }}>
+      <div style={{ marginTop: "var(--space-4)", display: "flex", gap: "var(--space-2)" }}>
         <PrimaryButton>상품 수정</PrimaryButton>
         <PrimaryButton>품절 처리</PrimaryButton>
       </div>

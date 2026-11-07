@@ -14,13 +14,13 @@ a {
 }
 
 a:hover {
-  color: #2F7BEE;
+  color: var(--color-blue-400);
 }
 
 .page-title {
   font-size: var(--text-xl);
   font-weight: 700;
-  margin-bottom: 18px;
+  margin-bottom: var(--space-4);
 }
 
 .danger-text {
