@@ -1,6 +1,6 @@
 {
   "name": "@dsmith-dev/core",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Shared model, color and length normalization, parsers and indexer for dsmith",
   "keywords": ["design-system", "design-tokens", "dsmith", "css", "parser"],
   "license": "MIT",

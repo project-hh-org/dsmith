@@ -1,5 +1,13 @@
 # @dsmith-dev/extractor-tailwind
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dsmith-dev/core@0.3.0
+  - @dsmith-dev/extractor-api@0.3.0
+
 ## 0.2.1
 
 ### Patch Changes
