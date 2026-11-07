@@ -28,6 +28,31 @@ describe("loadCommands — 실제 명령 소스", () => {
     expect(commands.map((c) => c.name)).toEqual(EXPECTED);
   });
 
+  it("UI 코드를 제안·변경하는 명령(ds, ds-check, ds-migrate)은 본문 맨 위에 DS 규칙 한 줄을 둔다", async () => {
+    const byName = new Map((await loadCommands()).map((c) => [c.name, c]));
+    for (const name of ["ds", "ds-check", "ds-migrate"]) {
+      const first = (byName.get(name)?.body ?? "").split("\n")[0] ?? "";
+      expect(first, name).toContain("AGENTS.md의 DS 규칙");
+      expect(first, name).toContain("Tailwind 기본 스케일");
+      expect(first, name).toContain("하드코딩");
+    }
+  });
+
+  it("어떤 명령도 Tailwind 기본 스케일 클래스나 하드코딩 값을 쓰라고 하지 않는다", async () => {
+    for (const c of await loadCommands()) {
+      // 규칙 줄(쓰지 말라는 문장)과 코드 예시를 뺀 본문에 기본 스케일 클래스 모양이 없어야 한다
+      const text = c.body.split("\n").filter((l) => !l.includes("쓰지 않는다")).join("\n");
+      expect(text, c.name).not.toMatch(/\b(?:p|m|px|py|mx|my|gap|text|bg|border)-(?:\d|(?:red|blue|gray|green|slate)-\d)/);
+      expect(text, c.name).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    }
+  });
+
+  it("MCP·스킬은 선택 설치라, 명령 본문이 MCP 등록을 위해 기본 install을 권하지 않는다", async () => {
+    for (const c of await loadCommands()) {
+      expect(c.body, c.name).not.toMatch(/`npx dsmith install`/);
+    }
+  });
+
   it("COMMANDS_DIR은 패키지 루트의 commands/를 가리킨다", () => {
     expect(COMMANDS_DIR.pathname.endsWith("/packages/agent-skill/commands/")).toBe(true);
   });

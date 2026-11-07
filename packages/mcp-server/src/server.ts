@@ -10,6 +10,7 @@ import * as z from "zod/v4";
 import { DEFAULT_TOKEN_BUDGET, clipJson, clipMessage, paginate, shrinkToBudget, toText, type Page } from "./budget.js";
 import type { ServerDeps } from "./index.js";
 import { componentsList, tokensList } from "./resources.js";
+import { DS_RULE_LINE } from "./rule-line.js";
 import { explainDecisionTool, shrinkCard } from "./tools/explain-decision.js";
 import { getComponent } from "./tools/get-component.js";
 import { lintSnippet, suggestionFor } from "./tools/lint-snippet.js";
@@ -22,6 +23,9 @@ import { openWorkspace, type Workspace, type WorkspaceHandle } from "./workspace
 const MAX_TEXT = 200;
 const MAX_PROPERTY = 64;
 const MAX_CURSOR = 64;
+
+/** 도구 설명 앞에 붙이는 DS 규칙 한 줄(규칙은 AGENTS.md가 정한다) */
+const DS_PREFIX = `${DS_RULE_LINE}\n`;
 
 /** 모든 응답의 마지막 방어선: 상한을 넘는 본문은 잘라서 `truncated: true`로 보낸다. */
 function okWith(value: unknown, budget: number): CallToolResult {
@@ -56,7 +60,7 @@ function stampOf(ws: Workspace, ...args: unknown[]): string {
  */
 export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
   const budget = deps.tokenBudget ?? DEFAULT_TOKEN_BUDGET;
-  const server = new McpServer({ name: "dsmith", version: deps.version });
+  const server = new McpServer({ name: "dsmith", version: deps.version }, { instructions: DS_RULE_LINE });
   const readOnly = { readOnlyHint: true, openWorldHint: false };
 
   let opening: Promise<WorkspaceHandle> | undefined;
@@ -80,6 +84,7 @@ export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
     "resolve_token",
     {
       description:
+        DS_PREFIX +
         "Map a raw style value (#3B82F6, 13px, var(--x)) to the closest design token (source says where the token came from: token-file, catalog or proposal). distance is oklch ΔE_ok for colors and px for lengths; confidence is high for ΔE < 0.005 or 0px, medium for ΔE < 0.03 or ≤ 2px, else low. Pass property (padding, border-radius, ...) to compare only that category. Use before writing any hardcoded color or spacing.",
       inputSchema: z.object({ raw: z.string().min(1).max(MAX_TEXT), property: z.string().max(MAX_PROPERTY).optional() }),
       annotations: readOnly,
@@ -91,6 +96,7 @@ export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
     "lint_snippet",
     {
       description:
+        DS_PREFIX +
         "Check a code snippet for hardcoded colors and spacing and suggest the nearest design token for each (suggestion has name, value, distance and confidence, as in resolve_token). filename picks the extractors (.tsx, .css, ...); without it the snippet is read as .tsx, so pass filename for CSS (a hint says so when nothing could be checked). Use on code you just wrote or are about to write, before saving it.",
       inputSchema: z.object({
         code: z.string().max(100_000),
@@ -114,6 +120,7 @@ export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
     "search_component",
     {
       description:
+        DS_PREFIX +
         "Find existing components in this repo by intent (e.g. 'date picker', '버튼'), including design-system components in the catalog that nothing uses yet. Returns up to limit matches (matched = count before limit); status scaffold marks an unimplemented shell made by dsmith init, listed after real implementations — do not use it in new UI. Use before creating a new component to avoid duplicates.",
       inputSchema: z.object({
         intent: z.string().min(1).max(MAX_TEXT),
@@ -134,6 +141,7 @@ export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
     "get_component",
     {
       description:
+        DS_PREFIX +
         "Get a component's props (with allowed values), variants, usage count and definition file from this repo. When the repo has a catalog (dsmith ai), the answer comes from it (source catalog: also description, deprecated, one usage example, origin); otherwise from the usage index and the definition file (source index). When several modules export the same name, returns the one chosen with decide, else the design-system or catalog one, else the most used (isDs and decided say which; the rest are in otherModules). status scaffold (with a note) means an unimplemented shell made by dsmith init. Use before using or changing a component.",
       inputSchema: z.object({ name: z.string().min(1).max(MAX_TEXT), module: z.string().max(MAX_TEXT).optional() }),
       annotations: readOnly,
@@ -154,6 +162,7 @@ export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
     "explain_decision",
     {
       description:
+        DS_PREFIX +
         "Explain a duplicate or locally redefined component, or a token-cluster (kind token-cluster: options are near-identical color hex values to merge into one token; recommendation is by usage; ruleCheck is n/a): options, differences, impact of each choice and a recommendation. impact.byOption[x] = call sites and files that would have to change if x is chosen (not x's usage; usage is options[].usageCount). ruleCheck.tokenUsageRate[x] = share of the rated styles in x's definition file that already use a token; null = nothing rated. ruleCheck.tokenMatchRate[x] (only when the repo has token files) = share of those styles that use a token or hardcode a value within close range of one. Use when several components do the same job and you must pick one.",
       inputSchema: z.object({ item: z.string().min(1).max(MAX_TEXT), kind: z.enum(["duplicate", "local-definition", "token-cluster"]).optional() }),
       annotations: readOnly,
@@ -174,6 +183,7 @@ export function createDsmithServer(deps: ServerDeps): Promise<McpServer> {
     "list_decisions",
     {
       description:
+        DS_PREFIX +
         "List duplicate or locally redefined components and token-cluster color groups (kind token-cluster; options are hex values) that still need a decision, and the ones already decided (those carry chosen = the picked option id; stale = true means the options changed since, so decide again). Use to see which choices are open before building UI.",
       inputSchema: z.object({ status: z.enum(["pending", "decided"]).optional(), cursor: z.string().max(MAX_CURSOR).optional() }),
       annotations: readOnly,

@@ -5,6 +5,8 @@ args: "[--files <glob> | --category <c>]"
 uses: ["cli:migrate"]
 ---
 
+새 UI 코드는 AGENTS.md의 DS 규칙(토큰 `var(--…)`·Tailwind `ds-` 클래스·DS 컴포넌트)을 따른다. Tailwind 기본 스케일 클래스(`p-4` 등)와 하드코딩 값은 쓰지 않는다.
+
 계획은 파일을 쓰지 않는다. 이 레포에 audit·init 결과가 없으면 먼저 `/ds-audit`, `/ds-init`를 안내한다.
 
 1. `npx dsmith migrate --json {{args}}`를 실행하고 stdout JSON을 읽는다. stderr의 힌트·경고도 그대로 전한다. 토큰이 없다는 오류면 `/ds-init`을 안내하고 멈춘다.
