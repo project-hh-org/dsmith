@@ -5,7 +5,7 @@ args: "[--root <dir>] [--exclude <glob>]"
 uses: ["cli:detect"]
 ---
 
-새 UI 코드는 AGENTS.md의 DS 규칙(토큰 `var(--…)`·Tailwind `ds-` 클래스·DS 컴포넌트)을 따른다. Tailwind 기본 스케일 클래스(`p-4` 등)와 하드코딩 값은 쓰지 않는다.
+새 UI 코드는 AGENTS.md의 DS 규칙(디자인 토큰·DS 컴포넌트)을 따른다. 이 명령은 그 규칙에 맞는 토큰·컴포넌트를 찾을 때 쓴다.
 
 `npx dsmith detect --json {{args}}`를 실행하고 stdout JSON을 읽는다. stderr의 힌트·경고도 그대로 전한다.
 

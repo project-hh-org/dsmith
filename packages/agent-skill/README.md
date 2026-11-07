@@ -17,6 +17,6 @@ dsmith slash-command sources and per-AI-tool renderers (Claude Code, Codex, Curs
 
 ## 명령 본문 규칙
 
-`commands/*.md`는 Tailwind 기본 스케일 클래스나 하드코딩 값을 쓰라고 하지 않는다. UI 코드를 제안·변경하는 `/ds`·`/ds-check`·`/ds-migrate`는 본문 첫 줄에 "새 UI 코드는 AGENTS.md의 DS 규칙을 따른다"를 둔다(테스트가 확인).
+`commands/*.md`는 Tailwind 기본 스케일 클래스나 하드코딩 값을 쓰라고 하지 않는다. UI 코드를 제안·변경하는 `/ds`·`/ds-check`·`/ds-migrate`는 본문 첫 줄에 "새 UI 코드는 AGENTS.md의 DS 규칙(디자인 토큰·DS 컴포넌트)을 따른다. 이 명령은 그 규칙에 맞는 토큰·컴포넌트를 찾을 때 쓴다."를 둔다(테스트가 확인). 스타일링 방식(CSS 변수·Tailwind 프리셋)을 가리지 않는 문구다.
 
 Docs: https://github.com/project-hh-org/dsmith#readme

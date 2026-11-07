@@ -5,7 +5,7 @@ args: "[파일 경로 ...]"
 uses: ["mcp:lint_snippet", "mcp:resolve_token"]
 ---
 
-새 UI 코드는 AGENTS.md의 DS 규칙(토큰 `var(--…)`·Tailwind `ds-` 클래스·DS 컴포넌트)을 따른다. Tailwind 기본 스케일 클래스(`p-4` 등)와 하드코딩 값은 쓰지 않는다. 이 명령은 그 규칙에 맞는 토큰을 찾는 데 쓴다.
+새 UI 코드는 AGENTS.md의 DS 규칙(디자인 토큰·DS 컴포넌트)을 따른다. 이 명령은 그 규칙에 맞는 토큰·컴포넌트를 찾을 때 쓴다.
 
 검사할 파일을 정한다. 인자로 받은 파일 경로: {{args}}
 - 위 인자가 비어 있으면 `git diff --name-only HEAD` 와 `git ls-files --others --exclude-standard` 결과 중 스타일 코드가 있는 파일(.tsx .jsx .ts .js .css .scss)을 쓴다.
