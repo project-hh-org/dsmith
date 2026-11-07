@@ -82,9 +82,9 @@ describe("기존 2조건 보고서는 그대로", () => {
     }
   });
 
-  it("조건 목록: 기본은 baseline,dsmith, 전체는 네 개이고 표 열·비교 쌍도 기존대로", () => {
+  it("조건 목록: 기본은 baseline,dsmith, 전체는 다섯 개(agents-mcp 포함)이고 표 열·비교 쌍도 기존대로", () => {
     expect(DEFAULT_CONDITIONS).toEqual(["baseline", "dsmith"]);
-    expect(CONDITIONS).toEqual(["baseline", "agents-only", "mcp-only", "dsmith"]);
+    expect(CONDITIONS).toEqual(["baseline", "agents-only", "mcp-only", "agents-mcp", "dsmith"]);
     expect(parseBenchArgs(["--replay", "r"]).conditions).toEqual(["baseline", "dsmith"]);
     expect(displayConditions(first())).toEqual(["baseline", "dsmith"]);
     expect(displayConditions(result(["dsmith"]))).toEqual(["baseline", "dsmith"]);

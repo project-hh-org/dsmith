@@ -5,11 +5,12 @@ export type { IndependentScore, TypeCheckRecord };
 /**
  * 2×2 설계(AGENTS.md DS 섹션 × MCP 서버):
  *  baseline = 둘 다 없음, agents-only = AGENTS.md만, mcp-only = MCP(.mcp.json)만, dsmith = 둘 다.
- * `.dsmith/`는 agents-only·mcp-only·dsmith에 있고, `.claude/skills`는 dsmith에만 있다.
+ * `.dsmith/`는 agents-only·mcp-only·agents-mcp·dsmith에 있고, `.claude/skills`는 dsmith에만 있다.
+ * agents-mcp = AGENTS.md + MCP, 슬래시 명령 없음 (dsmith와 비교해 슬래시 명령의 몫을 가른다).
  */
-export type Condition = "baseline" | "agents-only" | "mcp-only" | "dsmith";
+export type Condition = "baseline" | "agents-only" | "mcp-only" | "agents-mcp" | "dsmith";
 /** 표시·정렬 순서 */
-export const CONDITIONS: readonly Condition[] = ["baseline", "agents-only", "mcp-only", "dsmith"];
+export const CONDITIONS: readonly Condition[] = ["baseline", "agents-only", "mcp-only", "agents-mcp", "dsmith"];
 /** `--conditions`를 생략했을 때의 조건(기존 2조건 비교) */
 export const DEFAULT_CONDITIONS: readonly Condition[] = ["baseline", "dsmith"];
 

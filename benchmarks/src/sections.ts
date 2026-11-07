@@ -110,6 +110,9 @@ const PAIR_MEANING: Record<string, string> = {
   "baseline>dsmith": "전부 더한 효과",
   "agents-only>dsmith": "MCP 서버·스킬을 더한 효과",
   "mcp-only>dsmith": "AGENTS.md 섹션·스킬을 더한 효과",
+  "baseline>agents-mcp": "AGENTS.md 섹션·MCP 서버를 더한 효과(스킬 없음)",
+  "agents-mcp>dsmith": "스킬(슬래시 명령)만 더한 효과",
+  "agents-only>agents-mcp": "AGENTS.md 섹션 위에 MCP 서버만 더한 효과",
 };
 
 /** 대응 비교 한 쌍의 표와 통계 줄(끝에 빈 줄 포함). 필드 baseline = 기준 조건, dsmith = 비교 조건 */
@@ -411,9 +414,11 @@ function mergedLine(result: BenchResult): string | null {
  * 2×2 분리 README 줄용: 조건별 토큰 사용률 평균(프롬프트별 반복 평균의 평균).
  * 네 조건이 모두 있어야 하고, 네 조건 모두에서 사용률이 정의된 프롬프트만 쓴다(조건끼리 같은 프롬프트 집합). 아니면 null.
  */
-export function ablationUsageMeans(result: BenchResult): { means: Record<Condition, number>; prompts: number } | null {
-  if (!CONDITIONS.every((c) => result.conditions.includes(c))) return null;
-  const common = promptIds(result).filter((id) => CONDITIONS.every((c) => perPromptSummary(result, id, c, "usage") !== null));
+const ABLATION_2X2: readonly Condition[] = ["baseline", "agents-only", "mcp-only", "dsmith"];
+
+export function ablationUsageMeans(result: BenchResult): { means: Record<"baseline" | "agents-only" | "mcp-only" | "dsmith", number>; prompts: number } | null {
+  if (!ABLATION_2X2.every((c) => result.conditions.includes(c))) return null;
+  const common = promptIds(result).filter((id) => ABLATION_2X2.every((c) => perPromptSummary(result, id, c, "usage") !== null));
   if (common.length === 0) return null;
   const meanOf = (c: Condition): number => common.reduce((a, id) => a + (perPromptSummary(result, id, c, "usage")?.mean ?? 0), 0) / common.length;
   return { means: { baseline: meanOf("baseline"), "agents-only": meanOf("agents-only"), "mcp-only": meanOf("mcp-only"), dsmith: meanOf("dsmith") }, prompts: common.length };

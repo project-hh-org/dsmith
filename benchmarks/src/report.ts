@@ -242,7 +242,7 @@ export function ablationLine(result: BenchResult, mdPath: string): string {
   const label = result.agent.command.trim().split(/\s+/).slice(0, 2).join(" ");
   const dates = [...new Set(result.merged?.map((s) => s.date) ?? [result.date])].sort(byCodeUnit).join("·");
   const link = `[${mdPath}](${mdPath})`;
-  const p = (c: Condition): string => pct(m.means[c]);
+  const p = (c: keyof typeof m.means): string => pct(m.means[c]);
   return `MCP·AGENTS.md 분리(프롬프트 ${m.prompts}개 × 조건 4 × 반복 ${result.repeat}, ${label}, ${dates}): 사용률 평균 baseline ${p("baseline")} · agents-only ${p("agents-only")} · mcp-only ${p("mcp-only")} · 둘 다 ${p("dsmith")} — ${link}${LINE_TAIL}`;
 }
 

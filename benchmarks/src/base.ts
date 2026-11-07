@@ -117,6 +117,7 @@ async function stripSkills(dir: string): Promise<void> {
  * dsmith: `install --tool <installTool> --mcp-command "node <CLI_BIN>"` (ai는 베이스에서 이미 실행됨) → AGENTS.md에 DS 마커가 있어야 한다.
  * agents-only: dsmith 복사본에서 `.mcp.json`·`.claude/skills` 삭제 (AGENTS.md 섹션과 섹션이 가리키는 `.dsmith/`는 유지).
  * mcp-only: dsmith 복사본에서 AGENTS.md dsmith 섹션(그것뿐이면 파일째)·`.claude/skills` 삭제 (`.mcp.json`·`.dsmith/` 유지).
+ * agents-mcp: dsmith 복사본에서 `.claude/skills`만 삭제 (AGENTS.md 섹션·`.mcp.json`·`.dsmith/` 유지) — 슬래시 명령의 몫을 가르는 조건.
  */
 export async function prepareCondition(base: Base, condition: Condition, installTool: string): Promise<string> {
   const dir = await mkTmp(`dsmith-bench-${condition}-`);
@@ -136,6 +137,8 @@ export async function prepareCondition(base: Base, condition: Condition, install
         await stripSkills(dir);
       } else if (condition === "mcp-only") {
         await stripAgentsSection(dir);
+        await stripSkills(dir);
+      } else if (condition === "agents-mcp") {
         await stripSkills(dir);
       }
     }

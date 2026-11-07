@@ -28,7 +28,8 @@ export function comparisons(result: BenchResult): [Condition, Condition][] {
   if (isLegacyConditions(result)) return has("baseline") && has("dsmith") ? [["baseline", "dsmith"]] : [];
   const pairs: [Condition, Condition][] = [];
   if (has("baseline")) for (const c of CONDITIONS) if (c !== "baseline" && has(c)) pairs.push(["baseline", c]);
-  if (has("dsmith")) for (const c of ["agents-only", "mcp-only"] as const) if (has(c)) pairs.push([c, "dsmith"]);
+  if (has("dsmith")) for (const c of ["agents-only", "mcp-only", "agents-mcp"] as const) if (has(c)) pairs.push([c, "dsmith"]);
+  if (has("agents-only") && has("agents-mcp")) pairs.push(["agents-only", "agents-mcp"]);
   return pairs;
 }
 
