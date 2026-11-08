@@ -169,6 +169,8 @@ function compute(context: Rule.RuleContext): Analysis | null {
   };
   const usages = lazy((): StyleUsage[] => {
     try {
+      // resolveRef를 넘기지 않는다: 규칙은 source === "hardcoded"만 보고 JS 테마 참조는 해석 여부와 무관하게 hardcoded가 아니다(token/dynamic 구분에만 쓰임).
+      // 파일마다 해석기를 만들면 린트 핫패스 비용만 늘고 finding은 같다.
       return extractFileStyles({ root, file, code }, entry.matchers).styles;
     } catch {
       return [];

@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  buildTokenRefResolver,
+  collectModuleContext,
   loadTokens,
+  readTsconfigPaths,
   readCatalog,
   readDecisions,
   readIndex,
@@ -16,6 +19,7 @@ import {
   type DecisionsFile,
   type Index,
   type LoadedTokens,
+  type RefResolver,
   type TokenSourceKind,
 } from "@dsmith-dev/core";
 import { isDsSpecifier, readDetect, type DetectResult } from "@dsmith-dev/detect";
@@ -36,6 +40,8 @@ export interface Workspace {
   tokens: LoadedTokens;
   /** 토큰 이름 → 출처(토큰 파일 / audit 제안 / 카탈로그). tokens가 바뀔 때만 다시 만든다 */
   tokenSources: Map<string, "token-file" | "proposal" | "catalog">;
+  /** JS 테마 참조 해석기(`buildTokenRefResolver`) — JS 토큰이 있을 때만. lint_snippet이 테마 참조를 토큰 사용으로 센다. tokens가 바뀔 때 다시 만든다 */
+  resolveRef?: RefResolver;
   decisions: DecisionsFile;
   isDsModule: (module: string) => boolean;
   /** 읽은 파일들의 변경 키를 합친 짧은 해시. 데이터가 바뀌었는지 cursor가 확인하는 데 쓴다 */
@@ -183,7 +189,31 @@ export async function openWorkspace(deps: ServerDeps): Promise<WorkspaceHandle> 
     }
     if (tokens === undefined || tokenSources === undefined) throw new Error("토큰을 읽을 수 없음");
 
-    const ws: Workspace = { root, detect, index, components, catalog, candidates, tokens, tokenSources, decisions, isDsModule, version: versionOf(stamps) };
+    // JS 테마 참조(`colors.text`)를 토큰 사용으로 세는 해석기 — 토큰이 바뀔 때만 다시 만든다. JS 토큰이 없으면 만들지 않는다
+    let resolveRef = prev?.resolveRef;
+    if (tokens !== prev?.tokens) {
+      const jsTokens = tokens.tokens.filter((t) => t.js !== undefined);
+      if (jsTokens.length === 0) resolveRef = undefined;
+      else {
+        const tsPaths = await readTsconfigPaths(root);
+        resolveRef = buildTokenRefResolver(jsTokens, { tsPaths, moduleContext: await collectModuleContext(root, tsPaths) });
+      }
+    }
+
+    const ws: Workspace = {
+      root,
+      detect,
+      index,
+      components,
+      catalog,
+      candidates,
+      tokens,
+      tokenSources,
+      ...(resolveRef === undefined ? {} : { resolveRef }),
+      decisions,
+      isDsModule,
+      version: versionOf(stamps),
+    };
     return { ws, stamps };
   }
 

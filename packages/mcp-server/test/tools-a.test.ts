@@ -240,6 +240,16 @@ describe("lint_snippet", () => {
     expect(out.summary.hardcoded).toBe(2);
   });
 
+  it("JS 테마 참조(colors.text·spacing.md)는 토큰 사용으로 센다 — rn-app", async () => {
+    const { client } = await open("fixtures/rn-app");
+    const out = await lint(client, {
+      code: 'import { colors, spacing } from "../theme";\nexport const A = () => <div style={{ color: colors.text, padding: spacing.md, margin: 7 }} />;',
+      filename: "src/components/A.tsx",
+    });
+    expect(out.summary).toEqual({ hardcoded: 1, token: 2, dynamic: 0 });
+    expect(out.violations).toHaveLength(1);
+  });
+
   it("인라인 스타일", async () => {
     const { client } = await withDs();
     const out = await lint(client, { code: 'export const A = () => <div style={{ color: "#3B82F6", padding: 13 }} />' });
