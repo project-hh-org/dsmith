@@ -185,6 +185,66 @@ describe("Platform.select", () => {
   });
 });
 
+describe("함수 style", () => {
+  it("Pressable의 함수 style은 반환 식을 읽는다(식 본문)", () => {
+    const usages = run(`const x = <Pressable style={({ pressed }) => [styles.a, { backgroundColor: pressed ? "#eee" : "#fff" }]} />;`);
+    expect(usages.map(brief)).toEqual([
+      ["other", "styles.a", "dynamic"],
+      ["background-color", "#eee", "hardcoded"],
+      ["background-color", "#fff", "hardcoded"],
+    ]);
+  });
+
+  it("블록 본문은 모든 return을 읽고 안쪽 함수의 return은 읽지 않는다", () => {
+    const usages = run(`const x = <Pressable style={function (s) {
+  const f = () => ({ margin: 99 });
+  if (s.pressed) return { padding: 4 };
+  try { return [{ gap: 2 }]; } finally {}
+  return null;
+}} />;`);
+    expect(usages.map(brief)).toEqual([
+      ["padding", "4", "hardcoded"],
+      ["gap", "2", "hardcoded"],
+    ]);
+  });
+});
+
+describe("Reanimated", () => {
+  it("useAnimatedStyle 콜백의 반환 객체를 읽는다", () => {
+    const usages = run(`function C() {
+  const a = useAnimatedStyle(() => ({ opacity: o.value, borderRadius: 12 }));
+  const b = Animated.useAnimatedStyle(() => { return { padding: 8 }; });
+  return <Animated.View style={[a, b]} />;
+}`);
+    expect(usages.map(brief)).toEqual([
+      ["other", "o.value", "dynamic"],
+      ["border-radius", "12", "hardcoded"],
+      ["padding", "8", "hardcoded"],
+      ["other", "a", "dynamic"],
+      ["other", "b", "dynamic"],
+    ]);
+  });
+
+  it("interpolateColor 출력 범위와 withTiming·withSpring 목표값의 리터럴을 그 키로 분류한다", () => {
+    const usages = run(`const s = useAnimatedStyle(() => ({
+  backgroundColor: interpolateColor(p.value, [0, 1], ["#ffffff", colors.surface]),
+  width: withTiming(40),
+  padding: withSpring(spacing.md),
+}));`);
+    expect(usages.map(brief)).toEqual([
+      ["background-color", "#ffffff", "hardcoded"],
+      ["background-color", "colors.surface", "dynamic"],
+      ["width", "40", "hardcoded"],
+      ["padding", "spacing.md", "dynamic"],
+    ]);
+    expect(usages.find((u) => u.raw === "colors.surface")?.ref).toBeDefined();
+  });
+
+  it("useAnimatedStyle만 있는 파일에도 appliesTo가 참", () => {
+    expect(reactNativeExtractor.appliesTo({ root: "/", file: "a.tsx", code: "const s = useAnimatedStyle(() => ({}));" })).toBe(true);
+  });
+});
+
 describe("출력 순서", () => {
   it("소스 위치 순서로 안정적이다", () => {
     const usages = run(`const styles = StyleSheet.create({ a: { padding: 1, ...Platform.select({ ios: { margin: 2 } }), gap: 3 } });`);

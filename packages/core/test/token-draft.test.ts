@@ -346,6 +346,37 @@ describe("bestReplacement", () => {
     expect(bestReplacement(len(9999, "border-radius"), two)).toMatchObject({ token: { name: "--radius-pill" }, confidence: "exact" });
   });
 
+  describe("같은 값 토큰이 여럿이면 속성 역할에 맞는 이름을 고른다", () => {
+    const white = normalizeColor("#ffffff")!;
+    const jsTok = (name: string): Token => ({ name, value: "#ffffff", normalized: white, category: "color" });
+    // 테마 파일 순서: 팔레트 → 배경 → 글자 → 테두리
+    const dupes: Token[] = [jsTok("colors.white"), jsTok("colors.surface"), jsTok("colors.textInverse"), jsTok("colors.borderLight")];
+
+    it("backgroundColor는 배경 계열, color는 글자 계열, borderColor는 테두리 계열", () => {
+      expect(bestReplacement(color("#fff", "background-color"), dupes)?.token.name).toBe("colors.surface");
+      expect(bestReplacement(color("#fff", "color"), dupes)?.token.name).toBe("colors.textInverse");
+      expect(bestReplacement(color("#fff", "border-color"), dupes)?.token.name).toBe("colors.borderLight");
+    });
+
+    it("역할 이름이 없으면 다른 역할 이름보다 중립 이름을, 그것도 없으면 입력 순서를 따른다", () => {
+      const noText = dupes.filter((t) => t.name !== "colors.textInverse");
+      expect(bestReplacement(color("#fff", "color"), noText)?.token.name).toBe("colors.white");
+      const onlyRoles = [jsTok("--color-bg-base"), jsTok("--color-border-base")];
+      expect(bestReplacement(color("#fff", "color"), onlyRoles)?.token.name).toBe("--color-bg-base");
+      expect(bestReplacement(color("#fff", "fill"), [jsTok("--a"), jsTok("--b")])?.token.name).toBe("--a");
+    });
+
+    it("거리가 더 가까운 토큰은 역할 이름보다 우선한다", () => {
+      const near: Token[] = [jsTok("colors.white"), { name: "colors.surface", value: "#fafafa", normalized: normalizeColor("#fafafa")!, category: "color" }];
+      expect(bestReplacement(color("#fff", "background-color"), near)?.token.name).toBe("colors.white");
+    });
+
+    it("역할 단어는 이름 조각 단위로 본다(textured·background-image 같은 부분 일치는 아님)", () => {
+      const tricky = [jsTok("colors.textured"), jsTok("colors.fg")];
+      expect(bestReplacement(color("#fff", "color"), tricky)?.token.name).toBe("colors.fg");
+    });
+  });
+
   it("replaceableToken은 bestReplacement !== null과 항상 같다", () => {
     const usages = [color("#3b82f6"), color("#ef4444"), len(8, "padding"), len(13, "padding"), len(999, "border-radius"), len(8, "width")];
     for (const u of usages) expect(replaceableToken(u, tokens)).toBe(bestReplacement(u, tokens) !== null);

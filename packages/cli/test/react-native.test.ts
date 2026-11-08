@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { readCatalog } from "@dsmith-dev/core";
 import { runAiCommand } from "../src/commands/ai.js";
 import { runAudit } from "../src/commands/audit.js";
+import { runMigrateCommand } from "../src/commands/migrate.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, "../../..");
@@ -106,5 +107,57 @@ describe("fixtures/rn-app: ai", () => {
     expect(r.tokens).toBeGreaterThan(0);
     const catalog = (await readCatalog(root))!;
     expect(catalog.tokens.some((t) => t.js !== undefined)).toBe(true);
+  });
+});
+
+function writeRepo(files: Record<string, string>): string {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "dsmith-cli-rn-")));
+  roots.push(root);
+  for (const [rel, content] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), content);
+  }
+  return root;
+}
+
+describe("RN migrate: 함수 style·Reanimated·같은 값 키", () => {
+  it("Pressable 함수 style·useAnimatedStyle 값도 치환하고, 같은 값 키가 여럿이면 속성 역할에 맞는 키를 고른다", async () => {
+    const root = writeRepo({
+      "package.json": JSON.stringify({ name: "rn", dependencies: { react: "19.0.0", "react-native": "0.79.0", "react-native-reanimated": "3.17.0" } }),
+      "src/theme.ts": `export const colors = {
+  white: "#ffffff",
+  surface: "#ffffff",
+  textInverse: "#ffffff",
+  borderLight: "#ffffff",
+  pressed: "#eeeeee",
+} as const;
+`,
+      "src/components/Button.tsx": `import { Pressable, Text } from "react-native";
+import { colors } from "../theme";
+
+export const Button = () => (
+  <Pressable style={({ pressed }) => [{ backgroundColor: pressed ? "#eeeeee" : "#ffffff", borderColor: "#ffffff" }]}>
+    <Text style={{ color: "#ffffff" }}>OK</Text>
+  </Pressable>
+);
+`,
+      "src/components/Fade.tsx": `import Animated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
+
+export function Fade({ p }: { p: { value: number } }) {
+  const s = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(p.value, [0, 1], ["#eeeeee", "#ffffff"]) }));
+  return <Animated.View style={s} />;
+}
+`,
+    });
+    await runAudit(root);
+    await runMigrateCommand({ root, apply: true });
+
+    const button = fs.readFileSync(path.join(root, "src/components/Button.tsx"), "utf-8");
+    expect(button).toContain("backgroundColor: pressed ? colors.pressed : colors.surface");
+    expect(button).toContain("borderColor: colors.borderLight");
+    expect(button).toContain("color: colors.textInverse");
+    const fade = fs.readFileSync(path.join(root, "src/components/Fade.tsx"), "utf-8");
+    expect(fade).toContain("[colors.pressed, colors.surface]");
+    expect(fade).toContain(`import { colors } from "../theme";`);
   });
 });

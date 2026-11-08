@@ -375,8 +375,55 @@ export interface Replacement {
   distance: number;
 }
 
+/** 색 속성별 역할 단어. 토큰 이름 조각(`colors.textInverse` → text·inverse)과 비교한다 */
+const ROLE_WORDS: Partial<Record<StyleProperty, ReadonlySet<string>>> = {
+  color: new Set(["text", "fg", "foreground", "on", "content", "label", "ink", "heading", "title"]),
+  "background-color": new Set(["bg", "background", "surface", "canvas", "card", "backdrop", "overlay"]),
+  "border-color": new Set(["border", "outline", "divider", "separator", "stroke", "line", "ring"]),
+  fill: new Set(["fill", "icon"]),
+  stroke: new Set(["stroke", "icon", "border", "outline"]),
+};
+
+/** `--color-bg-base`·`colors.textInverse`·`color.blue-400` → 소문자 이름 조각 */
+function nameWords(name: string): string[] {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 0);
+}
+
+/** 이 속성 역할 단어가 있으면 2, 역할 단어가 전혀 없으면(팔레트 이름) 1, 다른 속성 역할 단어만 있으면 0 */
+function roleScore(token: Token, property: StyleProperty): number {
+  const own = ROLE_WORDS[property];
+  if (own === undefined) return 1;
+  const words = nameWords(token.name);
+  if (words.some((w) => own.has(w))) return 2;
+  const other = Object.entries(ROLE_WORDS).some(([p, set]) => p !== property && words.some((w) => set.has(w)));
+  return other ? 0 : 1;
+}
+
+/** 거리가 같은 1위 후보들 중 속성 역할에 맞는 이름(동점이면 입력 순서상 앞선 것) */
+function preferRole(ranked: ReturnType<typeof rankTokens>, property: StyleProperty): ReturnType<typeof rankTokens>[number] | undefined {
+  const top = ranked[0];
+  if (top === undefined) return undefined;
+  let best = top;
+  let bestScore = roleScore(top.token, property);
+  for (const r of ranked.slice(1)) {
+    if (r.distance !== top.distance) break;
+    const score = roleScore(r.token, property);
+    if (score > bestScore) {
+      best = r;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
 /**
  * 이 하드코딩 값을 바꿀 `tokens` 중 하나. 매처(`rankTokens`) 1위가 같은 카테고리에서 exact 또는 close면 그 토큰.
+ * 1위와 거리가 같은 토큰이 여럿이면(테마에 같은 값 키가 여럿) 속성 역할에 맞는 이름을 고른다:
+ * 그 속성 역할 단어가 있는 이름 > 역할 단어가 없는 이름 > 다른 속성 역할 단어만 있는 이름, 그다음 입력 순서.
  * 아니면 999px 이상 모서리(`radius-full` 값)는 px ≥ `FULL_RADIUS_MIN_PX`인 radius 토큰 중 px가 가장 가까운 것(동률이면 먼저 나온 것)(px가 같으면 "exact", 아니면 "close", distance = |차|).
  * 토큰 대상 속성(`COVERAGE_PROPERTIES`: 색·간격·모서리·글꼴 크기. width·height 제외)이 아니거나 바꿀 토큰이 없으면 null.
  * 커버리지의 분모 제외(0 이하 간격, 평가 제외 사용)는 호출자의 몫이다.
@@ -386,7 +433,7 @@ export function bestReplacement(usage: StyleUsage, tokens: Token[]): Replacement
   if (!COVERAGE_PROPERTIES.includes(usage.property)) return null;
   const category = tokenCategoryOf(usage.property);
   if (category === null) return null;
-  const top = rankTokens(usage.normalized, tokens, { category, limit: 1 })[0];
+  const top = preferRole(rankTokens(usage.normalized, tokens, { category, limit: tokens.length }), usage.property);
   if (top !== undefined && (top.confidence === "exact" || top.confidence === "close")) {
     return { token: top.token, confidence: top.confidence, distance: top.distance };
   }

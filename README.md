@@ -113,7 +113,7 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 
 ### 같은 규칙 엔진
 
-`migrate`가 후보를 고르는 규칙, ESLint 플러그인이 보고하는 규칙, `guard --ci`가 세는 규칙, MCP `lint_snippet`의 답은 모두 `@dsmith-dev/core`의 같은 함수(`evaluateFile`·`bestReplacement`)에서 나온다. 그래서 migrate가 바꾼 것은 guard가 신규로 세지 않고, ESLint가 보고한 것은 guard가 같은 위치에서 같은 값으로 센다. `packages/cli/test/e2e-migrate-guard.test.ts`가 `examples/legacy-demo`에서 `init → migrate → guard`를 끝까지 돌려 이를 고정한다.
+`migrate`가 후보를 고르는 규칙, ESLint 플러그인이 보고하는 규칙, `guard --ci`가 세는 규칙, MCP `lint_snippet`의 답은 모두 `@dsmith-dev/core`의 같은 함수(`evaluateFile`·`bestReplacement`)에서 나온다. 값이 같은 토큰이 여럿이면(테마의 `white`·`surface`·`textInverse`가 모두 `#ffffff`) 속성 역할에 맞는 이름을 고른다 — 배경색은 `bg`·`background`·`surface`…, 글자색은 `text`·`fg`·`on`…, 테두리색은 `border`·`outline`·`divider`… 이름 조각이 있는 토큰, 다음으로 역할 단어가 없는 토큰, 다른 역할 이름의 토큰 순이고 그다음은 파일 순서다. 그래서 migrate가 바꾼 것은 guard가 신규로 세지 않고, ESLint가 보고한 것은 guard가 같은 위치에서 같은 값으로 센다. `packages/cli/test/e2e-migrate-guard.test.ts`가 `examples/legacy-demo`에서 `init → migrate → guard`를 끝까지 돌려 이를 고정한다.
 
 쇼케이스: [docs/showcase/legacy-demo.md](docs/showcase/legacy-demo.md)
 
@@ -200,7 +200,7 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 | styled-components | `styled` | `JS_FILES` | `styled.x`·`styled(X)`·`css`·`createGlobalStyle`의 태그 템플릿과 객체 인자 | 감지: `styled-components` 의존성. `${…}` 보간은 동적 값으로 센다 |
 | Emotion | `emotion` | `JS_FILES` | `css` 태그(`@emotion/react`·`@emotion/css`), `@emotion/styled`, JSX `css` prop(객체·중첩 선택자 포함) | 감지: `@emotion/react`·`@emotion/styled`·`@emotion/css` 중 하나의 의존성. styled-components만 import한 파일의 `css` prop은 보지 않는다 |
 | MUI sx | `mui-sx` | `JS_FILES` | JSX `sx={{ … }}` 객체(반응형 값 객체는 펼쳐서) | 감지: `@mui/material`·`@mui/joy` 의존성 + 소스의 `sx={{`. 숫자 간격·`borderRadius`·팔레트 경로(`"primary.main"`)는 테마 token. `overrides.activeExtractors`에 예전 이름 `sx`를 쓰면 `mui-sx`로 바꿔 적용한다 |
-| React Native | `react-native-stylesheet` | `JS_FILES` | `StyleSheet.create`·`compose`·`flatten` 인자, JSX `style`·`*Style`의 객체·배열·조건 가지, `Platform.select` 값 | 감지: `react-native` 의존성 또는 `StyleSheet.create(`. RN 프레임워크에서는 inline-style을 대신한다. 단위 없는 숫자 = dp(px), 치환은 JS 테마 참조(`colors.surface`)로만 |
+| React Native | `react-native-stylesheet` | `JS_FILES` | `StyleSheet.create`·`compose`·`flatten` 인자, JSX `style`·`*Style`의 객체·배열·조건 가지, 함수 style(`Pressable`의 `({ pressed }) => …` 반환 식), `Platform.select` 값, Reanimated `useAnimatedStyle` 반환 객체(속성 값의 `withTiming`·`withSpring` 목표값, `interpolateColor` 출력 범위 포함) | 감지: `react-native` 의존성 또는 `StyleSheet.create(`. RN 프레임워크에서는 inline-style을 대신한다. 단위 없는 숫자 = dp(px), 치환은 JS 테마 참조(`colors.surface`)로만 |
 | CSS Modules | — | — | 감지만 (`detect`가 `css-modules` 신호로 보고, 추출기 없음) | `*.module.{css,scss}` 파일. `audit` 리포트에 "감지됐지만 분석하지 않은 방식"으로 나온다 |
 
 한계:
