@@ -163,18 +163,36 @@ function resolveObject(env: Env, expr: Node, scope: ModuleScope, foreign: boolea
   return target === null ? null : resolveObject(env, target, other, true, depth + 1);
 }
 
-/** 모드 객체: 자식이 정확히 `light`·`dark`이고 둘 다 객체 */
-function isModeObject(env: Env, obj: ObjectExpression, scope: ModuleScope, foreign: boolean): boolean {
-  if (obj.properties.length !== 2) return false;
-  const seen = new Set<string>();
+/** 객체 리터럴의 이름 키(계산 키·스프레드는 건너뜀) */
+function plainKeys(obj: ObjectExpression): string[] {
+  const keys: string[] = [];
   for (const prop of obj.properties) {
-    if (prop.type !== "ObjectProperty" || prop.computed) return false;
-    const key = keyOf(prop.key);
-    if (key !== "light" && key !== "dark") return false;
-    if (resolveObject(env, prop.value, scope, foreign) === null) return false;
-    seen.add(key);
+    if (prop.type !== "ObjectProperty") continue;
+    const key = propertyKey(prop);
+    if (key !== null) keys.push(key);
   }
-  return seen.size === 2;
+  return keys;
+}
+
+/**
+ * 모드 컨테이너: `light`와 `dark`가 둘 다 객체이고 같은 모양(키가 하나 이상 겹침)일 때 그 두 가지가 모드 가지다.
+ * `palette = { primary: "#…", light: "#fff", dark: "#000" }`처럼 잎이 문자열인 light/dark는 모드가 아니라 일반 토큰이고,
+ * 객체 가지가 있으면 형제 키(`primary` 등)가 있어도 그 가지 아래만 모드 토큰이다(형제 자체는 모드가 아님).
+ */
+function modeBranches(env: Env, obj: ObjectExpression, scope: ModuleScope, foreign: boolean): Set<Mode> {
+  const branches = new Map<string, ObjectExpression>();
+  for (const prop of obj.properties) {
+    if (prop.type !== "ObjectProperty") continue;
+    const key = propertyKey(prop);
+    if (key !== "light" && key !== "dark") continue;
+    const resolved = resolveObject(env, prop.value, scope, foreign);
+    if (resolved !== null) branches.set(key, resolved.obj);
+  }
+  const light = branches.get("light");
+  const dark = branches.get("dark");
+  if (light === undefined || dark === undefined) return new Set();
+  const darkKeys = new Set(plainKeys(dark));
+  return plainKeys(light).some((k) => darkKeys.has(k)) ? new Set<Mode>(["light", "dark"]) : new Set();
 }
 
 function propertyKey(prop: ObjectProperty): string | null {
@@ -233,7 +251,7 @@ function walk(
   depth: number,
 ): void {
   if (depth > MAX_DEPTH) return;
-  const modeObject = mode === undefined && isModeObject(env, obj, scope, foreign);
+  const branches = mode === undefined ? modeBranches(env, obj, scope, foreign) : new Set<Mode>();
   for (const prop of obj.properties) {
     if (prop.type === "SpreadElement") {
       const spread = resolveObject(env, prop.argument, scope, foreign);
@@ -248,7 +266,7 @@ function walk(
       continue;
     }
     const path = [...trail, key];
-    const childMode: Mode | undefined = modeObject && (key === "light" || key === "dark") ? key : mode;
+    const childMode: Mode | undefined = (key === "light" || key === "dark") && branches.has(key) ? key : mode;
     const value = unwrap(prop.value);
 
     const text = stringValue(value);

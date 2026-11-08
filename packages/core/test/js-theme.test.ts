@@ -78,8 +78,31 @@ export const typography = { caption: { fontSize: 12, fontWeight: "600" as const,
       ["Colors.light.nested.a", "light"],
       ["Colors.dark.background", "dark"],
     ]);
-    const plain = read(`export const Colors = { light: { a: "#fff" }, dark: { a: "#000" }, brand: "#3b82f6" };`).tokens;
-    expect(plain.every((t) => !("mode" in t.js!))).toBe(true);
+  });
+
+  it("형제 키가 있어도 객체 light/dark 가지 아래만 mode이고 형제는 일반 토큰", () => {
+    const { tokens } = read(`export const palette = { primary: "#3b82f6", light: { bg: "#fff" }, dark: { bg: "#111111" } };`);
+    expect(tokens.map((t) => [t.name, t.js?.mode])).toEqual([
+      ["palette.primary", undefined],
+      ["palette.light.bg", "light"],
+      ["palette.dark.bg", "dark"],
+    ]);
+  });
+
+  it("잎이 문자열인 light/dark는 모드가 아니다 (palette = { primary, light, dark })", () => {
+    const { tokens } = read(`export const palette = { primary: "#3b82f6", light: "#ffffff", dark: "#111111" };`);
+    expect(tokens.map((t) => [t.name, t.js?.mode])).toEqual([
+      ["palette.primary", undefined],
+      ["palette.light", undefined],
+      ["palette.dark", undefined],
+    ]);
+  });
+
+  it("light만 객체이거나 서로 모양이 겹치지 않으면 모드가 아니다", () => {
+    const one = read(`export const c = { light: { a: "#fff" }, dark: "#000" };`).tokens;
+    expect(one.every((t) => t.js?.mode === undefined)).toBe(true);
+    const apart = read(`export const c = { light: { a: "#fff" }, dark: { b: "#000" } };`).tokens;
+    expect(apart.every((t) => t.js?.mode === undefined)).toBe(true);
   });
 
   it("같은 파일 const 객체를 값으로 가리키면 따라간다", () => {
