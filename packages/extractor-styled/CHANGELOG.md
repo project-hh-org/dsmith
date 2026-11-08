@@ -1,5 +1,13 @@
 # @dsmith-dev/extractor-styled
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dsmith-dev/core@0.4.0
+  - @dsmith-dev/extractor-api@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes
