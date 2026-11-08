@@ -7,6 +7,7 @@ import {
   readCatalog,
   readDecisions,
   readIndex,
+  readableJsThemeFiles,
   tokensFromCatalog,
   type DecisionKind,
   type DecisionListItem,
@@ -23,6 +24,7 @@ interface Audited {
   index: Index;
   isDsModule: (module: string) => boolean;
   tokenFiles: string[];
+  jsThemeFiles: string[];
 }
 
 /** audit이 남긴 .dsmith/index.json·detect.json을 읽는다. 없으면 안내 에러. */
@@ -30,7 +32,13 @@ async function loadAudited(rootArg: string): Promise<Audited> {
   const root = path.resolve(rootArg);
   const [index, detected] = await Promise.all([readIndex(root), readDetect(root)]);
   if (index === null || detected === null) throw new Error(NEED_AUDIT);
-  return { root, index, isDsModule: (m) => isDsSpecifier(m, detected.ds), tokenFiles: detected.ds.tokenFiles };
+  return {
+    root,
+    index,
+    isDsModule: (m) => isDsSpecifier(m, detected.ds),
+    tokenFiles: detected.ds.tokenFiles,
+    jsThemeFiles: await readableJsThemeFiles(root, detected.ds),
+  };
 }
 
 export async function runDecideList(rootArg: string, status?: "pending" | "decided"): Promise<DecisionListItem[]> {
@@ -43,14 +51,14 @@ export async function runDecideExplain(
   item: string,
   opts: { git?: boolean; kind?: DecisionKind } = {},
 ): Promise<ExplainResult> {
-  const { root, index, isDsModule, tokenFiles } = await loadAudited(rootArg);
+  const { root, index, isDsModule, tokenFiles, jsThemeFiles } = await loadAudited(rootArg);
   const decisions = await readDecisions(root);
   // 토큰 파일·카탈로그의 토큰만 매처에 쓴다(proposal 없음). MCP 서버와 같은 우선순위: 카탈로그에 토큰이 있으면 카탈로그. 못 읽으면 일치율 없이 진행한다.
   const catalog = await readCatalog(root).catch(() => null);
   const tokens =
     catalog !== null && Array.isArray(catalog.tokens) && catalog.tokens.length > 0
       ? tokensFromCatalog(catalog.tokens, []).tokens
-      : await loadTokens(root, tokenFiles, []).then(
+      : await loadTokens(root, tokenFiles, [], { jsFiles: jsThemeFiles }).then(
           (loaded) => loaded.tokens,
           () => [],
         );

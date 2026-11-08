@@ -28,6 +28,20 @@ Docs: https://github.com/project-hh-org/dsmith#readme
 - 이전 형식에서 벗어나려면 `dsmith migrate --rename-prefix`(계획) → `--apply`. 코드의 `var(--color-…)` 참조와 토큰·프리셋 파일을 함께 바꾸고 `--revert <id>`로 되돌릴 수 있다.
 - **값이 바뀌는 재 init 보류**: 이전 init 소유 `tokens.css`와 비교해 의미 이름(`color-blue-400`, 접두 제외) 기준으로 값이 바뀌거나 사라지는 토큰이 있고 `.dsmith/migrations/`에 `status "applied"` 기록이 있으면(코드가 그 이름을 `var()`로 쓰고 있다는 뜻) 토큰 묶음(과 프리셋)을 보류한다(`tokenHold: "renamed"`, 종료 코드 0). `--force`로만 덮어쓴다. 적용 기록이 없으면 쓰되 경고만 낸다. 접두만 다른 변경(rename)은 대상이 아니다.
 
+## React Native
+
+`detect`가 프레임워크를 `react-native`(`react-native`·`expo` 의존성)로 판정한 레포에서는 웹 산출을 만들지 않는다. `tokens.json`·`tokens.css`, Tailwind 프리셋, 컴포넌트 골격(웹 템플릿이라 `skippedScaffolds`에 `react-native: 웹 스캐폴드 템플릿이라 만들지 않음`)을 쓰지 않고, 결과의 `tokenSource`가 토큰의 출처를 알린다.
+
+| 상황 | 결과 |
+| --- | --- |
+| 쓰이는 JS 테마가 있음(`ds.jsThemes`) | **토큰 파일을 하나도 만들지 않는다.** `tokenSource: { kind: "js-theme", files: ["src/theme.ts"] }`. 토큰 수와 커버리지는 그 테마 기준(모드 `light`/`dark` 아래 토큰은 치환 후보가 아니라 제외). 요약: `토큰: 기존 JS 테마 사용 — src/theme.ts (색 7 · 간격 4 · 모서리 3 · 글꼴 크기 3)` |
+| JS 테마가 없음 | `design-system/tokens.ts`만 쓴다(`tokenSource.kind: "init-files"`). 형식은 `export const colors/spacing/radius/fontSize = { … } as const;`, 키는 식별자(`blue-400` → `blue400`, 숫자 키는 그대로 `spacing[2]`), 길이는 단위 없는 숫자(dp). `readJsThemeTokens`가 다시 읽으면 초안과 같은 토큰이 나온다. 사람이 고쳤으면 이 한 파일을 보류하고 `--force`로 덮어쓴다 |
+| 이전 init 산출(`tokens.css`·`tokens.json`)이 이미 있음 | 지우지도 다시 쓰지도 않고 경고 한 줄: `react-native 레포에서는 design-system/tokens.css·tokens.json을 쓰지 않음 — 필요 없으면 지워도 됨` |
+
+- 평행한 토큰 파일을 만들지 않는 이유: 앱의 테마와 `design-system/`이 함께 있으면 어느 쪽이 정본인지 흐려진다.
+- 이어서 `migrate`는 하드코딩 값을 `colors.blue400`·`spacing[2]`처럼 JS 참조로 바꾸고 필요하면 import를 더한다. `tokens.ts`가 `tokens.json` 없이 있으면 core `loadReplacementTokens`가 JS 테마로 읽는다.
+- `InitResult.reactNative`가 `true`이면 웹 전용 필드(`tailwindPreset`, `tokensLoaded`)는 `null`이다. `--dry-run`은 같은 판단을 하고 쓰지 않는다.
+
 ## 알려진 제한
 
 - migrate 뒤 init을 다시 실행했을 때 토큰 이름·값이 옮겨 가는 것은 위 보류로 막을 뿐, 이전 `tokens.json`을 잠금 파일로 삼아 이름을 고정하지는 않는다.

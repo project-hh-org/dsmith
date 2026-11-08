@@ -72,6 +72,8 @@ function findingsOf(
   matchers: ReturnType<typeof extractorMatchers>,
 ): Finding[] | null {
   try {
+    // resolveRef를 넘기지 않는다: 규칙 엔진은 source === "hardcoded"인 사용만 보고, JS 테마 참조는 해석 여부와 상관없이 hardcoded가 아니다(token/dynamic) —
+    // 해석기는 token·dynamic 구분(audit·lint_snippet 요약)에만 쓰이므로 finding이 같다.
     const usages = extractFileStyles({ root, file, code }, matchers).styles;
     let components: ComponentUsage[] = [];
     if (SCRIPT_FILE.test(file)) {

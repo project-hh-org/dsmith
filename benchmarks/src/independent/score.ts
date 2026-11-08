@@ -34,6 +34,8 @@ export interface IndependentInput {
   resolver: ResolverConfig;
   /** 프리셋·tailwind 설정의 `키 → --var 이름` */
   themeVars: ReadonlyMap<string, string>;
+  /** root 상대 모듈 경로(확장자·index 없음)의 파일이 객체 리터럴 export를 갖는가(RN themeRef 판정). 없으면 themeRef는 0 */
+  isThemeModule?: (moduleKey: string) => boolean;
   /** 채점하지 않을 경로 접두사. 기본 ["design-system/"](init이 만든 스캐폴드 — 토큰 정의가 사는 곳) */
   excludePrefixes?: readonly string[];
 }
@@ -100,6 +102,9 @@ function tally(news: readonly Occurrence[], defined: ReadonlySet<string>): { cou
       case "localComp":
         counts.otherLocalComponents += 1;
         break;
+      case "themeRef":
+        counts.themeRefs += 1;
+        break;
     }
   }
   return { counts, undefinedVars: [...undef].sort(byCodeUnit) };
@@ -108,7 +113,13 @@ function tally(news: readonly Occurrence[], defined: ReadonlySet<string>): { cou
 export function scoreIndependent(input: IndependentInput): IndependentScore {
   const exclude = input.excludePrefixes ?? ["design-system/"];
   const defined = definedVars(input.cssFiles);
-  const scan: ScriptScanContext = { file: "", resolver: input.resolver, dsModules: input.dsModules, themeVars: input.themeVars };
+  const scan: ScriptScanContext = {
+    file: "",
+    resolver: input.resolver,
+    dsModules: input.dsModules,
+    themeVars: input.themeVars,
+    ...(input.isThemeModule === undefined ? {} : { isThemeModule: input.isThemeModule }),
+  };
 
   const files: IndepFileScore[] = [];
   const excluded: string[] = [];
@@ -158,7 +169,10 @@ export function scoreIndependent(input: IndependentInput): IndependentScore {
     excluded,
     ignored,
     totals,
-    indepUsage: indepRatio(totals.varDefined, totals.varDefined + totals.varUndefined + totals.colorLiterals + totals.lengthLiterals + totals.tailwindPalette),
+    indepUsage: indepRatio(
+      totals.varDefined + totals.themeRefs,
+      totals.varDefined + totals.varUndefined + totals.colorLiterals + totals.lengthLiterals + totals.tailwindPalette + totals.themeRefs,
+    ),
     undefinedVars: [...undef].sort(byCodeUnit),
   };
 }

@@ -16,7 +16,8 @@ export interface GuardSnapshot {
   version: 1;
   dsmith: string;
   extractors: string[];
-  tokens: { name: string; value: string; category: Token["category"]; normalized: StyleUsage["normalized"]; path?: string }[];
+  /** `js`는 JS 테마 객체 토큰의 위치(있을 때만 — JS 토큰이 없는 레포의 스냅샷은 바이트 그대로) */
+  tokens: { name: string; value: string; category: Token["category"]; normalized: StyleUsage["normalized"]; path?: string; js?: NonNullable<Token["js"]> }[];
   tokenSource: "token-file" | "catalog" | "none";
   tokenFiles: { file: string; sha256: string }[];
   ds: RuleContext["ds"];
@@ -126,7 +127,14 @@ export function readGuardSnapshotSync(file: string): GuardSnapshot {
 
 export function ruleContextOf(s: GuardSnapshot): RuleContext {
   return {
-    tokens: s.tokens.map((t) => ({ name: t.name, value: t.value, category: t.category, normalized: t.normalized, ...(t.path !== undefined ? { path: t.path } : {}) })),
+    tokens: s.tokens.map((t) => ({
+      name: t.name,
+      value: t.value,
+      category: t.category,
+      normalized: t.normalized,
+      ...(t.path !== undefined ? { path: t.path } : {}),
+      ...(t.js !== undefined ? { js: t.js } : {}),
+    })),
     ds: s.ds,
     preferred: s.preferred,
     policy: s.policy,

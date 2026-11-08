@@ -13,6 +13,7 @@ import {
   type ComponentUsage,
   type Finding,
   type GuardSnapshot,
+  type RefResolver,
   type StyleUsage,
 } from "@dsmith-dev/core";
 import type { Aggregate, FileScore, RunRecord, RunScore, UsageCounts } from "./model.js";
@@ -45,6 +46,8 @@ export interface ScoreInput {
   matchers: ReturnType<typeof extractorMatchers>;
   changes: FileChange[];
   expectedFile: string;
+  /** JS 테마 참조를 토큰 사용으로 해석한다(`Base.resolveRef`). 없으면 참조는 dynamic으로 남는다 — JS 테마가 있는 레포는 꼭 넘긴다 */
+  resolveRef?: RefResolver;
 }
 
 const SCRIPT_FILE = /\.[cm]?[jt]sx?$/;
@@ -67,6 +70,8 @@ const CSS_VAR = /var\(\s*(--[A-Za-z0-9_-]+)/g;
  * var()가 없고 snapshot.preset?.keys의 값(예 "ds-blue-400") 중 하나로 raw가 `-<key>`로 끝남(Tailwind 변형 접두·`!`·`/불투명도` 무시).
  */
 export function isKnownTokenRef(u: StyleUsage, snapshot: GuardSnapshot): boolean {
+  // JS 테마 참조(`colors.surface`)는 resolver가 스냅샷 토큰으로 풀었을 때만 source가 token이 된다 — 그러면 기준을 실제로 가리키는 것이다
+  if (u.ref !== undefined) return u.source === "token";
   const names = [...u.raw.matchAll(CSS_VAR)].map((m) => m[1] ?? "");
   if (names.length > 0) {
     const known = new Set(snapshot.tokens.map((t) => t.name));
@@ -88,7 +93,7 @@ interface Analysis {
 /** guard ci.ts `findingsOf`와 같은 조합. 던지면 호출자가 처리한다. */
 function analyze(code: string, file: string, input: ScoreInput): Analysis {
   const { root, snapshot, matchers } = input;
-  const usages = extractFileStyles({ root, file, code }, matchers).styles;
+  const usages = extractFileStyles({ root, file, code }, matchers, input.resolveRef === undefined ? {} : { resolveRef: input.resolveRef }).styles;
   let components: ComponentUsage[] = [];
   if (SCRIPT_FILE.test(file)) {
     components = extractComponentUsage(file, parseTsx(code, file), snapshot.moduleContext.tsPaths, moduleContextOf(snapshot));

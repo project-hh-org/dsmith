@@ -1,4 +1,6 @@
 import { parse } from "@babel/parser";
+import { childNodes, isNode, nameOf, type AstNode } from "./ast.js";
+import { scanRnStyles, type RnScanContext } from "./rn.js";
 import { isColorProperty, isNumericLengthProperty, scanColors, scanLengths, scanVarRefs } from "./colors.js";
 import { resolveLocal, isDsModule, type ResolverConfig } from "./resolve.js";
 import { arbitraryValue, classTokens, isColorPrefix, normalizeUtility, paletteKind, splitVariants, themeVarOf } from "./tailwind.js";
@@ -18,25 +20,6 @@ import type { Occurrence } from "./types.js";
  * 그 밖의 문자열(텍스트·URL 등)은 보지 않는다.
  */
 
-interface AstNode {
-  type: string;
-  [key: string]: unknown;
-}
-
-const isNode = (v: unknown): v is AstNode => typeof v === "object" && v !== null && typeof (v as { type?: unknown }).type === "string";
-const SKIP_KEYS = new Set(["loc", "start", "end", "range", "leadingComments", "trailingComments", "innerComments", "extra", "tokens", "comments", "errors"]);
-
-function childNodes(node: AstNode): AstNode[] {
-  const out: AstNode[] = [];
-  for (const [key, value] of Object.entries(node)) {
-    if (SKIP_KEYS.has(key)) continue;
-    if (Array.isArray(value)) {
-      for (const v of value) if (isNode(v)) out.push(v);
-    } else if (isNode(value)) out.push(value);
-  }
-  return out;
-}
-
 const CLASS_HELPERS = new Set(["clsx", "cn", "cx", "classnames", "classNames", "twMerge", "twJoin", "cva", "tv"]);
 const CSS_TAGS = new Set(["styled", "css", "keyframes", "createGlobalStyle", "injectGlobal"]);
 const SVG_COLOR_ATTRS = new Set(["fill", "stroke", "stopColor", "floodColor", "lightingColor", "color"]);
@@ -48,6 +31,8 @@ export interface ScriptScanContext {
   dsModules: readonly string[];
   /** 프리셋·설정의 `키 → --var 이름` */
   themeVars: ReadonlyMap<string, string>;
+  /** root 상대 모듈 경로(확장자·index 없음)의 파일이 객체 리터럴 export를 갖는가. RN 파일의 themeRef 판정에 쓴다. 없으면 어떤 모듈도 테마가 아니다 */
+  isThemeModule?: (moduleKey: string) => boolean;
 }
 
 interface Cx {
@@ -66,13 +51,6 @@ function templateText(q: unknown): string {
 }
 
 const camel = (s: string): string => s.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase());
-
-function nameOf(node: unknown): string | null {
-  if (!isNode(node)) return null;
-  if (node.type === "Identifier" || node.type === "JSXIdentifier") return typeof node.name === "string" ? node.name : null;
-  if (node.type === "StringLiteral") return typeof node.value === "string" ? node.value : null;
-  return null;
-}
 
 /** 호출/태그의 루트 식별자: `styled.div.attrs(...)` → styled, `styled(Button)` → styled, `a.b.c` → a */
 function rootName(node: unknown): string | null {
@@ -187,6 +165,8 @@ export function scanScript(code: string, ctx: ScriptScanContext): Occurrence[] {
     for (const c of childNodes(node)) pass1(c);
   };
   pass1(root);
+  // react-native에서 import하는 파일의 스타일은 RN 스캐너(rn.ts)가 센다. 이 스캐너는 클래스·컴포넌트 등장만 센다
+  const rn = [...imports.values()].includes("react-native");
 
   const out: Occurrence[] = [];
   const push = (os: Occurrence[]): void => {
@@ -226,7 +206,9 @@ export function scanScript(code: string, ctx: ScriptScanContext): Occurrence[] {
         const value = isNode(node.value) ? node.value : null;
         if (value === null) return;
         if (n === "className" || n === "class") visit(value, { cls: true, style: false, prop: null });
-        else if (n === "style" || n === "sx") visit(value, { cls: false, style: true, prop: null });
+        else if (n === "style" || n === "sx") {
+          if (!rn) visit(value, { cls: false, style: true, prop: null });
+        }
         else if (n !== null && SVG_COLOR_ATTRS.has(n) && value.type === "StringLiteral" && typeof value.value === "string") {
           for (const c of scanColors(value.value, { named: true })) out.push({ kind: "color", value: c });
         } else visit(value, PLAIN);
@@ -236,7 +218,7 @@ export function scanScript(code: string, ctx: ScriptScanContext): Occurrence[] {
         const id = nameOf(node.id);
         if (isNode(node.init)) {
           const cls = cx.cls || (id !== null && (classIdents.has(id) || /class|cls/i.test(id)));
-          const style = cx.style || (id !== null && (styleIdents.has(id) || /style|css|^sx$/i.test(id)));
+          const style = !rn && (cx.style || (id !== null && (styleIdents.has(id) || /style|css|^sx$/i.test(id))));
           visit(node.init, { cls, style: style && !cls, prop: null });
         }
         return;
@@ -251,7 +233,7 @@ export function scanScript(code: string, ctx: ScriptScanContext): Occurrence[] {
       case "CallExpression": {
         const name = calleeName(node.callee);
         if (isNode(node.callee)) visit(node.callee, cx);
-        const next: Cx = name !== null && CLASS_HELPERS.has(name) ? { cls: true, style: false, prop: null } : name === "css" ? { cls: false, style: true, prop: null } : cx;
+        const next: Cx = name !== null && CLASS_HELPERS.has(name) ? { cls: true, style: false, prop: null } : name === "css" && !rn ? { cls: false, style: true, prop: null } : cx;
         if (Array.isArray(node.arguments)) for (const a of node.arguments) if (isNode(a)) visit(a, next);
         return;
       }
@@ -287,5 +269,9 @@ export function scanScript(code: string, ctx: ScriptScanContext): Occurrence[] {
     }
   };
   visit(root, PLAIN);
+  if (rn) {
+    const rnCtx: RnScanContext = { file: ctx.file, resolver: ctx.resolver, isThemeModule: ctx.isThemeModule ?? (() => false) };
+    for (const o of scanRnStyles(root, imports, rnCtx)) out.push(o);
+  }
   return out;
 }

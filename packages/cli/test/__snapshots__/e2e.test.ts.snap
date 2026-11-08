@@ -8,13 +8,14 @@ exports[`examples/legacy-demo > Tailwind·inline·CSS가 섞인 데모 어드민
 - state: 1
 - provisional: false
 - 분석한 파일: 26개 (스타일 사용 213, 컴포넌트 사용 33)
-- 동적 값: 13
+- 동적 값: 10
+- JS 테마 참조: 3개 (src/lib/theme.ts)
 
 건강 점수: 52
 
 산식: 100 × (0.5×(1−hardcodedShare) + 0.3×dsImportShare + 0.2×max(0, 1−duplicateCount/10))
 
-- hardcodedShare: 0.3422
+- hardcodedShare: 0.3368
 - dsImportShare: 0.0909
 - duplicateCount: 2
 

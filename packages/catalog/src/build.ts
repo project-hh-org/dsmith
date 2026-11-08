@@ -5,6 +5,7 @@ import {
   managedFileHash,
   readCatalogTokens,
   readInitHashes,
+  readableJsThemeFiles,
   withTokenFiles,
   type Catalog,
   type CatalogComponent,
@@ -73,12 +74,14 @@ export async function buildCatalog(opts: BuildCatalogOptions): Promise<BuildCata
 
   const initDir = from === "ds" ? null : await findInitDir(root);
   const ds = detect.ds;
-  if (from !== "init" && ds.kind === "none" && (from === "ds" || initDir === null)) throw new Error(NO_DS_ERROR);
+  // DS 컴포넌트가 없어도 쓰이는 JS 테마가 있으면 토큰만 있는 카탈로그로 진행한다
+  const hasJsTheme = (ds.jsThemes?.length ?? 0) > 0;
+  if (from !== "init" && ds.kind === "none" && !hasJsTheme && (from === "ds" || initDir === null)) throw new Error(NO_DS_ERROR);
 
   if (from !== "init") {
     if (ds.kind === "local" && ds.dir !== undefined) {
-      const res = await catalogFromDir(root, ds.dir, "ds-local", index);
-      await attachExamples(root, ds.dir, res.components);
+      const res = await catalogFromDir(root, ds.dir, "ds-local", index, ds.entry);
+      if (ds.entry === undefined) await attachExamples(root, ds.dir, res.components);
       sources.push({ origin: "ds-local", dir: ds.dir });
       components.push(...res.components);
       warnings.push(...res.warnings);
@@ -106,7 +109,7 @@ export async function buildCatalog(opts: BuildCatalogOptions): Promise<BuildCata
 
   const initTokens = initDir !== null ? (initDir === "." ? "tokens.json" : `${initDir}/tokens.json`) : null;
   const tokenFiles = [...new Set([...ds.tokenFiles, ...(initTokens !== null ? [initTokens] : [])])];
-  const read = await readCatalogTokens(root, tokenFiles);
+  const read = await readCatalogTokens(root, tokenFiles, { jsFiles: await readableJsThemeFiles(root, ds) });
   const tokens: CatalogToken[] = read.tokens;
   warnings.push(...read.warnings);
   for (const f of read.ignored) warnings.push(`토큰 파일 형식을 읽지 않음(건너뜀): ${f}`);

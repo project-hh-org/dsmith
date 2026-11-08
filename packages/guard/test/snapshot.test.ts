@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { staleGuardTokenFiles } from "@dsmith-dev/core";
 import type { DetectResult } from "@dsmith-dev/detect";
 import { buildGuardSnapshot } from "../src/index.js";
-import { cleanupTmps, cloneRepo, keep, monoRepo, preparedDemo } from "./helpers.js";
+import { audit, cleanupTmps, cloneRepo, keep, makeRepo, monoRepo, preparedDemo } from "./helpers.js";
 
 afterEach(cleanupTmps);
 afterAll(() => fs.rmSync(prepared.root, { recursive: true, force: true }));
@@ -23,6 +23,15 @@ describe("buildGuardSnapshot", () => {
     expect(snap.ds.modules).toEqual(expect.arrayContaining(["@acme/icons", "@acme/ui"]));
     expect(snap.ds.modules).toEqual([...snap.ds.modules].sort());
     expect(snap.ds.modules.indexOf("@acme/icons")).toBeLessThan(snap.ds.modules.indexOf("@acme/ui"));
+  });
+
+  it("파일형 로컬 DS(entry)면 ds.modules에 확장자 뺀 module(dir)이 들어간다", async () => {
+    const root = cloneRepo(prepared.root);
+    const { dir: _dir, packageName: _p, packageNames: _ps, ...ds } = prepared.detect.ds;
+    void _dir; void _p; void _ps;
+    const detect: DetectResult = { ...prepared.detect, ds: { ...ds, kind: "local", dir: "src/components/ui", entry: "src/components/ui.tsx" } };
+    const snap = await buildGuardSnapshot({ root, detect, version: "0.1.0", existing: null });
+    expect(snap.ds.modules).toEqual(["src/components/ui"]);
   });
 
   it("packageNames 없이 packageName만 있어도 modules에 들어간다", async () => {
@@ -49,5 +58,28 @@ describe("buildGuardSnapshot", () => {
     const snap = await buildGuardSnapshot({ root, detect: prepared.detect, version: "0.1.0", existing: null });
     fs.renameSync(path.join(root, "tailwind.config.ts"), path.join(root, "tailwind.config.renamed.ts"));
     expect(await staleGuardTokenFiles(root, snap)).toEqual(["tailwind.config.ts"]);
+  });
+
+  it("JS 테마 토큰이 없는 레포(legacy-demo)의 tokens에는 js 필드가 없다 — 웹은 CSS 토큰만 담는다", async () => {
+    const snap = await buildGuardSnapshot({ root: prepared.root, detect: prepared.detect, version: "0.1.0", existing: null });
+    expect(snap.tokens.length).toBeGreaterThan(0);
+    expect(snap.tokens.some((t) => "js" in t)).toBe(false);
+    expect(JSON.stringify(snap)).not.toContain('"js"');
+  });
+
+  it("react-native 레포는 JS 테마 토큰을 js 필드와 함께 담고, 두 번째 실행은 바이트가 같다", async () => {
+    const root = makeRepo({
+      "package.json": JSON.stringify({ name: "rn", dependencies: { react: "19.0.0", "react-native": "0.79.0" } }),
+      "src/theme.ts": `export const colors = { surface: "#ffffff", text: "#111111" } as const;\nexport const spacing = { sm: 8, md: 16 } as const;\n`,
+      "src/A.tsx": `import { View } from "react-native";\nimport { colors } from "./theme";\nexport const A = () => <View style={{ backgroundColor: colors.surface, padding: 8 }} />;\n`,
+    });
+    const detect = await audit(root);
+    const first = await buildGuardSnapshot({ root, detect, version: "0.1.0", existing: null });
+    const surface = first.tokens.find((t) => t.name === "colors.surface");
+    expect(surface?.js).toEqual({ module: "src/theme", export: "colors", path: ["surface"] });
+    expect(first.tokenFiles.map((t) => t.file)).toContain("src/theme.ts");
+    expect(first.exclude).toContain("src/theme.ts");
+    const second = await buildGuardSnapshot({ root, detect, version: "0.1.0", existing: first });
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
   });
 });

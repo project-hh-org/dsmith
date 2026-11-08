@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { extractFileStyles } from "@dsmith-dev/core";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CLI_BIN, MONOREPO_ROOT, defaultInstallTool, dsmithInstallArgs, makeRunCopy, prepareBase, prepareCondition, type Base } from "../src/base.js";
@@ -40,6 +41,13 @@ describe("prepareBase / prepareCondition / makeRunCopy", () => {
     expect(base.snapshot.ds.modules).toHaveLength(4);
     expect(base.snapshot.ds.components).toHaveLength(6);
     expect(base.snapshotSha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("채점 resolver는 치환 후보가 아닌 JS 테마 토큰(웹 CSS 토큰 레포의 theme.muted)도 토큰 사용으로 해석한다 — audit과 같은 기준", () => {
+    expect(base.snapshot.tokens.some((t) => t.js !== undefined)).toBe(false);
+    const code = fs.readFileSync(path.join(base.dir, "src/components/Topbar.tsx"), "utf-8");
+    const styles = extractFileStyles({ root: base.dir, file: "src/components/Topbar.tsx", code }, base.matchers, { resolveRef: base.resolveRef }).styles;
+    expect(styles.find((s) => s.raw.includes("theme.muted"))?.source).toBe("token");
   });
 
   it("baseline: .dsmith·.mcp.json·AGENTS.md(DS 섹션뿐이라 파일째)·.claude 없음, 토큰 파일은 있음", () => {

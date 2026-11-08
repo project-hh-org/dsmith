@@ -10,9 +10,11 @@ import {
   MONOREPO_ROOT,
   REPOS,
   defaultInstallTool,
+  isExternalRepo,
   makeRunCopy,
   prepareBase,
   prepareCondition,
+  resolveExternalRepoPath,
   type RepoName,
 } from "./base.js";
 import { assertReplayDir, collectChanges, readReplay, readReplaySource, writeOutputs, writeReplayMeta } from "./collect.js";
@@ -20,6 +22,7 @@ import { fingerprintCondition } from "./fingerprint.js";
 import { CONDITIONS, DEFAULT_CONDITIONS, type Aggregate, type BenchResult, type Condition, type ReplaySource, type RunRecord, type SetupFingerprint } from "./model.js";
 import { metricOfSums, sumsOf } from "./analysis.js";
 import { evaluateIndependent } from "./independent/index.js";
+import { isInsideMonorepo } from "./paths.js";
 import { loadPrompts, type Prompt } from "./prompts.js";
 import { renderReport } from "./report.js";
 import { aggregate, scoreRun } from "./score.js";
@@ -30,6 +33,8 @@ export const CLAUDE_AGENT_COMMAND =
 
 export interface BenchArgs {
   repo: RepoName;
+  /** 외부(비공개) 레포의 실제 경로. 외부 레포가 아니면 null. 결과·보고서에는 쓰지 않는다 */
+  repoPath: string | null;
   /** 정확히 하나: agent | replay */
   agent: string | null;
   replay: string | null;
@@ -72,7 +77,9 @@ export function resolveLimits(args: Pick<BenchArgs, "maxTotalUsd" | "maxFailures
 
 const USAGE = `사용법: pnpm bench (--agent "<명령>" | --replay <디렉터리> | --replay-set <이름>) [옵션]   (\`pnpm bench -- …\`도 같다)
   상대 경로(--out·--record·--replay)는 명령을 실행한 폴더 기준이다(pnpm이 알려 주는 INIT_CWD, 없으면 cwd).
-  --repo <legacy-demo|with-ds-app>   대상 레포 (기본 legacy-demo)
+  --repo <legacy-demo|with-ds-app|rn-app|knowing-saju>   대상 레포 (기본 legacy-demo). rn-app은 RN 프롬프트 12개(benchmarks/prompts-rn)를 쓴다
+  --repo-path <dir>                  knowing-saju(저장소 밖의 비공개 앱) 위치. 환경 변수 DSMITH_BENCH_REPO_PATH보다 앞선다. 이 레포는 --out(과 agent 모드의 --record)이 필수이고 모두 모노레포 밖이어야 한다.
+                                     결과는 커밋하지 않는다 — 커밋할 것은 pnpm bench:report --redact 로 만든 리댁션 결과뿐이다
   --agent "<명령>"                   프롬프트를 stdin으로 받는 에이전트 명령. "claude -p"만 쓰면 결정 5의 전체 명령으로 펼침 (--dry-run만 쓰면 이 명령의 계획)
   --replay <dir>                     <dir>/<조건>/<프롬프트 id>/<반복>/{files/…,run.json} 산출물을 채점만 한다(에이전트 호출 없음). 없는 폴더·조건 폴더가 없으면 종료 코드 2
   --replay-set <이름>                benchmarks/replay/<이름> (저장소에 들어 있는 합성 세트, 실행 폴더와 무관)
@@ -121,6 +128,7 @@ export function parseBenchArgs(argv: string[], env: NodeJS.ProcessEnv = process.
       allowPositionals: false,
       options: {
         repo: { type: "string" },
+        "repo-path": { type: "string" },
         agent: { type: "string" },
         replay: { type: "string" },
         "replay-set": { type: "string" },
@@ -182,15 +190,37 @@ export function parseBenchArgs(argv: string[], env: NodeJS.ProcessEnv = process.
   const passEnv = values["pass-env"] ?? [];
   for (const name of passEnv) agentEnv([name], {}); // CLAUDE* 이면 Error
 
+  // 외부(비공개) 레포: 위치 확인, 결과·산출물은 반드시 모노레포 밖
+  const repoName = repo as RepoName;
+  let repoPath: string | null = null;
+  const outPath = values.out === undefined ? null : resolve(values.out);
+  const recordPath = values.record === undefined ? null : resolve(values.record);
+  if (isExternalRepo(repoName)) {
+    try {
+      repoPath = resolveExternalRepoPath(repoName, values["repo-path"] === undefined ? null : resolve(values["repo-path"]), env);
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : String(e));
+    }
+    if (!dryRun) {
+      if (outPath === null) fail(`--repo ${repoName}는 --out <결과.json>이 필수입니다(모노레포 밖 경로) — 비공개 앱의 결과를 저장소 안에 두지 않기 위해서입니다`);
+      if (agent !== null && recordPath === null) fail(`--repo ${repoName}의 agent 실행은 --record <디렉터리>가 필수입니다(모노레포 밖 경로) — 산출물에는 앱 코드가 들어 있습니다`);
+    }
+    if (outPath !== null && isInsideMonorepo(outPath)) fail(`--out이 모노레포 안입니다 — ${repoName}의 결과는 저장소 밖에 두세요`);
+    if (recordPath !== null && isInsideMonorepo(recordPath)) fail(`--record가 모노레포 안입니다 — ${repoName}의 산출물은 저장소 밖에 두세요`);
+  } else if (values["repo-path"] !== undefined) {
+    fail(`--repo-path는 외부 레포(${Object.keys(REPOS).filter((r) => isExternalRepo(r as RepoName)).join(", ")})에만 씁니다`);
+  }
+
   return {
-    repo: repo as RepoName,
+    repo: repoName,
+    repoPath,
     agent: agent === null ? (replay === null ? CLAUDE_AGENT_COMMAND : null) : agent === "claude -p" ? CLAUDE_AGENT_COMMAND : agent,
     replay,
     conditions,
     repeat,
     prompts,
-    out: values.out === undefined ? null : resolve(values.out),
-    record: values.record === undefined ? null : resolve(values.record),
+    out: outPath,
+    record: recordPath,
     timeoutSec,
     installTool: values["install-tool"] ?? null,
     passEnv,
@@ -203,18 +233,22 @@ export function parseBenchArgs(argv: string[], env: NodeJS.ProcessEnv = process.
   };
 }
 
-const PROMPTS_DIR = path.join(MONOREPO_ROOT, "benchmarks/prompts");
+/** 레포가 쓰는 프롬프트 폴더(웹 12개: prompts, RN 12개: prompts-rn) */
+export function promptsDirOf(repo: RepoName): string {
+  return path.join(MONOREPO_ROOT, "benchmarks", REPOS[repo].prompts);
+}
 
 /** --prompts 순서와 무관하게 id 순(결정적 출력). 중복 id는 한 번만. */
-async function promptsFor(ids: string[] | null): Promise<Prompt[]> {
-  const loaded = await loadPrompts(PROMPTS_DIR, ids ?? undefined);
+async function promptsFor(repo: RepoName, ids: string[] | null): Promise<Prompt[]> {
+  const loaded = await loadPrompts(promptsDirOf(repo), ids ?? undefined);
   const byId = new Map(loaded.map((p) => [p.id, p]));
   return [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 function effectiveOut(args: BenchArgs, date: string): string | null {
   if (args.out !== null) return path.resolve(args.out);
-  if (args.agent !== null) return path.join(MONOREPO_ROOT, "benchmarks/results", `${date}-${args.repo}.json`);
+  // 외부(비공개) 레포는 저장소 안에 기본 경로를 만들지 않는다 — --out이 필수다
+  if (args.agent !== null && !isExternalRepo(args.repo)) return path.join(MONOREPO_ROOT, "benchmarks/results", `${date}-${args.repo}.json`);
   return null;
 }
 
@@ -232,13 +266,14 @@ function effectiveRecord(args: BenchArgs, out: string | null): string | null {
 /** `--dry-run`: 실행 계획 줄들. 아무 것도 준비·실행하지 않는다. */
 export async function planBench(args: BenchArgs): Promise<string[]> {
   const date = args.date ?? localDate(new Date());
-  const prompts = await promptsFor(args.prompts);
+  const prompts = await promptsFor(args.repo, args.prompts);
   const out = effectiveOut(args, date);
   const record = args.agent !== null ? effectiveRecord(args, out) : null;
+  const spec = REPOS[args.repo];
   const total = prompts.length * args.conditions.length * args.repeat;
   const limits = resolveLimits(args, total);
   return [
-    `모드: ${args.agent !== null ? "agent" : "replay"} · 레포: ${args.repo} (${REPOS[args.repo]})`,
+    `모드: ${args.agent !== null ? "agent" : "replay"} · 레포: ${args.repo} (${spec.kind === "builtin" ? spec.dir : "외부 비공개 앱 — 경로는 출력하지 않음, 결과는 모노레포 밖에만 쓰고 커밋은 리댁션본만"}) · 프롬프트 세트: ${spec.prompts}`,
     args.agent !== null ? `에이전트 명령: ${args.agent}` : `replay 디렉터리: ${path.resolve(args.replay ?? "")}`,
     ...(args.agent !== null ? [`install 도구: ${args.installTool ?? defaultInstallTool(args.agent)} · 제한시간 ${args.timeoutSec}초 · 넘기는 환경 변수: ${Object.keys(agentEnv(args.passEnv)).join(", ")}`] : []),
     `조건: ${args.conditions.join(", ")} · 반복: ${args.repeat} · 프롬프트 ${prompts.length}개: ${prompts.map((p) => p.id).join(", ")}`,
@@ -250,8 +285,8 @@ export async function planBench(args: BenchArgs): Promise<string[]> {
           ...(estimateCostUsd(total) > limits.maxTotalUsd ? [`경고: 예상 비용 $${estimateCostUsd(total)}가 비용 한도 $${limits.maxTotalUsd}를 넘는다 — 끝까지 가기 전에 중단된다`] : []),
         ]
       : []),
-    `결과 JSON: ${out ?? "(파일 없음 — 요약만 출력)"}`,
-    ...(record !== null ? [`산출물(replay 배치): ${record}`] : []),
+    `결과 JSON: ${out ?? (spec.kind === "external" ? "(--out 필수 — 모노레포 밖 경로)" : "(파일 없음 — 요약만 출력)")}`,
+    ...(record !== null ? [`산출물(replay 배치): ${record}`] : spec.kind === "external" && args.agent !== null ? ["산출물(replay 배치): (--record 필수 — 모노레포 밖 경로)"] : []),
     `날짜: ${date}`,
   ];
 }
@@ -289,7 +324,7 @@ async function writeFileAtomic(file: string, text: string): Promise<void> {
 export async function runBench(args: BenchArgs, log: (line: string) => void = () => undefined): Promise<BenchResult> {
   const date = args.date ?? localDate(new Date());
   const mode = args.agent !== null ? "agent" : "replay";
-  const prompts = await promptsFor(args.prompts);
+  const prompts = await promptsFor(args.repo, args.prompts);
   const out = effectiveOut(args, date);
   const record = mode === "agent" ? effectiveRecord(args, out) : null;
   const replayDir = args.replay === null ? null : path.resolve(args.replay);
@@ -303,7 +338,7 @@ export async function runBench(args: BenchArgs, log: (line: string) => void = ()
   const version = args.agentVersion ?? (args.agent !== null ? await agentVersion(args.agent, env) : null);
 
   log(`베이스 준비: ${args.repo}`);
-  const base = await prepareBase(args.repo);
+  const base = await prepareBase(args.repo, { repoPath: args.repoPath });
   const templates = new Map<Condition, string>();
   const fingerprints: Partial<Record<Condition, SetupFingerprint>> = {};
   const runs: RunRecord[] = [];
@@ -360,7 +395,7 @@ export async function runBench(args: BenchArgs, log: (line: string) => void = ()
       if (abortReason !== null) break;
       const label = `${prompt.id} · ${condition} · #${rep}`;
       const scoreOf = (changes: Parameters<typeof scoreRun>[0]["changes"]) =>
-        scoreRun({ root: base.dir, snapshot: base.snapshot, matchers: base.matchers, changes, expectedFile: prompt.file });
+        scoreRun({ root: base.dir, snapshot: base.snapshot, matchers: base.matchers, changes, expectedFile: prompt.file, resolveRef: base.resolveRef });
 
       if (args.agent === null) {
         const r = await readReplay(replayDir ?? "", base, condition, prompt.id, rep);
@@ -480,6 +515,9 @@ async function main(): Promise<void> {
   // replay에 --out이 없으면 파일을 쓰지 않으므로 보고서(md)를 표준 출력으로 낸다
   if (args.agent === null && args.out === null) process.stdout.write(renderReport(result));
   else process.stdout.write(`${summaryLines(result).join("\n")}\n`);
+  if (isExternalRepo(args.repo) && args.out !== null) {
+    process.stderr.write(`비공개 레포 결과다 — 이 파일들은 커밋하지 않는다. 커밋할 보고서는: pnpm bench:report --redact --in ${args.out} --out <리댁션.md> --summary-json <요약.json>\n`);
+  }
   if (result.status === "aborted") {
     process.stderr.write(`중단됨: ${result.abortReason ?? ""} — 부분 결과는 저장했다. 이 결과로 README 줄을 만들지 않는다.\n`);
     process.exitCode = 1;

@@ -11,6 +11,8 @@
 - 결정(`decide`)된 중복 컴포넌트는 import를 DS 쪽으로 바꾼다. props 대응(`mapping`)이 없거나 값이 동적이면 그 사용은 보류(`mapping-missing`)하고, 대상 props를 읽지 못했을 때(npm 패키지 미설치 등)는 안전한 passthrough(`children`·`className`·`style`·`key`·`ref`·`id`·`data-*`·`aria-*`)와 `--map`에 나온 prop 말고는 `target-props-unknown`으로 보류하고, 지역 정의는 지우지 않고 주석만 단다.
 - `checkBranch` / `createBranch` / `commitFiles` / `abandonBranch` — `--branch`용 git 단계. git 2.23 이상, 작성자 정보, 깨끗하고 무시되지 않는 대상 파일, 커밋된 토큰·프리셋 파일(아니면 `tokenFiles`·`withTokens` 옵션으로 함께 커밋), 없는 브랜치 이름이 사전 조건이다. push하거나 PR을 열지 않는다.
 
+- JS 테마 토큰(`colors.surface`)으로 바꾸는 치환은 값 자리에 식을 쓴다: 숫자와 값 전체가 한 색인 문자열 리터럴은 노드 전체를 `colors.surface`·`spacing[2]`로 바꾸고, 그 파일에 테마 import가 없으면 `import { colors } from "../theme"`를 더한다(계획의 `files[].imports`, `--revert`가 import까지 되돌린다). React Native 레포는 JS 테마 토큰만 치환하고, 웹 레포는 CSS·W3C 토큰이 있으면 JS 테마 토큰을 치환하지 않는다(참조 해석에만 쓴다). 건너뛰는 경우: 문자열 일부(`"1px solid #000"`)는 `js-ref-in-string`, 같은 이름의 다른 바인딩이 이 파일에 있으면 `js-binding-conflict`, `light`/`dark` 모드 아래 토큰은 후보가 아니다. `files[].imports`는 새 import가 있을 때만 나온다. 같은 값을 가진 토큰이 여러 개면(`spacing[2]`와 `spacing.sm`이 모두 8) 테마에 먼저 선언된 키를 쓴다 — 이름 키를 우선하는 동률 규칙은 아직 없다(알려진 한계).
+
 `plan.tokens.loaded`는 init의 `tokens.css`를 어딘가에서 import하는지 알린다. 아니면 `notes`와 리포트에 안내가 나온다(적용은 막지 않는다).
 
 CLI: `dsmith migrate [--apply] [--branch <name> [--with-tokens]] [--close] [--rename-prefix] [--revert <id>] [--list]`. 종료 코드 1: 적용하지 못한 파일(롤백·계획 뒤 변경·쓰기 실패)이 있거나, `--revert`에서 되돌리지 못한 파일(적용 뒤 수정됨·없음)이 있을 때. `--branch`의 결과는 커밋됨 / 일부 실패로 커밋 없이 남음(되돌리기 명령 출력) / 적용된 것이 없어 브랜치를 버림 중 하나다.

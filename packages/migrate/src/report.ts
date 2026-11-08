@@ -28,6 +28,8 @@ const SKIP_EXPLAIN: Record<TokenSkipReason, string> = {
   "scss-variable": "SCSS·Less 변수가 섞인 값은 건너뜀",
   "multi-value": "다중 값 단축 속성(padding: 8px 12px 등)은 첫 값만 바꿀 수 없어 건너뜀",
   "rolled-back": "적용 중 검증(재파싱·재추출·해시)에 실패해 그 파일은 무변경",
+  "js-ref-in-string": "문자열 값의 일부(border: \"1px solid #000\" 등)에는 JS 테마 식을 넣을 수 없어 건너뜀",
+  "js-binding-conflict": "테마 export와 같은 이름의 다른 바인딩이 이 파일에 있어 import를 더할 수 없어 건너뜀",
 };
 const SKIP_ORDER: TokenSkipReason[] = [
   "no-token-ref",
@@ -39,6 +41,8 @@ const SKIP_ORDER: TokenSkipReason[] = [
   "zero-value",
   "scss-variable",
   "multi-value",
+  "js-ref-in-string",
+  "js-binding-conflict",
   "rolled-back",
 ];
 
@@ -128,7 +132,8 @@ export function formatPlanSummary(
         ? `파일 ${tokenFiles + componentOnly} (컴포넌트만 ${componentOnly}) · 토큰 치환 없음`
         : "치환할 것이 없음"
       : `파일 ${fileCount} · 치환 ${plan.planned} (${categorySummary(plan.byCategory)})`;
-  lines.push(`계획: ${planned}`);
+  const importCount = plan.files.reduce((n, f) => n + (f.imports?.length ?? 0), 0);
+  lines.push(`계획: ${planned}${importCount > 0 ? ` · import 추가 ${importCount}개` : ""}`);
   if (plan.planned > 0) {
     const c = plan.confidence;
     lines.push(`신뢰도: 같은 값 ${c.identical} · exact(거의 같음) ${c.exact} · close ${c.close}`);
@@ -173,7 +178,10 @@ export function renderMigrateReport(input: { plan: MigratePlan; applied: ApplyRe
 
   const appliedFiles = applied.files.filter((f) => f.status === "applied");
   lines.push("## 치환", "");
-  lines.push(`적용: ${appliedFiles.length}개 파일 · 치환 ${applied.replaced}`, "");
+  const importsAdded = plan.files
+    .filter((f) => appliedFiles.some((a) => a.file === f.file))
+    .reduce((n, f) => n + (f.imports?.length ?? 0), 0);
+  lines.push(`적용: ${appliedFiles.length}개 파일 · 치환 ${applied.replaced}${importsAdded > 0 ? ` · import 추가 ${importsAdded}개` : ""}`, "");
   lines.push("| 카테고리 | 계획 |", "| --- | --- |");
   for (const c of CATEGORIES) lines.push(`| ${CATEGORY_LABEL[c]} | ${plan.byCategory[c]} |`);
   lines.push("");

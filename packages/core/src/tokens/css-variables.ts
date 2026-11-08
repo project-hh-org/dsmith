@@ -20,7 +20,8 @@ const NON_SIZE_NAME =
 const RADIUS_NAME = /radius|rounded/i;
 const FONT_SIZE_NAME = /^--(?:ds-)?(?:font-size|text|fs)-/i;
 
-function colorOf(value: string) {
+/** 값이 색 표기(`#hex`·색 함수·CSS 색 이름·hsl 삼중항)일 때만 정규화한다. `"600"`처럼 숫자만 있는 값은 색이 아니다. */
+export function colorOf(value: string) {
   const text = value.trim();
   if (HSL_TRIPLET.test(text)) return normalizeColor(`hsl(${text})`);
   const looksLikeColor =

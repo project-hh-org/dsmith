@@ -5,6 +5,7 @@ import picomatch from "picomatch";
 import {
   COVERAGE_PROPERTIES,
   bestReplacement,
+  buildTokenRefResolver,
   extractFileStyles,
   extractorMatchers,
   findTokensStylesheetImport,
@@ -22,6 +23,7 @@ import {
   TOKENS_NOT_LOADED_NOTE,
   type DecisionKind,
   type Index,
+  type RefResolver,
   type TextPatch,
   type Token,
 } from "@dsmith-dev/core";
@@ -38,6 +40,7 @@ import {
   type ModuleEnv,
   type PlannedComponentEdit,
 } from "./components.js";
+import { planNamedImports, type ImportPlan } from "./imports.js";
 import { checkComponents, checkEdit } from "./verify.js";
 
 export type TokenSkipReason =
@@ -52,7 +55,11 @@ export type TokenSkipReason =
   /** alpha < 1인 색 — 토큰은 불투명이라 바꾸면 투명도가 사라진다 */
   | "translucent-color"
   /** UTF-8이 아닌 파일 — 다시 인코딩하면 바이트가 달라진다 */
-  | "binary-or-non-utf8";
+  | "binary-or-non-utf8"
+  /** JS 테마 토큰 식을 문자열 값의 일부에 넣을 수 없다(`"1px solid #000"`) */
+  | "js-ref-in-string"
+  /** 테마 export와 같은 이름의 다른 바인딩이 이 파일에 있어 import를 더할 수 없다 */
+  | "js-binding-conflict";
 export type { ComponentPlanSummary, ComponentSkipReason, HeldComponentEdit, PlannedComponentEdit } from "./components.js";
 
 export interface UsageRef {
@@ -73,6 +80,8 @@ export interface PlannedReplacement extends UsageRef {
   distance: number;
   /** tokenRef 결과 */
   ref: string;
+  /** JS 테마 토큰이면 그 위치(웹 CSS 토큰에는 없다) */
+  js?: { module: string; export: string };
   patch: TextPatch;
 }
 
@@ -95,6 +104,8 @@ export interface FilePlan {
   /** 계획 시점 내용의 sha256Text */
   sha256: string;
   replacements: PlannedReplacement[];
+  /** 이 파일에 새로 더하는 테마 import(이미 import한 것은 없다). patches에 포함돼 있다. 있을 때만 필드가 생긴다(웹 JSON 출력 불변) */
+  imports?: { module: string; name: string; local: string }[];
   components: PlannedComponentEdit[];
   /** 적용 뒤 재추출 검증: 이 파일의 컴포넌트 사용 중 item의 module이 전부 module이어야 한다(import를 옮긴 항목) */
   componentChecks: { item: string; module: string }[];
@@ -253,11 +264,18 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
   const includeClose = opts.close === true;
   const notes: string[] = [];
 
-  const rt = await loadReplacementTokens(root, detect.ds.tokenFiles);
+  const rt = await loadReplacementTokens(root, detect.ds.tokenFiles, {
+    framework: detect.framework.name,
+    jsThemeFiles: (detect.ds.jsThemes ?? []).map((t) => t.file),
+  });
   if (rt.source === "none") {
     throw new Error("치환할 토큰이 없음 — 먼저 `dsmith init`(토큰 초안) 또는 토큰 파일을 두세요");
   }
   notes.push(...rt.warnings);
+  // JS 테마 참조(`colors.surface`)를 토큰 사용으로 읽는 해석기 — 계획·재추출 검증·적용 검증이 같은 것을 쓴다
+  const moduleEnv = await loadModuleEnv(root);
+  const resolveRef: RefResolver = buildTokenRefResolver(rt.allTokens, moduleEnv);
+  const hasJsTokens = rt.tokens.some((t) => t.js !== undefined);
 
   const tailwindVersion = detect.styling.tailwindVersion;
   const preset = await readTailwindPreset(root, {
@@ -346,7 +364,7 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
     const resolved = await resolveChosenTargets(root, await readDecisions(root), index);
     chosen = resolved.targets;
     componentPending = resolved.pending;
-    env = await loadModuleEnv(root);
+    env = moduleEnv;
     for (const t of chosen) {
       const users = new Set<string>();
       for (const c of index.components) {
@@ -385,11 +403,17 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
   };
 
   /** 컴포넌트 편집을 토큰 치환 위에 얹어 group마다 시험한다(적용 단계와 같은 검사). 실패한 group은 rolled-back으로 보류 */
-  const verifyGroups = (file: string, code: string, tokens: PlannedReplacement[], edits: PlannedComponentEdit[]): PlannedComponentEdit[] => {
+  const verifyGroups = (
+    file: string,
+    code: string,
+    tokens: PlannedReplacement[],
+    edits: PlannedComponentEdit[],
+    importsFor: (reps: PlannedReplacement[]) => TextPatch[],
+  ): PlannedComponentEdit[] => {
     const simulate = (comps: PlannedComponentEdit[]): string | null => {
       try {
-        const after = applyPatches(code, partitionPatches([...tokens.map((r) => r.patch), ...comps.map((e) => e.patch)]).accepted);
-        const bad = checkEdit(root, file, code, after, tokens.map((r) => r.property), matchers);
+        const after = applyPatches(code, partitionPatches([...tokens.map((r) => r.patch), ...importsFor(tokens), ...comps.map((e) => e.patch)]).accepted);
+        const bad = checkEdit(root, file, code, after, tokens.map((r) => r.property), matchers, resolveRef);
         if (bad !== null) return bad;
         return env === null ? null : checkComponents(file, after, importChecks(comps), env);
       } catch (err) {
@@ -411,7 +435,12 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
   };
 
   /** 토큰 치환 후보 → 겹침 보류 → 치환 뒤 재추출 확인. 통과한 치환만 돌려준다 */
-  const finalizeTokens = (planned: PlannedReplacement[], code: string, file: string): PlannedReplacement[] => {
+  const finalizeTokens = (
+    planned: PlannedReplacement[],
+    code: string,
+    file: string,
+    importsFor: (reps: PlannedReplacement[]) => TextPatch[],
+  ): PlannedReplacement[] => {
     // 파일당 파티션은 한 번: 토큰 패치 → 컴포넌트 패치 순으로 한 목록에 모아 partitionPatches
     const { accepted, conflicts } = partitionPatches(planned.map((r) => r.patch));
     const bad = new Set<string>();
@@ -430,8 +459,8 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
     // (예: 다중 값 단축 속성의 일부만 바꾸면 Extractor가 그 자리를 토큰으로 읽지 못함)
     const verify = (reps: PlannedReplacement[]): boolean => {
       try {
-        const after = applyPatches(code, partitionPatches(reps.map((r) => r.patch)).accepted);
-        return checkEdit(root, file, code, after, reps.map((r) => r.property), matchers) === null;
+        const after = applyPatches(code, partitionPatches([...reps.map((r) => r.patch), ...importsFor(reps)]).accepted);
+        return checkEdit(root, file, code, after, reps.map((r) => r.property), matchers, resolveRef) === null;
       } catch {
         return false;
       }
@@ -465,7 +494,7 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
       const bytes = await fs.readFile(path.resolve(root, file));
       utf8 = isUtf8(bytes);
       code = bytes.toString("utf-8");
-      styles = extractFileStyles({ root, file, code }, matchers).styles;
+      styles = extractFileStyles({ root, file, code }, matchers, { resolveRef }).styles;
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {
         fresh.files.push(file); // 없어진 파일: 인덱스의 사용도 빠진다
@@ -487,6 +516,27 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
     }
     if (!utf8) notes.push(`UTF-8이 아니어서 건너뜀: ${file} (binary-or-non-utf8)`);
 
+    // JS 테마 토큰 치환에 필요한 이 파일의 import 계획(export마다 한 번). 로컬 이름은 jsLocal로 tokenRef에 넘긴다
+    const importMemo = new Map<string, ImportPlan>();
+    const importPlanFor = (module: string, name: string): ImportPlan => {
+      const key = `${module}\u0000${name}`;
+      let plan = importMemo.get(key);
+      if (plan === undefined) {
+        plan = planNamedImports({ file, code, tsPaths: moduleEnv.tsPaths, moduleContext: moduleEnv.moduleContext }, [{ module, name, isPath: true }]).plans[0]!;
+        importMemo.set(key, plan);
+      }
+      return plan;
+    };
+    const jsLocal: Record<string, string> = {};
+    const jsModuleOf = new Map<string, string>();
+    /** 치환에 쓰인 JS 테마 export들의 import 편집(이미 있는 것은 없다) */
+    const importEditsFor = (reps: PlannedReplacement[]): { patches: TextPatch[]; added: NonNullable<FilePlan["imports"]> } =>
+      planNamedImports(
+        { file, code, tsPaths: moduleEnv.tsPaths, moduleContext: moduleEnv.moduleContext },
+        reps.flatMap((r) => (r.js === undefined ? [] : [{ module: r.js.module, name: r.js.export, isPath: true as const }])),
+      );
+    const importsFor = (reps: PlannedReplacement[]): TextPatch[] => importEditsFor(reps).patches;
+
     const planned: PlannedReplacement[] = [];
     for (const u of styles) {
       if (!isRatedUsage(u)) continue;
@@ -502,7 +552,10 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
         continue;
       }
       scope.total += 1;
-      const r = bestReplacement(u, rt.tokens);
+      const extractor = byName.get(u.extractor);
+      // JS 테마 토큰이 후보에 있으면 이 사용이 참조할 수 있는 토큰(tokenRef가 있는 것) 중에서만 최선을 고른다 — CSS 변수는 RN에 없고 JS 식은 CSS에 없다
+      const pool = hasJsTokens ? rt.tokens.filter((t) => extractor?.tokenRef?.(t, u, refCtx) != null) : rt.tokens;
+      const r = bestReplacement(u, pool);
       if (r === null) {
         scope.far += 1;
         continue;
@@ -532,15 +585,25 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
         addSkip(ref0, "scss-variable", r.token.name);
         continue;
       }
-      const extractor = byName.get(u.extractor);
-      const ref = extractor?.tokenRef?.(r.token, u, refCtx) ?? null;
+      const js = r.token.js;
+      if (js !== undefined) {
+        // JS 테마 토큰: 이 파일이 그 export를 값으로 import했는지(없으면 더할 수 있는지)를 먼저 정한다
+        const ip = importPlanFor(js.module, js.export);
+        if (ip.kind === "conflict" || (jsModuleOf.has(js.export) && jsModuleOf.get(js.export) !== js.module)) {
+          addSkip(ref0, "js-binding-conflict", r.token.name);
+          continue;
+        }
+        jsLocal[js.export] = ip.local;
+        jsModuleOf.set(js.export, js.module);
+      }
+      const ref = extractor?.tokenRef?.(r.token, u, js === undefined ? refCtx : { ...refCtx, jsLocal }) ?? null;
       if (extractor === undefined || ref === null) {
         addSkip(ref0, "no-token-ref", r.token.name);
         continue;
       }
-      const w = extractor.write(u, ref);
+      const w = extractor.write(u, ref, js === undefined ? undefined : { expression: true });
       if (w === null) {
-        addSkip(ref0, "no-patch", r.token.name);
+        addSkip(ref0, js === undefined ? "no-patch" : "js-ref-in-string", r.token.name);
         continue;
       }
       if (!isTailwind && BOX_SHORTHAND.includes(u.property) && hasSiblingOperand(code, w)) {
@@ -560,10 +623,11 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
         confidence: r.confidence,
         distance: r.distance,
         ref,
+        ...(js === undefined ? {} : { js: { module: js.module, export: js.export } }),
         patch: { start: w.start, end: w.end, replacement: w.replacement },
       });
     }
-    let tokenKept = planned.length === 0 ? [] : finalizeTokens(planned, code, file);
+    let tokenKept = planned.length === 0 ? [] : finalizeTokens(planned, code, file, importsFor);
     if (opts.only === "components") {
       // 토큰 치환은 범위 제한으로 뺀다(건너뜀이 아니라 범위 밖)
       scope.outOfRange += tokenKept.length;
@@ -593,10 +657,11 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
           });
           compEdits = holdGroups(compEdits, badGroups, "overlap", "토큰 치환과 소스 구간이 겹침");
         }
-        compEdits = verifyGroups(file, code, tokenKept, compEdits);
+        compEdits = verifyGroups(file, code, tokenKept, compEdits, importsFor);
       }
     }
     if (tokenKept.length === 0 && compEdits.length === 0) continue;
+    const usedImports = importEditsFor(tokenKept);
     const componentChecks = importChecks(compEdits);
     const importedItems = new Set(compEdits.filter((e) => e.kind === "import").map((e) => e.item));
     const importTargets: FilePlan["importTargets"] = (compTargets ?? [])
@@ -607,10 +672,11 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
       file,
       sha256: sha256Text(code),
       replacements: tokenKept,
+      ...(usedImports.added.length > 0 ? { imports: usedImports.added } : {}),
       components: compEdits,
       componentChecks,
       importTargets,
-      patches: partitionPatches([...tokenKept.map((r) => r.patch), ...compEdits.map((e) => e.patch)]).accepted,
+      patches: partitionPatches([...tokenKept.map((r) => r.patch), ...usedImports.patches, ...compEdits.map((e) => e.patch)]).accepted,
     });
   }
 

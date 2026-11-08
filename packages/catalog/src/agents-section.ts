@@ -63,7 +63,34 @@ function initDirOf(s: CatalogSource): string {
   return (s.dir ?? "design-system/components").replace(/\/components$/, "");
 }
 
-function tokenLine(catalog: Catalog): string | null {
+/** 이 값을 만든 모양: 토큰이 전부 JS 테마 객체 멤버(`colors.surface`)다 */
+function isJsOnly(catalog: Catalog): boolean {
+  return catalog.tokens.length > 0 && catalog.tokens.every((t) => t.js !== undefined);
+}
+
+/** `a.ts`의 JS 객체 `colors`·`spacing`; `b.ts`의 JS 객체 `x`. 객체 순서는 테마 소스 순(detect.ds.jsThemes), 없으면 이름순 */
+function jsTokenLine(catalog: Catalog, themes: readonly { file: string; exports: readonly string[] }[]): string {
+  const byFile = new Map<string, string[]>();
+  for (const t of catalog.tokens) {
+    if (t.js === undefined) continue;
+    const list = byFile.get(t.file) ?? [];
+    if (!list.includes(t.js.export)) list.push(t.js.export);
+    byFile.set(t.file, list);
+  }
+  const all: string[] = [];
+  const parts = [...byFile].slice(0, MAX_TOKEN_FILES).map(([file, found]) => {
+    const declared = themes.find((th) => th.file === file)?.exports.filter((e) => found.includes(e)) ?? [];
+    const names = declared.length > 0 ? declared : found;
+    all.push(...names);
+    return `${tick(file)}의 JS 객체 ${names.map(tick).join("·")}`;
+  });
+  const more = byFile.size > MAX_TOKEN_FILES ? ` 외 ${byFile.size - MAX_TOKEN_FILES}개 파일` : "";
+  const example = all.includes("colors") ? "colors" : (all[0] ?? "colors");
+  return `- 토큰: ${parts.join("; ")}${more} — 스타일 값은 이 객체를 import해 참조(예 \`${example}.<이름>\`), hex·숫자 직접 쓰지 않음`;
+}
+
+function tokenLine(catalog: Catalog, themes: readonly { file: string; exports: readonly string[] }[]): string | null {
+  if (isJsOnly(catalog)) return jsTokenLine(catalog, themes);
   const files = [...new Set(catalog.tokens.map((t) => t.file).filter((f) => f !== ""))];
   const initSources = catalog.sources.filter((s) => s.origin === "init");
   if (files.length === 0) {
@@ -115,6 +142,8 @@ export function renderAgentsDsSection(
   catalog: Catalog,
   usageOrder: string[],
   surfaces: InstalledSurfaces = { mcp: false, skills: false },
+  /** 감지된 JS 테마(`detect.ds.jsThemes`) — 토큰 줄에 객체 이름을 소스 순서로 적는다 */
+  jsThemes: readonly { file: string; exports: readonly string[] }[] = [],
 ): string {
   const lines: string[] = [];
   lines.push("## 이 레포의 디자인 시스템 (dsmith ai가 생성 — 직접 고치면 다음 ai가 덮어쓰지 않음)", "");
@@ -124,7 +153,7 @@ export function renderAgentsDsSection(
       ? "- DS 위치: 찾지 못함"
       : `- DS 위치: ${catalog.sources.map(sourceLabel).join(" · ")}`,
   );
-  const tokens = tokenLine(catalog);
+  const tokens = tokenLine(catalog, jsThemes);
   if (tokens !== null) lines.push(tokens);
 
   // 골격(init이 만들고 아직 손대지 않은 빈 컴포넌트)은 실제 컴포넌트 목록에 넣지 않는다.
@@ -161,7 +190,9 @@ export function renderAgentsDsSection(
     "",
     "### 규칙",
     catalog.tokens.length > 0
-      ? "1. 색·간격·모서리·글꼴 크기 값을 하드코딩하지 않는다. 토큰 파일의 변수를 쓴다."
+      ? isJsOnly(catalog)
+        ? "1. 색·간격·모서리·글꼴 크기 값을 하드코딩하지 않는다. 테마 객체의 값을 쓴다."
+        : "1. 색·간격·모서리·글꼴 크기 값을 하드코딩하지 않는다. 토큰 파일의 변수를 쓴다."
       : "1. 토큰 파일이 있으면 색·간격·모서리·글꼴 크기 값을 하드코딩하지 않고 그 변수를 쓴다.",
     mcp
       ? "2. 값이 필요하면 MCP `resolve_token`으로 가장 가까운 토큰을 찾는다."

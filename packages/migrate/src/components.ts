@@ -18,6 +18,18 @@ import {
   type TsPaths,
 } from "@dsmith-dev/core";
 import { readCvaVariants } from "./cva.js";
+import {
+  findMergeTarget,
+  importDeclsOf,
+  renderImportLine,
+  renderedImportBinding,
+  type Base,
+  type DeclEntry,
+  type Id,
+  type ImportDecl,
+  type Spec,
+  type StrLit,
+} from "./imports.js";
 import { specifierForModule } from "./specifier.js";
 
 export type ComponentSkipReason =
@@ -143,28 +155,6 @@ async function dependencyNames(root: string): Promise<Set<string>> {
 
 // ───────────────────────── 최소 AST 모양 ─────────────────────────
 
-interface Base {
-  type: string;
-  start: number;
-  end: number;
-  loc?: { start: { line: number } };
-}
-interface Id extends Base {
-  name: string;
-}
-interface StrLit extends Base {
-  value: string;
-}
-interface Spec extends Base {
-  local: Id;
-  imported?: Id | StrLit;
-  importKind?: string | null;
-}
-interface ImportDecl extends Base {
-  specifiers: Spec[];
-  source: StrLit;
-  importKind?: string | null;
-}
 /** 속성 값·표현식을 읽는 데 필요한 필드만 모은 느슨한 모양 */
 interface Expr extends Base {
   value?: string | number | boolean;
@@ -370,7 +360,7 @@ interface FileCtx {
   code: string;
   eol: string;
   body: Base[];
-  decls: { node: ImportDecl; key: string }[];
+  decls: DeclEntry[];
   tsPaths: TsPaths | null;
   openings: Opening[] | null;
 }
@@ -757,30 +747,17 @@ function lineRemoval(code: string, node: Base): { start: number; end: number } {
   return { start: node.start, end: node.end };
 }
 
-function renderedBinding(t: ChosenTarget, local: string): string {
-  return local === t.item ? t.item : `${t.item} as ${local}`;
-}
+const renderedBinding = (t: ChosenTarget, local: string): string => renderedImportBinding(t.item, local);
 
 function importLine(ctx: FileCtx, t: ChosenTarget, local: string, decl: ImportDecl): string {
   const spec = specifierForModule(ctx.file, t.module, ctx.tsPaths, t.file !== null ? true : undefined);
-  const q = ctx.code[decl.source.start] === "'" ? "'" : '"';
-  const semi = ctx.code[decl.end - 1] === ";" ? ";" : "";
-  return t.exportKind === "default"
-    ? `import ${local} from ${q}${spec}${q}${semi}`
-    : `import { ${renderedBinding(t, local)} } from ${q}${spec}${q}${semi}`;
+  return renderImportLine(ctx.code, decl, spec, { kind: t.exportKind === "default" ? "default" : "named", imported: t.item, local });
 }
 
 /** 기존 선언 중 같은 module의 named import(값)를 합칠 곳 */
 function mergeTarget(ctx: FileCtx, t: ChosenTarget, local: string, removing: Set<ImportDecl>): { node: ImportDecl; last: Spec } | null {
   if (t.exportKind !== "named") return null;
-  for (const { node, key } of ctx.decls) {
-    if (removing.has(node) || key !== t.module || node.importKind === "type" || node.importKind === "typeof") continue;
-    if (node.specifiers.some((s) => s.type === "ImportNamespaceSpecifier" || s.local.name === local)) continue;
-    const named = node.specifiers.filter((s) => s.type === "ImportSpecifier");
-    const last = named[named.length - 1];
-    if (last !== undefined) return { node, last };
-  }
-  return null;
+  return findMergeTarget(ctx.decls, t.module, local, removing);
 }
 
 /** 지정자 하나가 빠진 뒤의 선언 내 지정자 제거 구간들(옮겨지는 것만, 남는 것이 하나 이상일 때) */
@@ -986,12 +963,7 @@ export function planComponentEdits(input: {
   const body = programBody(code, file);
   if (body === null) return { edits: [], held };
 
-  const decls = body
-    .filter((s) => s.type === "ImportDeclaration")
-    .map((s) => {
-      const node = s as ImportDecl;
-      return { node, key: moduleKeyOf(file, node.source.value, tsPaths, moduleContext) };
-    });
+  const decls = importDeclsOf(body, file, tsPaths, moduleContext);
   const ctx: FileCtx = { file, code, eol: code.includes("\r\n") ? "\r\n" : "\n", body, decls, tsPaths, openings: null };
 
   const plans: ItemPlan[] = [];

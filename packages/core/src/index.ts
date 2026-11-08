@@ -25,8 +25,15 @@ export {
   normalizeSpecifier,
   readTsconfigPaths,
   resolveWithPaths,
+  stripModulePath,
 } from "./index/specifier.js";
 export { readIndex, writeIndex } from "./index/store.js";
+export type { ImportTable } from "./parse/member-ref.js";
+export { importTableOf, memberRefOf } from "./parse/member-ref.js";
+export type { JsThemeRead } from "./tokens/js-theme.js";
+export { JS_THEME_CANDIDATES, jsKeyOf, readJsThemeTokens } from "./tokens/js-theme.js";
+export type { RefResolver } from "./tokens/ref-resolver.js";
+export { buildTokenRefResolver, replacementCandidates } from "./tokens/ref-resolver.js";
 export { colorDistance, lengthDistance } from "./match/distance.js";
 export type { ColorCluster } from "./cluster/color-cluster.js";
 export { clusterColors } from "./cluster/color-cluster.js";
@@ -71,7 +78,7 @@ export { proposalTokens } from "./tokens/proposal.js";
 export type { LoadedToken, LoadedTokens, TokenSourceKind } from "./tokens/load.js";
 export { loadTokens, tokenCategoryOf, tokensFromCatalog } from "./tokens/load.js";
 export type { ReplacementTokens } from "./tokens/replacement-tokens.js";
-export { loadReplacementTokens } from "./tokens/replacement-tokens.js";
+export { loadReplacementTokens, readableJsThemeFiles } from "./tokens/replacement-tokens.js";
 export type {
   Confidence,
   DecisionCard,
@@ -89,7 +96,7 @@ export { candidatesOf, decisionCandidates, listDecisions, similarItems } from ".
 export { readGitHistory } from "./decisions/git-history.js";
 export type { GitError, GitResult } from "./git/run.js";
 export { runGit } from "./git/run.js";
-export { findInitDir, readInitHashes } from "./fs/init-dir.js";
+export { findInitDir, findInitTokensTs, readInitHashes } from "./fs/init-dir.js";
 export type { PatchConflict, TextPatch } from "./patch/apply.js";
 export { applyPatches, invertPatches, invertRecordedPatches, partitionPatches } from "./patch/apply.js";
 export type { EditCheck } from "./patch/validate.js";
@@ -135,7 +142,7 @@ export type { CatalogTokensResult } from "./catalog/tokens.js";
 export { readCatalogTokens, recordedTokenFiles, staleCatalogTokenFiles, withTokenFiles } from "./catalog/tokens.js";
 export type { DsmithExtension, W3cColorValue, W3cDimensionValue, W3cReadResult } from "./tokens/w3c.js";
 export { DSMITH_EXTENSION, draftToW3c, readW3cTokens, serializeW3c } from "./tokens/w3c.js";
-export { GENERATED_NOTICE, emitTokensCss, emitTokensTs } from "./tokens/emit.js";
+export { GENERATED_NOTICE, emitTokensCss, emitTokensTs, emitTokensTsRn, rnTokenExpression } from "./tokens/emit.js";
 export type { TokenNaming } from "./tokens/naming.js";
 export {
   DEFAULT_TOKEN_NAMING,

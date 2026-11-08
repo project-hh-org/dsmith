@@ -1,4 +1,4 @@
-import { parseTsx, traverse, usagesFromStyleObject } from "@dsmith-dev/core";
+import { importTableOf, memberRefOf, parseTsx, traverse, usagesFromStyleObject } from "@dsmith-dev/core";
 import { JS_FILES } from "@dsmith-dev/extractor-api";
 import type { ExtractContext, Extractor, StyleUsage } from "@dsmith-dev/extractor-api";
 import { registerPatchTarget, tokenRef, write } from "./write.js";
@@ -22,6 +22,7 @@ function extract(ctx: ExtractContext): StyleUsage[] {
   // 복구 불가능한 문법 오류는 그대로 던진다. 파일 단위 실패 기록은 호출자(indexer) 몫이다.
   const ast = parseTsx(ctx.code, ctx.file);
 
+  const imports = importTableOf(ast);
   const usages: StyleUsage[] = [];
   traverse(ast, {
     JSXAttribute(path) {
@@ -50,6 +51,11 @@ function extract(ctx: ExtractContext): StyleUsage[] {
       const objectCtx = { file: ctx.file, code: ctx.code, extractor: EXTRACTOR_NAME };
       for (const { usage, patch } of usagesFromStyleObject(value.expression, objectCtx)) {
         if (patch !== null) registerPatchTarget(usage, { ...patch, file: ctx.file });
+        if (usage.source === "dynamic") {
+          // `color: colors.surface`처럼 import 바인딩에서 시작하는 멤버 식은 core가 토큰 사용으로 해석할 수 있게 ref를 붙인다.
+          const ref = memberRefOf(usage.raw, imports);
+          if (ref !== undefined) usage.ref = ref;
+        }
         usages.push(usage);
       }
     },

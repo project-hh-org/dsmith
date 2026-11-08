@@ -2,7 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   applyPatches,
+  buildTokenRefResolver,
   extractorMatchers,
+  loadTokens,
   newMigrationId,
   sha256Text,
   writeMigration,
@@ -76,6 +78,9 @@ export async function applyMigration(
   const matchers = extractorMatchers(opts.extractors);
   const id = await newMigrationId(root, opts.now ?? new Date());
   const env = await loadModuleEnv(root);
+  // 계획과 같은 JS 테마 참조 해석기(계획이 읽은 토큰 파일 기준) — 치환한 `colors.surface`가 적용 뒤 token으로 읽히는지 확인한다
+  // plan.tokens.files는 계획이 사용 증거로 걸러 읽은 파일이라 JS 파일도 그대로 읽는다
+  const resolveRef = buildTokenRefResolver((await loadTokens(root, plan.tokens.files, [], { jsFiles: plan.tokens.files })).tokens, env);
 
   const prepared: Prepared[] = [];
   for (const fp of plan.files) {
@@ -106,7 +111,7 @@ export async function applyMigration(
       prepared.push(reject("rolled-back", `패치 적용 실패: ${(err as Error).message}`));
       continue;
     }
-    const mismatch = checkEdit(root, fp.file, current, after, fp.replacements.map((r) => r.property), matchers) ?? checkComponents(fp.file, after, fp.componentChecks, env);
+    const mismatch = checkEdit(root, fp.file, current, after, fp.replacements.map((r) => r.property), matchers, resolveRef) ?? checkComponents(fp.file, after, fp.componentChecks, env);
     if (mismatch !== null) {
       prepared.push(reject("rolled-back", mismatch));
       continue;

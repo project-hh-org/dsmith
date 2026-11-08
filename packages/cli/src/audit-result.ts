@@ -10,6 +10,8 @@ export interface AuditResult {
     byFile: { file: string; count: number }[];
   };
   dynamicCount: number;
+  /** JS 테마 참조(`colors.surface`)로 해석되어 토큰 사용으로 센 스타일 수. 감지된 JS 테마(`detect.ds.jsThemes`)가 있을 때만 */
+  jsThemeRefs?: number;
   /** name+module로 묶은 사용 수(내림차순). importedFrom은 그룹에서 처음 본 값(표시용). */
   components: { name: string; importedFrom: string | null; module: string; count: number }[];
   /** 같은 이름이 둘 이상의 module(import 없는 지역 사용은 제외)에서 올 때 */

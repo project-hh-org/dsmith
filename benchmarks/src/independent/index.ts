@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import type { ResolverConfig } from "./resolve.js";
+import { hasObjectLiteralExport } from "./rn.js";
 import { scoreIndependent, type IndepChange } from "./score.js";
 import { readThemeVarKeys } from "./tailwind.js";
 import { typeCheckChanged } from "./typecheck.js";
@@ -14,6 +15,7 @@ export { classStringOccurrences, cssTextOccurrences, declarationOccurrences, sca
 export { scanCss, declaredCustomProperties } from "./css.js";
 export { scanColors, scanLengths, scanVarRefs, NAMED_COLORS } from "./colors.js";
 export { PALETTE_PATTERNS } from "./tailwind.js";
+export { hasObjectLiteralExport, isRnLengthProperty, scanRnStyles } from "./rn.js";
 export { resolveLocal, isDsModule } from "./resolve.js";
 export type { ResolverConfig } from "./resolve.js";
 export type { IndepCounts, IndependentScore, TypeCheckRecord } from "./types.js";
@@ -101,6 +103,42 @@ export function readDsModules(root: string): string[] {
   }
 }
 
+const MODULE_EXTS = [".ts", ".tsx", ".js", ".jsx", ".mjs"] as const;
+
+/**
+ * 모듈 경로(root 상대, 확장자·index 없음)의 파일이 객체 리터럴 export를 갖는지 파일 내용으로 판정한다(스냅샷을 쓰지 않는다).
+ * 에이전트가 바꾼 파일은 overlay(after)를 우선하고, 지워진 파일은 없는 것으로 본다.
+ */
+export function themeModuleChecker(root: string, overlay: ReadonlyMap<string, string>, deleted: ReadonlySet<string>): (moduleKey: string) => boolean {
+  const cache = new Map<string, boolean>();
+  const read = (rel: string): string | null => {
+    if (deleted.has(rel)) return null;
+    const over = overlay.get(rel);
+    if (over !== undefined) return over;
+    try {
+      const abs = path.join(root, rel);
+      return fs.statSync(abs).size <= MAX_BYTES ? fs.readFileSync(abs, "utf-8") : null;
+    } catch {
+      return null;
+    }
+  };
+  return (moduleKey) => {
+    const hit = cache.get(moduleKey);
+    if (hit !== undefined) return hit;
+    let result = false;
+    const candidates = [...MODULE_EXTS.map((e) => `${moduleKey}${e}`), ...MODULE_EXTS.map((e) => `${moduleKey}/index${e}`)];
+    for (const rel of candidates) {
+      const code = read(rel);
+      if (code !== null) {
+        result = hasObjectLiteralExport(code, rel);
+        break;
+      }
+    }
+    cache.set(moduleKey, result);
+    return result;
+  };
+}
+
 export interface EvaluateInput {
   /** 복사본(또는 replay 베이스) 절대 경로 — 실행이 끝난 상태. 바뀐 파일은 changes가 우선한다 */
   root: string;
@@ -114,9 +152,11 @@ export function evaluateIndependent(input: EvaluateInput): { independent: Indepe
   const { root, changes } = input;
   const cssFiles = readCssFiles(root);
   const overlay = new Map<string, string>();
+  const deleted = new Set<string>();
   for (const c of changes) {
     if (c.status === "deleted") {
       delete cssFiles[c.file];
+      deleted.add(c.file);
       continue;
     }
     if (c.after === null) continue;
@@ -129,6 +169,7 @@ export function evaluateIndependent(input: EvaluateInput): { independent: Indepe
     dsModules: input.dsModules ?? readDsModules(root),
     resolver: readResolverConfig(root),
     themeVars: readThemeVars(root),
+    isThemeModule: themeModuleChecker(root, overlay, deleted),
   });
   const typeCheck = typeCheckChanged({ root, overlay, files: independent.files.map((f) => f.file) });
   return { independent, typeCheck };

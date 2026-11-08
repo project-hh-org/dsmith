@@ -159,6 +159,12 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 
 실행은 레포 원본이 아니라 `os.tmpdir()` 아래 임시 복사본에서 하고, 채점 코드(`benchmarks/`)는 복사본에 넣지 않는다. 에이전트에는 `CLAUDE*` 환경 변수를 넘기지 않고 모노레포 경로를 뺀 PATH를 주는 정리된 환경을 준다. 에이전트 출력에 채점 코드 경로가 보이면 그 실행에 `harnessPathSeen`을 표시하고 보고서에 경고를 쓴다. 결과 JSON·보고서·산출물은 `benchmarks/results/`에 남고, 산출물을 `--replay`로 다시 채점하면 같은 숫자가 나온다. 보고서는 dsmith 조건의 MCP 도구 호출 수와 permission denial 수도 센다. 자세한 옵션과 폴더 구조는 [benchmarks/README.md](benchmarks/README.md).
 
+### React Native와 비공개 앱
+
+- `--repo rn-app`은 저장소 안의 합성 Expo 앱(`fixtures/rn-app`)이다. RN 프롬프트 12개(`benchmarks/prompts-rn`, 모두 `이 앱 스타일로 `로 시작: 설정 행 목록·확인 시트·배지·토스트·설정/상세/검색 화면 등)를 쓴다. `pnpm bench:replay`가 이 레포의 합성 산출물(`benchmarks/replay/rn-app`)도 채점해 RN 경로(JS 테마 참조 해석, 독립 채점의 `themeRef`)를 CI에서 고정한다.
+- `--repo knowing-saju`는 저장소 밖에 있는 비공개 앱이다. 위치는 `--repo-path <디렉터리>`(또는 환경 변수 `DSMITH_BENCH_REPO_PATH`)로만 주고 커밋하지 않는다. 앱은 `.env*`·`ios/`·`android/`·`node_modules/`·서명 키·`google-services.json` 등을 뺀 임시 복사본으로만 쓰며, `--out`·`--record`(agent 실행)는 필수이고 모노레포 밖이어야 한다.
+- 비공개 앱의 원본 결과(파일 이름·토큰 이름·진단 메시지가 든다)는 저장소에 넣지 않는다. 커밋하는 것은 `pnpm bench:report --redact --in <결과.json> --out <리댁션.md> --summary-json <요약.json>`이 만든 수치뿐인 보고서와 요약이다. 리댁션본에는 프롬프트 id·파일(공개 프롬프트)과 숫자만 있고 앱 경로, 바뀐 파일 이름, 토큰 이름, 코드, finding 메시지가 없다. 자세한 것은 [benchmarks/README.md](benchmarks/README.md)의 "React Native 벤치마크".
+
 ### 지표
 
 - 토큰 준수율 = `token / (token + hardcoded)` — 에이전트가 새로 쓴 스타일 값 중 토큰을 가리킨 비율. 보고서와 README 줄에는 `12.5% (1/8)`처럼 분자/분모를 함께 쓴다. Tailwind 기본 스케일 클래스(`p-4`, `bg-blue-100`)는 분모에서 빼고 별도 행으로 센다. 변수·상수에 담은 className은 dynamic으로만 세며 준수율 분모에 들어가지 않는다
@@ -166,7 +172,7 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 - `knownToken` — token 중 베이스의 토큰 이름·프리셋 키를 실제로 가리킨 것(지어낸 변수 `var(--made-up)`는 제외)
 - DS 외 컴포넌트 — `prefer-ds-component` finding 수. 이 밖에 DS 컴포넌트 사용, deprecated, 파싱 실패, 기대 파일 없음을 센다
 - 바뀐 파일에서 새로 생긴 사용만 센다(수정 파일은 원래 있던 값을 빼고 비교 — `guard --ci`와 같은 방식)
-- 독립 사용률 = `정의된 var 참조 / (정의된 var + 정의 없는 var + 색 리터럴 + px·rem 길이 리터럴 + Tailwind 기본 팔레트·스케일)` — dsmith 엔진과 코드를 공유하지 않는 별도 채점기의 값. `typeErrors`는 바뀐 파일의 구문·의미 진단 수(의존성 타입 없이)
+- 독립 사용률 = `정의된 var 참조 / (정의된 var + 정의 없는 var + 색 리터럴 + px·rem 길이 리터럴 + Tailwind 기본 팔레트·스케일)` — dsmith 엔진과 코드를 공유하지 않는 별도 채점기의 값. React Native 레포는 분자·분모에 `JS 테마 참조`(로컬 객체 모듈에서 import한 `colors.surface` 같은 멤버 식·스프레드)를 더한다. `typeErrors`는 바뀐 파일의 구문·의미 진단 수(의존성 타입 없이)
 
 ### 주장하지 않는 것
 
@@ -180,7 +186,7 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 
 `detect`가 레포에서 감지한 방식 중 이름이 같은 Extractor만 `activeExtractors`로 켜지고, `audit`은 켜진 Extractor로만 스타일 값을 추출한다. 감지된 방식과 겹치는 Extractor가 하나도 없으면 `inline-style`이 대신 켜진다(`fallback`). 레지스트리는 `packages/cli/src/registry.ts`에 있다.
 
-방식은 두 경로로 감지된다: 아래 표의 내장 감지, 그리고 Extractor 메타가 선언한 `signals`(의존성·파일 glob·코드 정규식 중 하나라도 맞으면). 표에 없는 Extractor도 `signals`와 레지스트리 등록이 둘 다 있으면 켜진다 — 신호만 있고 레지스트리에 없으면 켜지지 않는다. 표의 7개 이름은 이번 판에서 내장 감지가 판정한다(내장 Extractor도 `signals`를 선언해 두었지만 아직 쓰지 않는다).
+방식은 두 경로로 감지된다: 아래 표의 내장 감지, 그리고 Extractor 메타가 선언한 `signals`(의존성·파일 glob·코드 정규식 중 하나라도 맞으면). 표에 없는 Extractor도 `signals`와 레지스트리 등록이 둘 다 있으면 켜진다 — 신호만 있고 레지스트리에 없으면 켜지지 않는다. 표의 8개 이름은 이번 판에서 내장 감지가 판정한다(내장 Extractor도 `signals`를 선언해 두었지만 아직 쓰지 않는다).
 
 `JS_FILES` = `**/*.{tsx,jsx,ts,js,mjs,cjs}`
 
@@ -192,12 +198,23 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 | styled-components | `styled` | `JS_FILES` | `styled.x`·`styled(X)`·`css`·`createGlobalStyle`의 태그 템플릿과 객체 인자 | 감지: `styled-components` 의존성. `${…}` 보간은 동적 값으로 센다 |
 | Emotion | `emotion` | `JS_FILES` | `css` 태그(`@emotion/react`·`@emotion/css`), `@emotion/styled`, JSX `css` prop(객체·중첩 선택자 포함) | 감지: `@emotion/react`·`@emotion/styled`·`@emotion/css` 중 하나의 의존성. styled-components만 import한 파일의 `css` prop은 보지 않는다 |
 | MUI sx | `mui-sx` | `JS_FILES` | JSX `sx={{ … }}` 객체(반응형 값 객체는 펼쳐서) | 감지: `@mui/material`·`@mui/joy` 의존성 + 소스의 `sx={{`. 숫자 간격·`borderRadius`·팔레트 경로(`"primary.main"`)는 테마 token. `overrides.activeExtractors`에 예전 이름 `sx`를 쓰면 `mui-sx`로 바꿔 적용한다 |
+| React Native | `react-native-stylesheet` | `JS_FILES` | `StyleSheet.create`·`compose`·`flatten` 인자, JSX `style`·`*Style`의 객체·배열·조건 가지, `Platform.select` 값 | 감지: `react-native` 의존성 또는 `StyleSheet.create(`. RN 프레임워크에서는 inline-style을 대신한다. 단위 없는 숫자 = dp(px), 치환은 JS 테마 참조(`colors.surface`)로만 |
 | CSS Modules | — | — | 감지만 (`detect`가 `css-modules` 신호로 보고, 추출기 없음) | `*.module.{css,scss}` 파일. `audit` 리포트에 "감지됐지만 분석하지 않은 방식"으로 나온다 |
 
 한계:
 
 - MUI `styled()`(`@mui/material/styles`·`@mui/system`에서 import)는 아직 어느 Extractor도 추출하지 않는다. `styled`·`emotion`은 각자 패키지(`styled-components`, `@emotion/styled`)에서 import한 `styled`만 맡는다.
 - 객체 리터럴이 아닌 스타일 참조(`style={styles.box}`, `sx={classes.root}`, `css={panel}`, `style={getStyle()}`)는 값을 알 수 없어 `dynamic` 1건(`property: other`)으로 센다. 리포트의 "동적 값"에 들어가고 점수 분모에는 들어가지 않는다.
+
+### JS 테마 객체
+
+앱이 이미 `export const colors = { … } as const` 모양의 JS 모듈(`src/theme.ts`, `theme/index.ts`, `constants/Colors.ts` 등)을 가지고 있으면 그 값을 토큰으로 읽는다. 웹과 React Native에 모두 적용된다.
+
+- **읽는 규칙**: 최상위 `export const X = {…}`(`as const`·`satisfies` 벗김), `export { X }`, `export default {…}`. 색 문자열은 color, 숫자는 조상 키로 간격(`spacing`·`space`·`gap`·`size`)·모서리(`radius`·`rounded`·`corner`)·글꼴 크기(`fontSize`)로 나눈다. 이름은 `colors.surface`처럼 export와 경로를 `.`로 잇는다. 같은 파일의 const 객체와 상대 경로 import 한 단계까지 따라가고, 그 밖의 값은 건너뛰며 경고한다.
+- **쓰이는 테마만**: 후보 파일 중 토큰이 2개 이상이고 다른 소스 파일이 import하는 것만 `detect`가 테마로 본다(`ds.jsThemes`).
+- **참조는 토큰 사용**: `colors.surface`·`spacing.md`·`...typography.caption` 같은 테마 멤버 참조는 `audit`·`guard`·벤치마크가 모두 토큰 사용으로 센다. 계산 접근(`colors[key]`)은 값을 알 수 없어 동적 값이다. `audit` 리포트에 `JS 테마 참조 N개`가 나온다.
+- **치환 대상**: React Native 레포는 JS 테마 토큰으로만 `migrate`가 바꾼다(`colors.surface`, 테마 import가 없는 파일에는 import도 더한다). 웹 레포는 CSS·W3C 토큰이 하나라도 있으면 JS 테마 토큰은 참조 해석에만 쓰이고 치환 대상이 아니다. `light`/`dark` 모드 객체 아래 토큰도 치환 대상이 아니다(다크 모드가 깨진다).
+- **`init`** (React Native): 쓰이는 JS 테마가 있으면 토큰 파일을 만들지 않고 그 테마로 토큰 수와 커버리지를 계산한다(`tokens.css`·`tokens.json`·Tailwind 프리셋·웹 스캐폴드도 만들지 않는다). 테마가 없으면 RN 형식 `design-system/tokens.ts`(`export const colors/spacing/radius/fontSize = {…} as const`, 단위 없는 숫자)만 만든다. 자세한 내용은 `packages/init/README.md`.
 
 ## AI 도구 연결
 
@@ -282,6 +299,7 @@ node <abs>/packages/cli/dist/bin.js install --root <repo> --mcp --skills --mcp-c
 - `packages/extractor-styled` — styled-components 태그 템플릿·객체 인자(emotion과 공유하는 CSS-in-JS 파서 포함)
 - `packages/extractor-emotion` — Emotion `css` 태그·`@emotion/styled`·`css` prop
 - `packages/extractor-mui-sx` — MUI `sx` prop
+- `packages/extractor-react-native` — React Native `StyleSheet.create`·`compose`·`flatten`, JSX `style`·`*Style`, `Platform.select`
 - `packages/mcp-server` — MCP 서버(도구 6개·리소스 2개). core 함수를 부르는 얇은 핸들러와 응답 토큰 상한. 카탈로그는 core `readCatalog`로 읽는다
 - `packages/init` — `dsmith init`: audit 결과로 W3C 토큰 파일·CSS 변수·TS 상수와 컴포넌트 골격을 쓰고 커버리지를 계산
 - `packages/catalog` — `dsmith ai`: 로컬 DS·npm `.d.ts`·init 산출에서 컴포넌트 카탈로그를 만들고 AGENTS.md DS 섹션을 갱신

@@ -9,6 +9,7 @@
     { "path": "packages/extractor-styled" },
     { "path": "packages/extractor-emotion" },
     { "path": "packages/extractor-mui-sx" },
+    { "path": "packages/extractor-react-native" },
     { "path": "packages/eslint-plugin" },
     { "path": "packages/detect" },
     { "path": "packages/agent-skill" },

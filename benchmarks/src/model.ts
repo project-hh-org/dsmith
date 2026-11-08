@@ -2,6 +2,14 @@ import type { IndependentScore, TypeCheckRecord } from "./independent/types.js";
 
 export type { IndependentScore, TypeCheckRecord };
 
+/** `--repo` 값. 앞의 셋은 저장소 안의 공개 레포, `knowing-saju`는 저장소 밖의 비공개 앱(`--repo-path`)이다 */
+export type RepoName = "legacy-demo" | "with-ds-app" | "rn-app" | "knowing-saju";
+/** React Native 레포(RN 프롬프트 세트·JS 테마 참조 채점) */
+export const RN_REPOS: readonly RepoName[] = ["rn-app", "knowing-saju"];
+/** 저장소 밖의 비공개 앱. 이 레포의 결과는 리댁션본만 저장소에 들어온다 */
+export const EXTERNAL_REPOS: readonly RepoName[] = ["knowing-saju"];
+export const isRnRepo =(repo: string): boolean => RN_REPOS.some((r) => r === repo);
+
 /**
  * 2×2 설계(AGENTS.md DS 섹션 × MCP 서버):
  *  baseline = 둘 다 없음, agents-only = AGENTS.md만, mcp-only = MCP(.mcp.json)만, dsmith = 둘 다.
@@ -154,7 +162,7 @@ export interface BenchResult {
   date: string;
   /** ISO, replay면 null */
   startedAt: string | null;
-  repo: "legacy-demo" | "with-ds-app";
+  repo: RepoName;
   mode: "agent" | "replay";
   agent: { command: string | null; version: string | null; installTool: string | null; models: string[] };
   dsmith: { version: string; commit: string | null };

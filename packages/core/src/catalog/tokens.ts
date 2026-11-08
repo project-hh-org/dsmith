@@ -27,8 +27,13 @@ export interface CatalogTokensResult {
  * 토큰 파일에서 카탈로그 토큰을 읽는다(audit 제안 토큰 제외). `dsmith ai`와 `dsmith init`의 카탈로그 갱신이 같은 규칙을 쓴다.
  * 정렬: file → name(코드 단위).
  */
-export async function readCatalogTokens(root: string, tokenFiles: string[]): Promise<CatalogTokensResult> {
-  const loaded = await loadTokens(root, tokenFiles, []);
+export async function readCatalogTokens(
+  root: string,
+  tokenFiles: string[],
+  /** JS 테마로 읽을 파일(`readableJsThemeFiles`). 없으면 .ts/.js는 읽지 않는다 */
+  opts: { jsFiles?: readonly string[] } = {},
+): Promise<CatalogTokensResult> {
+  const loaded = await loadTokens(root, tokenFiles, [], opts);
   const tokens: CatalogToken[] = [];
   for (const t of loaded.tokens) {
     if (t.source !== "token-file" || t.file === undefined) continue;
@@ -38,6 +43,7 @@ export async function readCatalogTokens(root: string, tokenFiles: string[]): Pro
       normalized: t.normalized,
       category: t.category,
       ...(t.path === undefined ? {} : { path: t.path }),
+      ...(t.js === undefined ? {} : { js: t.js }),
       file: t.file,
     });
   }

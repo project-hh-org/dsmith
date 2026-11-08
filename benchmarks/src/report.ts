@@ -3,8 +3,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { DASH, byCodeUnit, esc, pct, ratioCell, table } from "./format.js";
-import { CONDITIONS } from "./model.js";
-import { MONOREPO_ROOT } from "./paths.js";
+import { CONDITIONS, EXTERNAL_REPOS } from "./model.js";
+import { MONOREPO_ROOT, isInsideMonorepo } from "./paths.js";
+import { redactResult, redactedJson, renderRedactedReport } from "./redact.js";
 import type { Aggregate, BenchResult, Condition, RunRecord } from "./model.js";
 import { displayConditions, isLegacyConditions } from "./analysis.js";
 import { mergeResults } from "./merge.js";
@@ -253,7 +254,8 @@ export function toPosixRelative(file: string): string {
 
 const USAGE =
   "사용법: pnpm bench:report --in <결과.json> [--out <보고서.md>]  (상대 경로는 명령을 실행한 폴더 기준)\n" +
-  "        pnpm bench:report --in <a.json> --in <b.json> … --out <보고서.md>   (서로 다른 실행의 조건을 병합 — --out 필수, 병합 결과 JSON을 보고서 옆에 .json으로 씀)";
+  "        pnpm bench:report --in <a.json> --in <b.json> … --out <보고서.md>   (서로 다른 실행의 조건을 병합 — --out 필수, 병합 결과 JSON을 보고서 옆에 .json으로 씀)\n" +
+  "        pnpm bench:report --redact --in <비공개 결과.json> --out <리댁션.md> [--summary-json <요약.json>]   (비공개 레포 결과를 수치만 남긴 md·JSON으로 — 저장소에 커밋하는 것은 이것뿐)";
 
 /**
  * 결과 JSON을 읽어 같은 이름의 .md를 쓰고 README 줄을 돌려준다.
@@ -263,12 +265,31 @@ const USAGE =
 export function reportFromFile(argv: string[], env: NodeJS.ProcessEnv = process.env): { mdFile: string; line: string | null; jsonFile: string | null } {
   const { values } = parseArgs({
     args: argv.filter((a) => a !== "--"),
-    options: { in: { type: "string", multiple: true }, out: { type: "string" } },
+    options: { in: { type: "string", multiple: true }, out: { type: "string" }, redact: { type: "boolean" }, "summary-json": { type: "string" } },
     strict: true,
   });
   const inputs = values.in ?? [];
   if (inputs.length === 0) throw new Error(USAGE);
   const cwd = env.INIT_CWD !== undefined && env.INIT_CWD !== "" ? env.INIT_CWD : process.cwd();
+  if (values["summary-json"] !== undefined && values.redact !== true) throw new Error(`--summary-json은 --redact와 함께 씁니다\n${USAGE}`);
+  if (values.redact === true) {
+    if (inputs.length !== 1) throw new Error(`--redact는 --in 하나만 받습니다(병합 결과는 리댁션하지 않음)\n${USAGE}`);
+    if (values.out === undefined) throw new Error(`--redact에는 --out <리댁션.md>가 필요합니다\n${USAGE}`);
+    const input = path.resolve(cwd, inputs[0] ?? "");
+    const parsed = JSON.parse(readFileSync(input, "utf8")) as BenchResult;
+    if (parsed.version !== 1) throw new Error("지원하지 않는 결과 형식입니다");
+    const redacted = redactResult(parsed);
+    const md = path.resolve(cwd, values.out);
+    mkdirSync(path.dirname(md), { recursive: true });
+    writeFileSync(md, renderRedactedReport(redacted));
+    let summary: string | null = null;
+    if (values["summary-json"] !== undefined) {
+      summary = path.resolve(cwd, values["summary-json"]);
+      mkdirSync(path.dirname(summary), { recursive: true });
+      writeFileSync(summary, redactedJson(redacted));
+    }
+    return { mdFile: md, line: null, jsonFile: summary };
+  }
   const readResult = (file: string): BenchResult => {
     const r = JSON.parse(readFileSync(file, "utf8")) as BenchResult;
     if (r.version !== 1) throw new Error(`지원하지 않는 결과 형식: version ${String(r.version)} (${file})`);
@@ -284,6 +305,10 @@ export function reportFromFile(argv: string[], env: NodeJS.ProcessEnv = process.
   };
   const result = merging ? mergeResults(inFiles.map((f) => ({ file: relOrName(f), result: readResult(f) }))) : readResult(inFile);
   const mdFile = values.out === undefined ? inFile.replace(/\.json$/, "") + ".md" : path.resolve(cwd, values.out);
+  // 비공개 레포의 전체 보고서(파일 이름·토큰 이름·진단 메시지 포함)는 저장소 안에 쓰지 않는다
+  if (EXTERNAL_REPOS.includes(result.repo) && (isInsideMonorepo(mdFile) || (merging && isInsideMonorepo(mdFile.replace(/\.md$/, "") + ".json")))) {
+    throw new Error(`${result.repo}는 비공개 앱이라 보고서를 모노레포 안에 쓰지 않습니다 — 저장소 밖 경로를 --out으로 주거나 --redact를 쓰세요\n${USAGE}`);
+  }
   if (merging) {
     const mergedJson = mdFile.replace(/\.md$/, "") + ".json";
     const clash = inFiles.find((f) => f === mergedJson || f === mdFile);

@@ -185,12 +185,42 @@ describe("resolve_token", () => {
     expect(result.isError).toBe(true);
   });
 
-  it("토큰 파일이 없으면 제안 토큰(proposal)이고 읽지 않은 토큰 파일을 알린다", async () => {
+  it("JS 테마 모듈(src/lib/theme.ts)은 토큰 파일로 읽는다 — 제안이 아니고 무시한 파일도 없다", async () => {
     const { client } = await open("examples/legacy-demo");
     const out = json(await client.callTool({ name: "resolve_token", arguments: { raw: "#3B82F6" } }));
-    expect(out.source).toBe("proposal");
-    expect(out.token.value).toBe("#3b82f6");
-    expect(out.ignoredTokenFiles).toEqual(["src/lib/theme.ts"]);
+    expect(out.source).toBe("token-file");
+    expect(out.token.name).toBe("theme.primary");
+    expect(out.token.value).toBe("#3B82F6");
+    expect(out.ignoredTokenFiles).toBeUndefined();
+    // 참조 표현: JS 토큰은 식과 필요한 import를 함께 알려 준다(CSS 토큰이 없는 웹 레포라 JS 토큰이 제안 대상)
+    expect(out.token.ref).toEqual({ kind: "js", expression: "theme.primary", import: { module: "src/lib/theme", name: "theme" } });
+  });
+
+  it("알려진 JS 토큰 이름을 받으면 거리 0으로 그 토큰과 ref를 돌려준다", async () => {
+    const { client } = await open("examples/legacy-demo");
+    const out = json(await client.callTool({ name: "resolve_token", arguments: { raw: "theme.primary" } }));
+    expect(out).toMatchObject({ distance: 0, confidence: "high", token: { name: "theme.primary", ref: { kind: "js", expression: "theme.primary" } } });
+  });
+
+  it("CSS 토큰은 ref.kind css, JS 테마가 함께 있는 웹은 CSS 토큰만 제안한다", async () => {
+    const { client } = await open("examples/legacy-demo", {
+      "design-system/tokens.css": ":root { --ds-color-brand: #3b82f6; --ds-space-2: 8px; }\n",
+    });
+    const out = json(await client.callTool({ name: "resolve_token", arguments: { raw: "#3B82F6" } }));
+    expect(out.token).toMatchObject({ name: "--ds-color-brand", ref: { kind: "css", expression: "var(--ds-color-brand)" } });
+  });
+
+  it("react-native: 입력이 hex여도 JS 테마 토큰과 ref를 돌려준다", async () => {
+    const { client } = await open("fixtures/inline-app", {
+      "package.json": JSON.stringify({ name: "rn", dependencies: { react: "19.0.0", "react-native": "0.79.0" } }),
+      "src/theme.ts": `export const colors = { surface: "#ffffff", text: "#111111" } as const;\nexport const spacing = { sm: 8 } as const;\n`,
+      "src/Home.tsx": `import { View } from "react-native";\nimport { colors } from "./theme";\nexport const Home = () => <View style={{ backgroundColor: colors.surface }} />;\n`,
+    });
+    const byValue = json(await client.callTool({ name: "resolve_token", arguments: { raw: "#ffffff" } }));
+    expect(byValue.token).toMatchObject({ name: "colors.surface", ref: { kind: "js", expression: "colors.surface", import: { module: "src/theme", name: "colors" } } });
+    const byName = json(await client.callTool({ name: "resolve_token", arguments: { raw: "colors.surface" } }));
+    expect(byName.distance).toBe(0);
+    expect(byName.token.ref.import).toEqual({ module: "src/theme", name: "colors" });
   });
 });
 
@@ -208,6 +238,16 @@ describe("lint_snippet", () => {
     expect(padding).toBeDefined();
     expect(out.extractorsRun).toContain("tailwind");
     expect(out.summary.hardcoded).toBe(2);
+  });
+
+  it("JS 테마 참조(colors.text·spacing.md)는 토큰 사용으로 센다 — rn-app", async () => {
+    const { client } = await open("fixtures/rn-app");
+    const out = await lint(client, {
+      code: 'import { colors, spacing } from "../theme";\nexport const A = () => <div style={{ color: colors.text, padding: spacing.md, margin: 7 }} />;',
+      filename: "src/components/A.tsx",
+    });
+    expect(out.summary).toEqual({ hardcoded: 1, token: 2, dynamic: 0 });
+    expect(out.violations).toHaveLength(1);
   });
 
   it("인라인 스타일", async () => {

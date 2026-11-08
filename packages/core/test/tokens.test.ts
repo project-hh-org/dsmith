@@ -174,6 +174,48 @@ describe("loadTokens", () => {
     expect(loaded.tokens).toHaveLength(1);
   });
 
+  it("JS 테마 모듈은 CSS 토큰 뒤에 읽고 ignored에서 빠진다(legacy-demo 모양)", async () => {
+    fs.mkdirSync(path.join(dir, "src/lib"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "design-system"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "src/lib/theme.ts"), `export const theme = { primary: "#3B82F6", muted: "#6B7280", radius: 6 };`);
+    fs.writeFileSync(path.join(dir, "design-system/tokens.css"), ":root{--color-primary:#3b82f6;--space-2:8px}");
+    const loaded = await loadTokens(dir, ["src/lib/theme.ts", "design-system/tokens.css"], [], { jsFiles: ["src/lib/theme.ts"] });
+    expect(loaded.source).toBe("token-file");
+    expect(loaded.files).toEqual(["src/lib/theme.ts", "design-system/tokens.css"]);
+    expect(loaded.ignored).toEqual([]);
+    expect(loaded.tokens.map((t) => t.name)).toEqual(["--color-primary", "--space-2", "theme.primary", "theme.muted"]);
+    const js = loaded.tokens.find((t) => t.name === "theme.primary")!;
+    expect(js).toMatchObject({ source: "token-file", file: "src/lib/theme.ts", js: { module: "src/lib/theme", export: "theme", path: ["primary"] } });
+  });
+
+  it("JS 테마의 다른 모듈 상수는 상대 경로 한 단계까지 읽는다", async () => {
+    fs.mkdirSync(path.join(dir, "src"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "src/status.ts"), `export const STATUS = { ok: "#22c55e" } as const;`);
+    fs.writeFileSync(path.join(dir, "src/theme.ts"), `import { STATUS } from "./status";\nexport const colors = { surface: "#fff", status: STATUS };`);
+    const loaded = await loadTokens(dir, ["src/theme.ts"], [], { jsFiles: ["src/theme.ts"] });
+    expect(loaded.tokens.map((t) => t.name)).toEqual(["colors.surface", "colors.status.ok"]);
+  });
+
+  it("jsFiles(사용 증거)에 없는 .ts는 토큰 모양이어도 읽지 않고 ignored", async () => {
+    fs.mkdirSync(path.join(dir, "src/lib"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "src/lib/theme.ts"), `export const chart = { axis: { color: "#10B981", grid: "#E5E7EB" } };`);
+    const loaded = await loadTokens(dir, ["src/lib/theme.ts"], []);
+    expect(loaded.tokens.some((t) => t.js !== undefined)).toBe(false);
+    expect(loaded.files).toEqual([]);
+    expect(loaded.ignored).toEqual(["src/lib/theme.ts"]);
+  });
+
+  it("토큰이 없는 JS 파일과 init 쌍 tokens.ts는 읽지 않는다", async () => {
+    fs.writeFileSync(path.join(dir, "tokens.json"), JSON.stringify({ color: { a: { $type: "color", $value: "#ffffff" } } }));
+    fs.writeFileSync(path.join(dir, "tokens.ts"), `export const colors = { a: "#fff" };`);
+    fs.mkdirSync(path.join(dir, "x"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "x/theme.ts"), `export const theme = createTheme({});`);
+    const loaded = await loadTokens(dir, ["tokens.json", "tokens.ts", "x/theme.ts"], []);
+    expect(loaded.tokens.some((t) => t.js !== undefined)).toBe(false);
+    expect(loaded.ignored).toEqual(["x/theme.ts"]);
+    expect(loaded.files).toEqual(["tokens.json"]);
+  });
+
   it("tokenFiles가 비면 proposal이다", async () => {
     const loaded = await loadTokens(dir, [], [lengthUsage("8px")]);
     expect(loaded.source).toBe("proposal");

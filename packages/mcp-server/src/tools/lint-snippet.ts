@@ -80,7 +80,7 @@ export function lintSnippet(ws: Workspace, extractors: Extractor[], input: LintS
   if (!matchers.some((m) => m.matches(file))) {
     throw new Error(`검사할 Extractor 없음: ${file} (지원: ${SUPPORTED_FILES})`);
   }
-  const { styles, extractorsRun } = extractFileStyles({ root: ws.root, file, code: input.code }, matchers);
+  const { styles, extractorsRun } = extractFileStyles({ root: ws.root, file, code: input.code }, matchers, ws.resolveRef === undefined ? {} : { resolveRef: ws.resolveRef });
 
   const summary = { hardcoded: 0, token: 0, dynamic: 0 };
   const violations: Violation[] = [];

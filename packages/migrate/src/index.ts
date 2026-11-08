@@ -19,6 +19,8 @@ export type {
   PlannedComponentEdit,
 } from "./components.js";
 export { countComponentEdits, exportKindOf, loadModuleEnv, planComponentEdits, resolveChosenTargets } from "./components.js";
+export type { ImportNeed, ImportPlan } from "./imports.js";
+export { planNamedImport, planNamedImports } from "./imports.js";
 export { specifierForModule } from "./specifier.js";
 export type { ApplyFileResult, ApplyResult } from "./apply.js";
 export { applyMigration } from "./apply.js";

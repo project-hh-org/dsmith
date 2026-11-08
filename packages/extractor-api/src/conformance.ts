@@ -1,4 +1,4 @@
-import type { Extractor, StyleUsage, TokenLike, TokenRefContext } from "./extractor.js";
+import type { Extractor, StyleUsage, TokenLike, TokenRefContext, WriteOptions } from "./extractor.js";
 
 /** write+tokenRef 왕복 케이스: 치환 뒤 재추출하면 그 사용만 바뀌어야 한다. */
 export interface WriteCase {
@@ -6,6 +6,8 @@ export interface WriteCase {
   target: Partial<StyleUsage>;
   token: TokenLike;
   ctx?: TokenRefContext;
+  /** write에 넘길 세 번째 인자 */
+  writeOptions?: WriteOptions;
   /** tokenRef 기대값. null이면 null이어야 하고 이후 검사는 생략한다 */
   ref: string | null;
   /** 패치 적용 뒤 전체 코드 기대값(선택) */
@@ -143,7 +145,7 @@ function checkWrite(extractor: Extractor, testCase: ConformanceCase, wc: WriteCa
   if (ref !== wc.ref) return `${label}: tokenRef가 ${JSON.stringify(wc.ref)}이어야 하는데 ${JSON.stringify(ref)}`;
   if (wc.ref === null || ref === null) return null;
 
-  const patch = extractor.write(target, ref);
+  const patch = wc.writeOptions === undefined ? extractor.write(target, ref) : extractor.write(target, ref, wc.writeOptions);
   if (patch === null) return `${label}: write가 null을 돌려줌`;
   const after = testCase.code.slice(0, patch.start) + patch.replacement + testCase.code.slice(patch.end);
   if (wc.output !== undefined && after !== wc.output) {

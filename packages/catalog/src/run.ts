@@ -125,7 +125,7 @@ export async function runAi(opts: AiOptions): Promise<AiResult> {
   const section = renderAgentsDsSection(catalog, usageOrder, {
     mcp: onDisk.mcp || opts.surfaces?.mcp === true,
     skills: onDisk.skills || opts.surfaces?.skills === true,
-  });
+  }, detect.ds.jsThemes ?? []);
   const write = await safeWrite(
     [{ file: path.join(root, "AGENTS.md"), region: { kind: "block", ...DS_MARKERS }, content: section }],
     {
