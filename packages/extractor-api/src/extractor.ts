@@ -27,6 +27,8 @@ export interface StyleUsage {
     | { kind: "unknown" };
   source: StyleSource;
   extractor: string;
+  /** import 바인딩에서 시작하는 멤버 식 값(`colors.surface`, `theme.space[2]`, 스프레드 `...typography.caption`). 해석은 core가 한다 */
+  ref?: { specifier: string; imported: string; path: string[]; spread?: true };
 }
 
 export interface ExtractContext {
@@ -48,6 +50,8 @@ export interface TokenLike {
   value: string;
   category: "color" | "spacing" | "radius" | "font-size";
   normalized: StyleUsage["normalized"];
+  /** JS 테마 객체의 잎에서 읽은 토큰이면 그 위치 */
+  js?: { module: string; export: string; path: string[]; mode?: "light" | "dark" };
 }
 
 /** `init`이 만든 Tailwind 프리셋 정보(클래스 키 조회용). */
@@ -64,6 +68,14 @@ export interface TailwindPreset {
 export interface TokenRefContext {
   /** 연결된 프리셋만 넘긴다(연결 안 됐으면 undefined) */
   preset?: TailwindPreset;
+  /** JS 토큰 export 이름 → 이 파일의 로컬 이름(migrate가 채움). 없으면 export 이름 */
+  jsLocal?: Record<string, string>;
+}
+
+/** `Extractor.write`의 선택 인자 */
+export interface WriteOptions {
+  /** tokenRef가 JS 식이다 — 따옴표로 감싸지 않고 값 노드 전체를 바꾼다 */
+  expression?: boolean;
 }
 
 /** Tailwind 프리셋 클래스 키 접두. 기본 테마(`bg-blue-400`, `p-2`)와 이름이 겹치지 않게 한다. */
@@ -74,6 +86,25 @@ const CSS_VAR_NAME = /^--[A-Za-z0-9_-]+$/;
 /** name이 CSS 변수 이름이면 `var(${name})`, 아니면 null(CSS 변수가 아닌 토큰은 참조 형식 없음). */
 export function cssVarRef(token: TokenLike): string | null {
   return CSS_VAR_NAME.test(token.name) ? `var(${token.name})` : null;
+}
+
+const JS_IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+const JS_INDEX = /^(?:0|[1-9]\d*)$/;
+
+/**
+ * JS 토큰을 값 자리에 쓰는 식. `("colors", ["surface"])` → `colors.surface`, `["brand","500"]` → `colors.brand[500]`,
+ * 식별자가 아닌 키는 `colors["a-b"]`. `local`은 이 파일에서 export를 부르는 이름(없으면 export 이름).
+ * token.js가 없으면 null.
+ */
+export function jsTokenExpression(token: TokenLike, local?: string): string | null {
+  if (token.js === undefined) return null;
+  let expression = local ?? token.js.export;
+  for (const key of token.js.path) {
+    if (JS_IDENTIFIER.test(key)) expression += `.${key}`;
+    else if (JS_INDEX.test(key)) expression += `[${key}]`;
+    else expression += `[${JSON.stringify(key)}]`;
+  }
+  return expression;
 }
 
 /** Extractor가 선언하는 정적 메타. 실행 없이 어떤 파일을 어떻게 읽는지 알 수 있다. */
@@ -105,7 +136,7 @@ export interface Extractor extends ExtractorMeta {
   /** 파일 확장자·내용 기반 빠른 필터 */
   appliesTo(ctx: ExtractContext): boolean;
   extract(ctx: ExtractContext): StyleUsage[];
-  write(usage: StyleUsage, tokenRef: string): WritePatch | null;
+  write(usage: StyleUsage, tokenRef: string, opts?: WriteOptions): WritePatch | null;
   /**
    * 이 방식에서 token을 참조하는 문자열(= write의 tokenRef 인자). null이면 이 사용은 참조 형식이 없다(migrate가 no-token-ref로 건너뜀).
    * usage는 이 Extractor의 extract가 만든 객체여야 한다(구간 정보가 필요한 방식이 있다).

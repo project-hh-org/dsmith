@@ -134,3 +134,15 @@ describe("loadReplacementTokens", () => {
     expect(r.source).toBe("token-file");
   });
 });
+
+describe("loadReplacementTokens: JS 테마", () => {
+  it("JS 테마 토큰은 아직 치환 대상이 아니고 그 파일도 제외 목록에 넣지 않는다(CSS 토큰만)", async () => {
+    put("src/lib/theme.ts", `export const theme = { primary: "#3B82F6", muted: "#6B7280" };`);
+    put("design-system/tokens.css", CSS);
+    const r = await loadReplacementTokens(root, ["src/lib/theme.ts", "design-system/tokens.css"]);
+    expect(r.source).toBe("token-file");
+    expect(r.tokens.every((t) => t.js === undefined)).toBe(true);
+    expect(r.files).toEqual(["design-system/tokens.css"]);
+    expect(r.excludeFiles).toEqual(["design-system/tokens.css"]);
+  });
+});

@@ -45,13 +45,16 @@ export async function loadReplacementTokens(root: string, detectTokenFiles: stri
   }
 
   const loaded = await loadTokens(root, tokenFiles, []);
-  const fromFiles = loaded.tokens.filter((t) => t.source === "token-file");
+  // JS 테마 토큰은 아직 치환 대상이 아니다(migrate가 `replacementCandidates`와 import 편집을 갖출 때까지 CSS·DTCG 토큰만).
+  const jsFiles = new Set(loaded.tokens.filter((t) => t.js !== undefined && t.file !== undefined).map((t) => t.file));
+  const loadedFiles = loaded.files.filter((f) => !jsFiles.has(f));
+  const fromFiles = loaded.tokens.filter((t) => t.source === "token-file" && t.js === undefined);
   if (fromFiles.length > 0) {
     return {
       source: "token-file",
       tokens: fromFiles,
-      files: loaded.files,
-      excludeFiles: [...loaded.files],
+      files: loadedFiles,
+      excludeFiles: [...loadedFiles],
       excludeDirs,
       warnings: loaded.warnings,
     };

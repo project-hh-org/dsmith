@@ -27,6 +27,12 @@ export {
   resolveWithPaths,
 } from "./index/specifier.js";
 export { readIndex, writeIndex } from "./index/store.js";
+export type { ImportTable } from "./parse/member-ref.js";
+export { importTableOf, memberRefOf } from "./parse/member-ref.js";
+export type { JsThemeRead } from "./tokens/js-theme.js";
+export { JS_THEME_CANDIDATES, jsKeyOf, readJsThemeTokens } from "./tokens/js-theme.js";
+export type { RefResolver } from "./tokens/ref-resolver.js";
+export { buildTokenRefResolver, replacementCandidates } from "./tokens/ref-resolver.js";
 export { colorDistance, lengthDistance } from "./match/distance.js";
 export type { ColorCluster } from "./cluster/color-cluster.js";
 export { clusterColors } from "./cluster/color-cluster.js";

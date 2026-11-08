@@ -185,12 +185,13 @@ describe("resolve_token", () => {
     expect(result.isError).toBe(true);
   });
 
-  it("토큰 파일이 없으면 제안 토큰(proposal)이고 읽지 않은 토큰 파일을 알린다", async () => {
+  it("JS 테마 모듈(src/lib/theme.ts)은 토큰 파일로 읽는다 — 제안이 아니고 무시한 파일도 없다", async () => {
     const { client } = await open("examples/legacy-demo");
     const out = json(await client.callTool({ name: "resolve_token", arguments: { raw: "#3B82F6" } }));
-    expect(out.source).toBe("proposal");
-    expect(out.token.value).toBe("#3b82f6");
-    expect(out.ignoredTokenFiles).toEqual(["src/lib/theme.ts"]);
+    expect(out.source).toBe("token-file");
+    expect(out.token.name).toBe("theme.primary");
+    expect(out.token.value).toBe("#3B82F6");
+    expect(out.ignoredTokenFiles).toBeUndefined();
   });
 });
 

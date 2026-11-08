@@ -1,9 +1,12 @@
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { StyleProperty, StyleUsage } from "@dsmith-dev/extractor-api";
 import type { CatalogToken } from "../catalog/model.js";
+import { stripModulePath } from "../index/specifier.js";
 import type { Token } from "../model/token.js";
 import { collectCssVariables, readCssVariableTokens } from "./css-variables.js";
+import { readJsThemeTokens } from "./js-theme.js";
 import { proposalTokens } from "./proposal.js";
 import { readW3cTokens } from "./w3c.js";
 
@@ -29,6 +32,23 @@ export interface LoadedTokens {
 }
 
 const CSS_FILE = /\.(css|scss)$/i;
+const JS_FILE = /\.(ts|js|mjs)$/i;
+const IMPORT_SUFFIXES = ["", ".ts", ".tsx", ".js", ".mjs", "/index.ts", "/index.tsx", "/index.js"];
+
+/** 상대 경로 import를 root 상대 파일로 풀어 읽는다(JS 테마가 다른 모듈의 상수를 가리킬 때). 못 찾으면 null */
+function resolveRelativeImport(root: string, from: string, specifier: string): { code: string; file: string } | null {
+  const base = path.posix.join(path.posix.dirname(from), specifier);
+  for (const suffix of IMPORT_SUFFIXES) {
+    const file = `${base}${suffix}`;
+    if (suffix === "" && !/\.[cm]?[jt]sx?$/.test(file)) continue;
+    try {
+      return { code: readFileSync(path.resolve(root, file), "utf8"), file };
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
 const JSON_FILE = /\.json$/i;
 const CATEGORIES: Token["category"][] = ["color", "spacing", "radius", "font-size"];
 
@@ -38,7 +58,8 @@ export { tokenCategoryOf } from "./category.js";
  * DS 토큰 파일(.css/.scss)에서 토큰을 읽고, 파일에 토큰이 하나도 없는 카테고리는 audit 제안 토큰으로 채운다.
  * 같은 이름이 여러 파일에 있으면 먼저 나온 파일이 이긴다. var() 참조는 모든 파일에 걸쳐 푼다.
  * .json은 W3C Design Tokens(구형 문자열 값 포함)로 읽는다. CSS를 JSON보다 먼저 읽으므로 이름이 겹치면 CSS가 이긴다.
- * .ts/.js는 읽지 않고 ignored — 단, 같은 디렉터리에 tokens.json이 있으면 init 산출 쌍이라 ignored에 넣지 않는다.
+ * .ts/.js/.mjs는 JS 테마 객체로 읽는다(`readJsThemeTokens`, CSS → JSON → JS 순). 토큰이 하나도 없으면 ignored.
+ * 단, 같은 디렉터리에 tokens.json이 있으면 init 산출 쌍이라 읽지도 ignored에 넣지도 않는다.
  */
 export async function loadTokens(
   root: string,
@@ -50,19 +71,24 @@ export async function loadTokens(
   const warnings: string[] = [];
   const sources: { file: string; code: string }[] = [];
   const jsonSources: { file: string; code: string }[] = [];
+  const jsSources: { file: string; code: string }[] = [];
 
   const jsonDirs = new Set(tokenFiles.filter((f) => /(^|\/)tokens\.json$/i.test(f)).map((f) => path.posix.dirname(f)));
   const ordered = [...tokenFiles.filter((f) => !JSON_FILE.test(f)), ...tokenFiles.filter((f) => JSON_FILE.test(f))];
   for (const file of ordered) {
     const isCss = CSS_FILE.test(file);
     const isJson = JSON_FILE.test(file);
+    const isJs = JS_FILE.test(file);
     if (!isCss && !isJson) {
-      if (!(/(^|\/)tokens\.(ts|js)$/i.test(file) && jsonDirs.has(path.posix.dirname(file)))) ignored.push(file);
-      continue;
+      if (/(^|\/)tokens\.(ts|js)$/i.test(file) && jsonDirs.has(path.posix.dirname(file))) continue;
+      if (!isJs) {
+        ignored.push(file);
+        continue;
+      }
     }
     try {
       const code = await fs.readFile(path.resolve(root, file), "utf8");
-      (isJson ? jsonSources : sources).push({ file, code });
+      (isJson ? jsonSources : isJs && !isCss ? jsSources : sources).push({ file, code });
       files.push(file);
     } catch {
       warnings.push(`토큰 파일을 읽을 수 없음: ${file}`);
@@ -108,6 +134,27 @@ export async function loadTokens(
         ) {
           css.path = token.path;
         }
+        continue;
+      }
+      seen.add(token.name);
+      tokens.push({ ...token, source: "token-file", file });
+    }
+  }
+
+  for (const { code, file } of jsSources) {
+    const read = readJsThemeTokens(code, file, {
+      module: stripModulePath(file),
+      resolveImport: (specifier) => resolveRelativeImport(root, file, specifier),
+    });
+    if (read.tokens.length === 0) {
+      ignored.push(file);
+      files.splice(files.indexOf(file), 1);
+      continue;
+    }
+    warnings.push(...read.warnings);
+    for (const token of read.tokens) {
+      if (seen.has(token.name)) {
+        warnings.push(`토큰 이름이 겹쳐 먼저 읽은 것을 씀: ${token.name} (${file})`);
         continue;
       }
       seen.add(token.name);

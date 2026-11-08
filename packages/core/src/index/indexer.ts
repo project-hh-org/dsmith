@@ -7,6 +7,7 @@ import type { ComponentUsage } from "../model/component-usage.js";
 import { parseTsx } from "../parse/tsx.js";
 import { extractComponentUsage, type ModuleContext } from "./component-usage.js";
 import { extractFileStyles, extractorMatchers } from "./extract-file.js";
+import type { RefResolver } from "../tokens/ref-resolver.js";
 import { readTsconfigPaths, type TsPaths } from "./specifier.js";
 
 export interface Index {
@@ -23,6 +24,8 @@ export interface IndexOptions {
   include?: string[];
   /** 추가로 제외할 glob. 기본 제외(`DEFAULT_EXCLUDE`)에 더해지며 대체하지 않는다. */
   exclude?: string[];
+  /** JS 테마 참조(`StyleUsage.ref`)를 토큰 사용으로 해석하는 함수(`buildTokenRefResolver`) */
+  resolveRef?: RefResolver;
 }
 
 /**
@@ -167,7 +170,7 @@ export async function indexRepo(
     // 한 파일의 결과는 모두 성공했을 때만 인덱스에 반영한다(부분 결과가 남지 않게).
     const ctx: ExtractContext = { root, file, code };
     try {
-      const { styles } = extractFileStyles(ctx, matchers);
+      const { styles } = extractFileStyles(ctx, matchers, opts.resolveRef === undefined ? {} : { resolveRef: opts.resolveRef });
       let components: ComponentUsage[];
       try {
         components = JS_FILE.test(file) ? extractComponentUsage(file, parseTsx(code, file), tsPaths, moduleContext) : [];

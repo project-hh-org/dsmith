@@ -1,5 +1,6 @@
 import picomatch from "picomatch";
 import type { ExtractContext, Extractor, StyleUsage } from "@dsmith-dev/extractor-api";
+import type { RefResolver } from "../tokens/ref-resolver.js";
 
 export interface ExtractorMatcher {
   extractor: Extractor;
@@ -27,7 +28,11 @@ function messageOf(err: unknown): string {
  * 한 파일을 Extractor들로 읽는다(인덱서·가상 파일 검사가 공유). 각 usage의 `file`은 ctx.file로 맞춘다.
  * Extractor가 던지면 `parse(<name>): <msg>` 오류로 다시 던지고, 그 파일의 결과는 하나도 돌려주지 않는다.
  */
-export function extractFileStyles(ctx: ExtractContext, matchers: ExtractorMatcher[]): FileStyles {
+export function extractFileStyles(
+  ctx: ExtractContext,
+  matchers: ExtractorMatcher[],
+  opts: { resolveRef?: RefResolver } = {},
+): FileStyles {
   const styles: StyleUsage[] = [];
   const extractorsRun: string[] = [];
   for (const { extractor, matches } of matchers) {
@@ -38,6 +43,15 @@ export function extractFileStyles(ctx: ExtractContext, matchers: ExtractorMatche
       for (const usage of extractor.extract(ctx)) {
         // WeakMap 키인 원본 객체를 그대로 유지해야 하므로 복제하지 않고 file만 맞춘다.
         usage.file = ctx.file;
+        if (opts.resolveRef !== undefined && usage.ref !== undefined) {
+          // JS 테마 참조 해석은 여기 한 곳. 객체를 제자리에서 바꿔 Extractor의 WeakMap 키를 보존한다.
+          const token = opts.resolveRef(ctx.file, usage);
+          if (token !== null) {
+            usage.source = "token";
+            usage.normalized = token.normalized;
+            if (usage.ref.spread === true) usage.property = "font-size";
+          }
+        }
         styles.push(usage);
       }
     } catch (err) {
