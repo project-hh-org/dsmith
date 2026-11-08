@@ -12,6 +12,7 @@ uses: ["cli:init --dry-run", "mcp:list_decisions"]
    - 토큰 `tokens`: 색·간격·모서리·글꼴 크기 개수, `total`, 병합된 원값 수 `mergedValues`
    - 커버리지 `coverage.rate`(백분율), `coverage.replaceable`, `coverage.total`. `coverage.replaceable`은 치환 가능(migrate 후보) 수다. `coverage.byConfidence`로 나눠 말한다: `exact`(같은 값·정확)는 migrate 기본 대상, `close`(근사)는 `--close`를 줄 때만. 둘을 더한 값이 `coverage.replaceable`이다
    - `tokensLoaded.css`가 `false`면 `design-system/tokens.css`를 아무도 import하지 않는 것이다. 전역 엔트리(예: `app/layout.tsx`, `src/main.tsx`, `globals.css`)에서 import해야 migrate가 쓰는 `var(--…)`가 값을 갖는다고 알린다. `null`이면 말하지 않는다
+   - `tokenSource.kind`가 `js-theme`이면 토큰 파일을 만들지 않고 `tokenSource.files`의 기존 JS 테마를 쓴 것이다. `reactNative`가 `true`면 `tokens.css`·Tailwind 프리셋·웹 스캐폴드도 만들지 않고, 테마가 없을 때만 RN 형식 `design-system/tokens.ts`를 만든다
    - 컴포넌트 골격 `scaffolds`, 건너뛴 것과 이유 `skippedScaffolds`
    - 알파가 빠지는 색 `alphaDropped`가 있으면 개수
    - 결정 대기 `decisions.pending`

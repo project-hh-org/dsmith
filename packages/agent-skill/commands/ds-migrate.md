@@ -11,8 +11,8 @@ uses: ["cli:migrate"]
 
 1. `npx dsmith migrate --json {{args}}`를 실행하고 stdout JSON을 읽는다. stderr의 힌트·경고도 그대로 전한다. 토큰이 없다는 오류면 `/ds-init`을 안내하고 멈춘다.
 2. 계획을 표로 보여준다. 숫자는 `plan`과 `projected`의 값만 쓴다:
-   - 치환: `plan.planned`, 파일 수 `plan.files.length`, 카테고리별 `plan.byCategory`
-   - 건너뜀: 사유별 `plan.skipped`와 `plan.skippedItems`. 사유는 풀어서 말한다 (`translucent-color`는 반투명 색, `multi-value`는 값이 여러 개인 단축 속성, `no-token-ref` 등)
+   - 치환: `plan.planned`, 파일 수 `plan.files.length`, 카테고리별 `plan.byCategory`. React Native·JS 테마 토큰은 `colors.surface` 같은 테마 참조로 바꾸고, 파일에 import가 없으면 `plan.files[].imports`로 더한다
+   - 건너뜀: 사유별 `plan.skipped`와 `plan.skippedItems`. 사유는 풀어서 말한다 (`translucent-color`는 반투명 색, `multi-value`는 값이 여러 개인 단축 속성, `no-token-ref` 등. `js-ref-in-string`은 문자열 일부라 식으로 못 바꿈, `js-binding-conflict`는 같은 이름의 다른 바인딩이 있어 import를 못 더함)
    - `plan.close`: `--close`를 주지 않으면 치환하지 않고 건수만 알린다. 렌더링되는 값이 바뀔 수 있어 따로 보여주고, 포함할지 사람에게 묻는다
    - 컴포넌트 `plan.components`: 결정된 것만 치환한다. 바꾸지 않은 것은 `plan.componentHeld`의 `reason`으로 푼다:
      - `decision-pending`: 결정이 안 끝남. `/ds-decide`로 먼저 고르게 한다

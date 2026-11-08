@@ -30,6 +30,14 @@ npmjs.com → Access Tokens → Generate New Token → Granular Access Token.
 
 provenance는 `NPM_CONFIG_PROVENANCE=true`와 워크플로의 `id-token: write`로 켜진다. npm이 `package.json`의 `repository.url`과 워크플로가 실행된 저장소가 일치하는지 검증하므로 두 값이 같아야 한다.
 
+## 새 패키지의 첫 게시
+
+React Native 지원(`.changeset/react-native.md`)이 나가는 릴리스에는 npm에 아직 없는 새 패키지 `@dsmith-dev/extractor-react-native`가 처음 올라간다(fixed 그룹이라 다른 패키지와 같은 버전으로 오른다). 이때 다음을 확인한다.
+
+- `NPM_TOKEN`이 `dsmith-dev` org의 **"All packages"** 권한이어야 한다. 위 "토큰 권한"처럼 기존 패키지를 하나씩 고른 토큰은 아직 없는 패키지를 만들 수 없어 5단계 게시가 권한 오류로 실패한다. 릴리스 PR을 머지하기 전에 토큰을 바꾼다.
+- trusted publishing은 패키지가 npm에 있어야 등록할 수 있다. 새 패키지는 첫 게시 뒤에 Settings → Trusted Publisher를 등록한다(아래 "trusted publishing으로 옮기기"). 모든 패키지를 trusted publishing으로 옮긴 뒤에 새 패키지를 더하는 릴리스라면 첫 게시만 `NPM_TOKEN`으로 하고, 게시 뒤 그 패키지를 등록한다.
+- 게시 전에 `npm view @dsmith-dev/extractor-react-native`가 404인지(이름이 비어 있는지) 확인한다. 첫 게시 일부만 실패해도 "게시가 실패했을 때"의 재실행으로 이어서 올릴 수 있다.
+
 ## 게시가 실패했을 때
 
 - 게시 단계만 실패한 경우(토큰 만료·권한 누락·npm 장애): 원인을 고치고 Actions → Release → 실패한 run에서 "Re-run failed jobs"를 누른다. 이미 올라간 패키지는 건너뛰고 나머지만 게시한다.
