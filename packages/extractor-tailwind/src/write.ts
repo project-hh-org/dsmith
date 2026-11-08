@@ -49,7 +49,7 @@ const SPACING_PROPERTIES: ReadonlySet<StyleProperty> = new Set(["padding", "marg
 
 /**
  * 토큰을 참조하는 유틸리티 클래스(variant·`!`는 write가 붙인다). 프리셋 키가 있으면 클래스명(`bg-ds-blue-400`),
- * 없으면 타입 힌트가 붙은 임의값(`bg-[color:var(--color-blue-400)]`, `text-[length:var(--text-xs)]`).
+ * 없으면 타입 힌트가 붙은 임의값(`bg-[color:var(--ds-color-blue-400)]`, `text-[length:var(--ds-text-xs)]`).
  * CSS 변수가 아닌 토큰, 토큰 대상이 아닌 속성(width·height), 토큰 분류와 속성이 안 맞는 경우는 null.
  */
 export function tokenRef(token: TokenLike, usage: StyleUsage, ctx: TokenRefContext): string | null {

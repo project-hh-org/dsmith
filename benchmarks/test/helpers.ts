@@ -75,8 +75,8 @@ import { Card } from "./Card";
 export const Probe = () => (
   <Card>
     <Button
-      className="bg-[#3b82f6] p-4 bg-[color:var(--color-blue-400)] p-[var(--space-2)] text-[var(--made-up)] bg-ds-blue-400 rounded-lg"
-      style={{ color: "#111827", padding: "var(--space-4)", margin: 8 }}
+      className="bg-[#3b82f6] p-4 bg-[color:var(--ds-color-blue-400)] p-[var(--ds-space-2)] text-[var(--made-up)] bg-ds-blue-400 rounded-lg"
+      style={{ color: "#111827", padding: "var(--ds-space-4)", margin: 8 }}
     />
   </Card>
 );

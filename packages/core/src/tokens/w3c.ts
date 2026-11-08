@@ -13,6 +13,7 @@ import { normalizeColor } from "../normalize/color.js";
 import { normalizeLength } from "../normalize/length.js";
 import type { DraftGroup, TokenDraft } from "./draft.js";
 import { GENERATED_NOTICE } from "./emit.js";
+import { DS_CSS_PREFIX } from "./naming.js";
 
 export const DSMITH_EXTENSION = "dev.dsmith";
 
@@ -51,6 +52,7 @@ function colorValue(hex: string): W3cColorValue {
 
 export function draftToW3c(draft: TokenDraft): Record<string, unknown> {
   const out: Record<string, unknown> = { $description: GENERATED_NOTICE };
+  if (draft.naming === "ds") out.$extensions = { [DSMITH_EXTENSION]: { cssPrefix: DS_CSS_PREFIX } };
   for (const group of GROUPS) {
     const entries = draft.tokens.filter((t) => t.group === group);
     if (entries.length === 0) continue;
@@ -89,6 +91,7 @@ type Json = Record<string, unknown>;
 const isObject = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
 
 const MAX_ALIAS_DEPTH = 5;
+const CSS_PREFIX = /^[a-z][a-z0-9]*$/;
 const ALIAS = /^\{([^{}]+)\}$/;
 const RADIUS_GROUPS = new Set(["radius", "radii", "rounded", "border-radius"]);
 const FONT_SIZE_GROUPS = new Set(["text", "font-size", "fontsize", "font-sizes", "fontsizes"]);
@@ -155,6 +158,15 @@ export function readW3cTokens(text: string, file: string): W3cReadResult {
   const warnings: string[] = [];
   const tokens: Token[] = [];
 
+  // 루트 확장 $extensions["dev.dsmith"].cssPrefix: CSS 변수 이름 접두. 토큰 경로(path)는 그대로
+  let prefix = "";
+  const rootExt = isObject(root.$extensions) ? root.$extensions[DSMITH_EXTENSION] : undefined;
+  const declaredPrefix = isObject(rootExt) ? rootExt.cssPrefix : undefined;
+  if (typeof declaredPrefix === "string") {
+    if (CSS_PREFIX.test(declaredPrefix)) prefix = `${declaredPrefix}-`;
+    else warnings.push(`토큰 CSS 접두를 읽을 수 없음: ${declaredPrefix} (${file})`);
+  }
+
   for (const entry of entries) {
     const label = entry.path.join(".");
     let value: unknown = entry.node.$value;
@@ -180,7 +192,7 @@ export function readW3cTokens(text: string, file: string): W3cReadResult {
     }
     if (type !== "color" && type !== "dimension") continue;
 
-    const name = `--${entry.path.join("-")}`;
+    const name = `--${prefix}${entry.path.join("-")}`;
     if (type === "color") {
       const normalized =
         typeof value === "string" ? normalizeColor(value) : isObject(value) ? colorFromObject(value) : null;

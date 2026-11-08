@@ -36,6 +36,8 @@ uses: ["cli:migrate"]
 - 커밋 없이 남음(일부 파일 실패): 브랜치에 변경이 남아 있다. 출력의 되돌리기 명령을 그대로 전한다.
 - 브랜치를 버림: 적용된 것이 없다는 뜻이다.
 
+토큰 이름이 이전 형식(`--color-*`, init 요약의 "토큰 이름: 이전 형식")이고 Tailwind 4라면 `npx dsmith migrate --rename-prefix`(계획만) → 사람이 확인하면 `--apply --branch ds/rename-prefix`로 `--ds-` 접두로 옮기라고 안내한다. 되돌리기는 `npx dsmith migrate --revert <id>`다.
+
 종료 코드가 1이면 되돌려진 파일, 계획 뒤 바뀐 파일이 있거나 일부만 되돌려진 것이다. 해당 파일과 이유를 `applied`에서 읽어 전한다.
 
 규칙:

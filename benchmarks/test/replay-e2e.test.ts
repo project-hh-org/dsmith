@@ -57,7 +57,7 @@ describe("replay (합성 산출물, 네트워크·에이전트 없음)", () => {
     expect(r1).toMatchObject({ status: "complete", abortReason: null, replaySource: "synthetic" });
     // 불변식
     expect(base.compliance!).toBeLessThan(ds.compliance!);
-    expect(ds.token - ds.knownToken).toBe(1); // 지어낸 var(--color-brand) 하나
+    expect(ds.token - ds.knownToken).toBe(1); // 지어낸 var(--ds-color-brand) 하나
     expect(base.nonDs).toBeGreaterThanOrEqual(1);
   }, 60_000);
 

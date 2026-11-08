@@ -13,8 +13,14 @@
 
 `plan.tokens.loaded`는 init의 `tokens.css`를 어딘가에서 import하는지 알린다. 아니면 `notes`와 리포트에 안내가 나온다(적용은 막지 않는다).
 
-CLI: `dsmith migrate [--apply] [--branch <name> [--with-tokens]] [--close] [--revert <id>] [--list]`. 종료 코드 1: 적용하지 못한 파일(롤백·계획 뒤 변경·쓰기 실패)이 있거나, `--revert`에서 되돌리지 못한 파일(적용 뒤 수정됨·없음)이 있을 때. `--branch`의 결과는 커밋됨 / 일부 실패로 커밋 없이 남음(되돌리기 명령 출력) / 적용된 것이 없어 브랜치를 버림 중 하나다.
+CLI: `dsmith migrate [--apply] [--branch <name> [--with-tokens]] [--close] [--rename-prefix] [--revert <id>] [--list]`. 종료 코드 1: 적용하지 못한 파일(롤백·계획 뒤 변경·쓰기 실패)이 있거나, `--revert`에서 되돌리지 못한 파일(적용 뒤 수정됨·없음)이 있을 때. `--branch`의 결과는 커밋됨 / 일부 실패로 커밋 없이 남음(되돌리기 명령 출력) / 적용된 것이 없어 브랜치를 버림 중 하나다.
 
-알려진 한계: Tailwind v4에서 `tokens.css`의 `--color-*`·`--radius-*`·`--text-*`가 Tailwind 기본 테마 변수와 같은 이름이면 기본 유틸리티의 값이 바뀔 수 있다. 다루지 않는다.
+`dsmith migrate --rename-prefix [--apply [--branch <name> [--with-tokens]]]`: 이전 형식(접두 없는 이전 init 산출) 토큰 이름을 `--ds-` 접두로 바꾼다. 새 init의 토큰은 처음부터 `--ds-`라, Tailwind 4 기본 테마 변수(`--color-*`·`--text-*`·`--radius-*`)를 가리지 않는다. 이미 init하고 migrate한 레포가 이전 형식을 쓰고 있을 때 이 명령으로 옮긴다.
+- 기본은 계획만 출력한다(`.dsmith/` 포함 아무것도 쓰지 않음): `토큰 이름 바꾸기: N개 · 참조 R개 · 파일 F개 · var() 밖 언급 M개(바꾸지 않음)`.
+- `--apply`는 코드의 `var(--old)` 참조(CSS, 인라인 스타일, styled·emotion 템플릿, sx 문자열, Tailwind 임의값 `[var(--old)]`·`[color:var(--old)]`)만 `var(--ds-old)`로 바꾸고, `.dsmith/migrations/`에 `kind: "rename-prefix"` 기록을 남긴 뒤 init을 `--ds-` 이름으로 다시 실행해 토큰·프리셋 파일을 만든다. 이 재실행은 이전 토큰 파일의 값을 그대로 옮기고 이름만 바꾼다(index가 달라져도 값은 그대로). 문자열 `"--color-blue-400"`·사용자 CSS의 같은 이름 정의처럼 `var()` 밖에 있는 언급은 바꾸지 않고 건수와 위치만 알린다. `var(--color-blue-400-2)`처럼 이름이 더 긴 변수는 건드리지 않는다.
+- 이미 `--ds-` 형식이면 알리고 종료 코드 0, 아무것도 쓰지 않는다. 토큰 파일을 사용자가 고쳐 init이 보류하면 쓰기 전에 오류다. 적용 뒤 옛 이름 참조가 남아 있으면(쓰지 못한 파일) 목록과 함께 종료 코드 1이다.
+- `--branch`는 다른 migrate 적용과 같이 동작한다: 바뀐 소스와 init이 다시 쓴 토큰·프리셋 파일을 커밋 하나로 묶고(`.dsmith/` 제외), 토큰 파일이 커밋되지 않았으면 쓰기 전에 오류이며 `--with-tokens`로 함께 커밋한다. `.dsmith/guard.json`이 있으면 `dsmith guard init`으로 스냅샷을 갱신하라고 안내한다.
+- `dsmith migrate --revert <id>`는 참조를 되돌린 뒤 토큰·프리셋 파일을 이전 형식으로 다시 만든다(`.dsmith/`를 뺀 트리가 적용 전과 같다). 일부 참조를 적용 뒤에 고쳤으면 토큰 파일은 되돌리지 않고 종료 코드 1이다.
+- `--files`·`--category`·`--only`·`--close`·`--max-files`·`--list`·`--revert`와는 함께 쓸 수 없다.
 
 Docs: https://github.com/project-hh-org/dsmith#readme

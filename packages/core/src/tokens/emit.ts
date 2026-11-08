@@ -7,7 +7,7 @@ const GROUPS = ["color", "space", "radius", "text"] as const;
 
 /** `:root { --color-gray-50: #ffffff; … }` — draft 순서 그대로 */
 export function emitTokensCss(draft: TokenDraft): string {
-  const lines = draft.tokens.map((t) => `  --${t.name}: ${t.value};`);
+  const lines = draft.tokens.map((t) => `  ${t.cssVar}: ${t.value};`);
   return `/* ${GENERATED_NOTICE} */\n:root {\n${lines.join("\n")}\n}\n`;
 }
 

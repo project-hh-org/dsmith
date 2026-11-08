@@ -37,6 +37,7 @@ import {
 import { buildExtractors } from "../registry.js";
 import { cliVersion } from "../version.js";
 import { computeAudit, runAudit } from "./audit.js";
+import { revertRenamePrefix, runRenamePrefix } from "./rename-prefix.js";
 
 export interface MigrateCommandOptions {
   root: string;
@@ -53,6 +54,8 @@ export interface MigrateCommandOptions {
   withTokens?: boolean | undefined;
   revert?: string | undefined;
   list?: boolean | undefined;
+  /** 이전 형식 토큰 이름(`--color-*`)을 `--ds-` 접두로 바꾼다(계획 → --apply, 되돌리기는 --revert) */
+  renamePrefix?: boolean | undefined;
 }
 
 export interface MigrateOutput {
@@ -166,6 +169,8 @@ async function runMigrate(opts: MigrateCommandOptions, live: { branch: { name: s
   if (opts.branch !== undefined && opts.apply !== true) throw new Error("--branch는 --apply와 함께 씁니다");
   if (opts.withTokens === true && opts.branch === undefined) throw new Error("--with-tokens는 --branch와 함께 씁니다");
 
+  if (opts.renamePrefix === true) return runRenamePrefix(opts, root, live);
+
   if (opts.list === true) {
     const items = await listMigrations(root);
     return { json: items, text: formatList(items) };
@@ -173,6 +178,16 @@ async function runMigrate(opts: MigrateCommandOptions, live: { branch: { name: s
 
 
   if (opts.revert !== undefined) {
+    // rename-prefix 기록은 참조를 되돌린 뒤 토큰 파일도 이전 형식으로 다시 만든다
+    const renamed = await revertRenamePrefix(root, opts.revert);
+    if (renamed !== null) {
+      await runAudit(root);
+      return {
+        json: { ...renamed.result, init: renamed.init === null ? null : { naming: renamed.init.naming, tokenHold: renamed.init.tokenHold } },
+        text: [formatRevert(renamed.result), ...renamed.text].join("\n"),
+        ...(renamed.exitCode === 0 ? {} : { exitCode: renamed.exitCode }),
+      };
+    }
     const result = await revertMigration(root, opts.revert);
     await runAudit(root); // 인덱스·점수 갱신
     const notReverted = result.files.some((f) => f.status === "skipped-modified" || f.status === "missing");

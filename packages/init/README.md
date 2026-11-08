@@ -19,9 +19,18 @@ Docs: https://github.com/project-hh-org/dsmith#readme
 - `--dry-run`은 `.dsmith/` 포함 어떤 파일도 쓰지 않고 쓸 파일과 diff만 낸다.
 - 결정 시드: audit의 중복·지역 재정의 컴포넌트와, 구성원이 둘 이상인 색 클러스터가 `.dsmith/decisions.json`에 `pending`으로 들어간다. 다시 실행하면 구성원이 바뀐 `pending` token-cluster 기록의 선택지를 갱신하고, `decided` 기록은 건드리지 않는다.
 
+## 토큰 이름
+
+새로 init하는 레포의 토큰 CSS 변수는 모두 `--ds-` 접두다(`--ds-color-blue-400`·`--ds-space-2`·`--ds-radius-sm`·`--ds-text-xs`). Tailwind 4는 기본 테마 변수(`--color-*`·`--text-*`·`--radius-*`)를 쓰는데, 접두 없는 `tokens.css`의 비레이어 `:root`가 이를 덮으면 기존 `bg-blue-400`·`text-xs`·`rounded-sm`의 값이 레포 전체에서 바뀐다(실제 Tailwind 4.3.3 빌드와 브라우저 계산값으로 확인). 접두가 있으면 겹치지 않는다. Tailwind 유무·버전과 상관없이 한 규칙이다.
+
+- `tokens.json`의 DTCG 경로(`color.blue-400`)와 `tokens.ts` 키, Tailwind 클래스 키(`bg-ds-blue-400`)는 그대로이고 CSS 변수 이름만 바뀐다. 루트 `$extensions["dev.dsmith"].cssPrefix: "ds"`가 접두를 알리고, 이 확장이 없는 `tokens.json`(이전 산출·외부 DTCG)은 `--<경로>`로 읽는다.
+- **이미 init한 레포는 이름을 바꾸지 않는다.** 형식은 커밋된 init 소유 토큰 파일로 판정한다(`outDir`, 다음으로 이전 `outDir`의 `tokens.json` 루트 `cssPrefix`, 없으면 `tokens.css`의 첫 변수 이름). 토큰 파일이 없으면 `.dsmith/init.json`의 `naming`, 그것도 없으면 `ds`다. `.dsmith/`가 gitignore된 클론에서도 토큰 파일로 정해진다. 이전 형식(접두 없음)은 같은 입력이면 바이트까지 같은 파일로 다시 만든다(`unchanged`). Tailwind 4 레포가 이전 형식이면 요약에 충돌 경고가 나온다.
+- 이전 형식에서 벗어나려면 `dsmith migrate --rename-prefix`(계획) → `--apply`. 코드의 `var(--color-…)` 참조와 토큰·프리셋 파일을 함께 바꾸고 `--revert <id>`로 되돌릴 수 있다.
+- **값이 바뀌는 재 init 보류**: 이전 init 소유 `tokens.css`와 비교해 의미 이름(`color-blue-400`, 접두 제외) 기준으로 값이 바뀌거나 사라지는 토큰이 있고 `.dsmith/migrations/`에 `status "applied"` 기록이 있으면(코드가 그 이름을 `var()`로 쓰고 있다는 뜻) 토큰 묶음(과 프리셋)을 보류한다(`tokenHold: "renamed"`, 종료 코드 0). `--force`로만 덮어쓴다. 적용 기록이 없으면 쓰되 경고만 낸다. 접두만 다른 변경(rename)은 대상이 아니다.
+
 ## 알려진 제한
 
-- **Tailwind 4 변수 충돌**: Tailwind 4 레포에서 `tokens.css`의 `:root { --color-blue-400; --text-xs; --radius-sm … }`는 Tailwind 4 기본 테마의 같은 이름 변수를 덮는다(실제 빌드로 확인). 기존 `bg-blue-400`·`text-xs`·`rounded-sm` 클래스의 값이 레포 전체에서 바뀔 수 있어, v4에서는 요약에 경고를 낸다. `--color-*`·`--text-*`·`--radius-*` 이름에 `--ds-` 접두를 붙이는 근본 수정은 Plan 4b에서 한다. Tailwind 3은 프리셋 키가 `ds-` 접두라 영향이 없다.
+- migrate 뒤 init을 다시 실행했을 때 토큰 이름·값이 옮겨 가는 것은 위 보류로 막을 뿐, 이전 `tokens.json`을 잠금 파일로 삼아 이름을 고정하지는 않는다.
 
 ## 옵션
 
@@ -46,6 +55,6 @@ Docs: https://github.com/project-hh-org/dsmith#readme
 `tokens.json`(W3C Design Tokens 2025.10 형식)을 외부 도구로 확인했다.
 
 - Terrazzo `@terrazzo/parser` 2.10.0: lint 오류·경고 없음
-- Style Dictionary 5.7.1: `css/variables` 출력이 `tokens.css`와 같다
+- Style Dictionary 5.7.1: `css/variables` 출력이 `tokens.css`와 같다(`--ds-` 접두는 플랫폼 `prefix: "ds"`로 같은 이름이 나온다)
 
 같은 날 `ai`의 npm 카탈로그를 실제 `@mui/material` 전체 패키지로 돌렸다: 6.5.0은 컴포넌트 130·props 추출 126·deprecated 3, 9.5.0은 130·126·0(각각 약 1초 이내). 자세한 기록은 `docs/superpowers/plans/2026-11-01-ds-draft.md` 부록 B.7.

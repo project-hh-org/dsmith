@@ -84,6 +84,7 @@ npx dsmith migrate                                   # 계획만 보기 — 어�
 npx dsmith migrate --apply --branch ds/migrate-tokens # 새 브랜치에 적용하고 커밋 1개
 npx dsmith migrate --revert <id>                     # 기록으로 되돌리기
 npx dsmith migrate --list                            # 마이그레이션 기록 목록
+npx dsmith migrate --rename-prefix [--apply]         # 이전 형식 토큰 이름(--color-*)을 --ds- 접두로 — 계획 → 적용, --revert로 되돌리기
 ```
 
 - 후보는 `init`의 커버리지와 같은 규칙으로 고른다. 후보 수 = 계획 + 건너뜀(사유별) + 범위 제한 + close 제외이고, 출력이 이 등식을 보여준다. 가까운 토큰이 없는 값(먼 값)과 동적 값은 후보가 아니라 "범위 밖"으로 따로 센다. 숫자는 사람용 출력, `--json`, `.dsmith/reports/migrate-<날짜>.md`가 같다.
@@ -91,11 +92,11 @@ npx dsmith migrate --list                            # 마이그레이션 기록
 - 건너뛰는 것: 반투명 색, 값이 여러 개인 단축 속성, 음수·0, SCSS 변수, 토큰 참조를 만들 수 없는 값, UTF-8이 아닌 파일. 사유는 계획 출력과 `--json`의 `plan.skipped`에 나온다. 범위를 좁히려면 `--files <glob>`, `--category <color|spacing|radius|font-size>`, `--only <tokens|components>`.
 - 결정(`decide`)한 중복 컴포넌트는 import를 DS 쪽으로 바꾼다. props 이름·값이 다르면 `decide --map <from>:<to>`(값까지 바뀌면 `prop=value:prop=value`)로 대응을 줘야 하고, 없거나 동적 값이면 그 사용은 보류한다(`mapping-missing`). 대상 컴포넌트의 props를 읽지 못한 경우(예: npm 패키지가 설치되지 않음)에는 `children`·`className`·`style`·`key`·`ref`·`id`·`data-*`·`aria-*` 말고 다른 prop을 쓰는 호출을 `target-props-unknown`으로 보류한다. 지역 정의는 지우지 않고 주석만 단다.
 - migrate가 쓰는 `var(--…)`는 `init`이 만든 `design-system/tokens.css`가 전역에 로드돼야 값을 갖는다. 아무도 import하지 않으면 계획·적용 출력과 리포트에 안내가 나오고(`plan.tokens.loaded`), `app/layout.tsx`·`src/main.tsx`·`globals.css` 같은 전역 엔트리에서 import하면 사라진다. 안내만 하고 적용은 막지 않는다. `init`도 같은 경우 같은 안내를 낸다.
-- Tailwind: `init`이 프리셋(v3 `tailwind.preset.*`, v4 `@theme` CSS)을 함께 만든다. tailwind 설정에 연결돼 있으면 클래스명(`bg-ds-blue-400`)으로, 연결 안 됐으면 임의값(`bg-[color:var(--color-blue-400)]`)으로 바꾸고 그렇다고 알린다.
+- Tailwind: `init`이 프리셋(v3 `tailwind.preset.*`, v4 `@theme` CSS)을 함께 만든다. tailwind 설정에 연결돼 있으면 클래스명(`bg-ds-blue-400`)으로, 연결 안 됐으면 임의값(`bg-[color:var(--ds-color-blue-400)]`)으로 바꾸고 그렇다고 알린다.
 - 파일 단위로 재파싱·재추출 검증을 하고, 실패한 파일은 쓰지 않는다. 쓰기 직전 해시를 비교해 계획 뒤 바뀐 파일도 건너뛴다. audit 뒤 파일이 바뀌었으면 `plan.stale`로 알리고 audit를 다시 하라고 한다.
 - `--branch`는 git 2.23 이상, git 작성자 정보(`user.name`·`user.email`), 커밋되지 않은 변경이 없고 `.gitignore`에 걸리지 않는 대상 파일, 아직 없는 브랜치 이름이 있어야 한다. 치환된 `var()`·프리셋이 가리킬 토큰 파일(`plan.tokens.files`)과 연결된 프리셋 파일이 커밋되지 않았거나 수정됐으면 쓰기 전에 오류로 막는다(먼저 커밋하거나 `--with-tokens`로 같은 커밋에 넣는다. `.dsmith/`는 늘 제외). 결과는 셋 중 하나다: 커밋됨 / 일부 파일 실패로 커밋 없이 남음(되돌리기 명령을 출력) / 적용된 것이 없어 브랜치를 버림. push하거나 PR을 열지 않는다.
 - 종료 코드 1: 롤백된 파일·계획 뒤 바뀐 파일·쓰기 실패가 있거나, `--revert`에서 일부만 되돌렸을 때(적용 뒤 수정된 파일은 건너뜀).
-- 알려진 한계: Tailwind v4에서 `tokens.css`의 `--color-*`·`--radius-*`·`--text-*`가 Tailwind 기본 테마 변수와 같은 이름이면 기본 유틸리티(`bg-blue-400`, `rounded-sm` 등)의 값이 바뀔 수 있다. 이 도구는 이를 다루지 않는다.
+- 토큰 이름: 새 init의 CSS 변수는 `--ds-` 접두(`--ds-color-blue-400`)라 Tailwind 4 기본 테마 변수(`--color-*`·`--text-*`·`--radius-*`)와 겹치지 않는다. 이미 init한 레포는 이름이 바뀌지 않는다(이전 형식 유지, Tailwind 4면 경고). 이전 형식에서 옮기려면 `dsmith migrate --rename-prefix`로 코드의 `var()` 참조와 토큰 파일을 함께 바꾼다(되돌리기 가능).
 
 ### guard
 

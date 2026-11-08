@@ -68,7 +68,7 @@ describe("수정 파일은 base 대비 다중집합 차", () => {
   });
 
   it("하드코딩 1개와 토큰 1개를 더하면 hardcoded 1, token 1", () => {
-    const after = `export const A = () => <div style={{ color: "#111827", margin: 8, backgroundColor: "#3b82f6", padding: "var(--space-4)" }} />;\n`;
+    const after = `export const A = () => <div style={{ color: "#111827", margin: 8, backgroundColor: "#3b82f6", padding: "var(--ds-space-4)" }} />;\n`;
     const f = only([modified(FILE, before, after)]);
     expect(f.introduced).toMatchObject({ hardcoded: 1, token: 1, knownToken: 1 });
   });
