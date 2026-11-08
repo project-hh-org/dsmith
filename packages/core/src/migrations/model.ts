@@ -28,6 +28,8 @@ export interface MigrationRecord {
   summary: { tokens: number; components: number; files: number };
   /** `--close`로 close(근사) 매칭을 포함해 계획했는지. 없으면(이전 기록) 포함하지 않음 */
   close?: boolean;
+  /** 없으면 기존 토큰·컴포넌트 마이그레이션. "rename-prefix" = 토큰 CSS 변수 이름의 `--ds-` 접두 전환(`migrate --rename-prefix`) */
+  kind?: "rename-prefix";
   /** `--apply --branch`로 만든 브랜치. 적용이 0건이라 브랜치를 없앴으면 null(이유는 branchNote) */
   branch?: { name: string; base: string; /** 브랜치를 만들기 직전 HEAD */ baseSha?: string; commit: string | null } | null;
   branchNote?: string;

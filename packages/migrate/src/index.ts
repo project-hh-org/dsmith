@@ -22,6 +22,8 @@ export { countComponentEdits, exportKindOf, loadModuleEnv, planComponentEdits, r
 export { specifierForModule } from "./specifier.js";
 export type { ApplyFileResult, ApplyResult } from "./apply.js";
 export { applyMigration } from "./apply.js";
+export type { PrefixRename, RenamePlan } from "./rename-prefix.js";
+export { applyPrefixRename, leftoverRefs, planPrefixRename } from "./rename-prefix.js";
 export type { RevertResult } from "./revert.js";
 export { revertMigration } from "./revert.js";
 export { planExcludes, projectComponents, projectStyles, residualByCategory, usageKey } from "./project.js";
