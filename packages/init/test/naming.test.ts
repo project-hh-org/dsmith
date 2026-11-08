@@ -210,6 +210,61 @@ describe("값이 바뀌는 재 init: 적용 기록이 있으면 토큰 묶음 �
   });
 });
 
+describe("명시 naming으로 형식을 바꾸는 재 init(rename 흐름): 이전 토큰 파일의 값을 유지하고 이름만 바꾼다", () => {
+  function recordApplied(root: string): void {
+    fs.mkdirSync(path.join(root, ".dsmith/migrations"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, ".dsmith/migrations/20261108-120000.json"),
+      JSON.stringify({ version: 1, id: "20261108-120000", status: "applied", summary: {}, patches: [] }),
+    );
+  }
+  const TOKEN_FILES = ["tokens.json", "tokens.css", "tokens.ts", "tailwind.preset.ts"].map((f) => `design-system/${f}`);
+
+  it("index가 변하지 않았으면 legacy → ds 결과가 처음부터 ds로 만든 것과 바이트 동일, ds → legacy는 원본과 동일", async () => {
+    const legacyRoot = await repo("none");
+    await run(legacyRoot, { naming: "legacy" });
+    const legacyFiles = TOKEN_FILES.map((f) => read(legacyRoot, f));
+    const dsRoot = await repo("none");
+    await run(dsRoot, { naming: "ds" });
+    const dsFiles = TOKEN_FILES.map((f) => read(dsRoot, f));
+
+    const toDs = await run(legacyRoot, { naming: "ds" });
+    expect(toDs.naming).toEqual({ value: "ds", source: "explicit" });
+    expect(toDs.tokenHold).toBeNull();
+    expect(TOKEN_FILES.map((f) => read(legacyRoot, f))).toEqual(dsFiles);
+
+    await run(legacyRoot, { naming: "legacy" });
+    expect(TOKEN_FILES.map((f) => read(legacyRoot, f))).toEqual(legacyFiles);
+  });
+
+  it("index가 바뀌고 적용 기록이 있어도(migrate 뒤) 보류 없이 값 그대로 이름만 바뀌고, 되돌리면 원본 바이트", async () => {
+    const root = await repo("none");
+    await run(root, { naming: "legacy" });
+    const legacyFiles = TOKEN_FILES.map((f) => read(root, f));
+    recordApplied(root);
+    await changeValues(root);
+
+    const toDs = await run(root, { naming: "ds" });
+    expect(toDs.tokenHold).toBeNull();
+    expect(toDs.renamedTokens).toEqual([]);
+    const css = read(root, "design-system/tokens.css");
+    expect(css).toContain("--ds-");
+    expect(css.replaceAll("--ds-", "--")).toBe(legacyFiles[1]);
+    expect(JSON.parse(read(root, "design-system/tokens.json"))).toMatchObject({ $extensions: { "dev.dsmith": { cssPrefix: "ds" } } });
+
+    await run(root, { naming: "legacy" });
+    expect(TOKEN_FILES.map((f) => read(root, f))).toEqual(legacyFiles);
+  });
+
+  it("사용자가 고친 토큰 파일은 여전히 보류(modified)", async () => {
+    const root = await repo("none");
+    await run(root, { naming: "legacy" });
+    fs.appendFileSync(path.join(root, "design-system/tokens.css"), "/* mine */\n");
+    const r = await run(root, { naming: "ds" });
+    expect(r.tokenHold).toBe("modified");
+  });
+});
+
 describe("guard 스냅샷: legacy 레포는 이름 그대로", () => {
   it("loadReplacementTokens가 legacy 파일의 --color-… 이름을 그대로 돌려준다", async () => {
     const { loadReplacementTokens } = await import("@dsmith-dev/core");

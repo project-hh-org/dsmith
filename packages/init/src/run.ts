@@ -353,6 +353,48 @@ function changedTokens(previousCss: string, nextCss: string): InitResult["rename
   return out;
 }
 
+const DRAFT_GROUPS = ["color", "space", "radius", "text"] as const;
+
+/**
+ * 이전 init 소유 tokens.css·tokens.json의 토큰을 `fresh.naming` 이름으로 옮긴 초안(이전 파일 순서·값 그대로).
+ * 이전 형식이 이미 같거나, 파일을 해석할 수 없거나, tokens.css와 tokens.json의 토큰이 어긋나면 null(= index에서 새로 만든 초안을 쓴다).
+ * 매핑은 fresh 것을 그대로 둔다(파일에는 안 들어가고 요약·커버리지에만 쓴다).
+ */
+function renamedDraft(previous: OwnedTokenFiles, fresh: TokenDraft): TokenDraft | null {
+  if (previous.css === null || previous.json === null) return null;
+  if (detectNamingFromFiles(previous) === fresh.naming) return null;
+  let root: Record<string, unknown>;
+  try {
+    root = JSON.parse(previous.json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const tokens: TokenDraft["tokens"] = [];
+  for (const t of readCssVariableTokens(previous.css, "tokens.css")) {
+    const semantic = semanticNameOf(t.name);
+    const group = DRAFT_GROUPS.find((g) => semantic.startsWith(`${g}-`));
+    if (group === undefined) return null;
+    const key = semantic.slice(group.length + 1);
+    const node = (root[group] as Record<string, unknown> | undefined)?.[key] as { $extensions?: Record<string, unknown> } | undefined;
+    const ext = node?.$extensions?.["dev.dsmith"] as { category?: unknown; usageCount?: unknown; members?: unknown; chosen?: unknown } | undefined;
+    if (ext === undefined || typeof ext.category !== "string" || typeof ext.usageCount !== "number" || !Array.isArray(ext.members)) return null;
+    tokens.push({
+      category: t.category,
+      group,
+      key,
+      name: semantic,
+      cssVar: fresh.naming === "ds" ? `--ds-${semantic}` : `--${semantic}`,
+      value: t.value,
+      normalized: t.normalized,
+      usageCount: ext.usageCount,
+      members: ext.members as string[],
+      ...(typeof ext.chosen === "string" ? { chosen: ext.chosen } : {}),
+      ...(t.normalized.kind === "length" ? { unit: "px" as const } : {}),
+    });
+  }
+  return tokens.length === 0 ? null : { ...fresh, tokens };
+}
+
 /** 스캐폴드 첫 줄 `// dsmith init 스캐폴드 — Name (결정: X)` / `(추천: X, 결정 전)`에서 X(기준 옵션)를 읽는다. */
 function scaffoldOrigin(text: string): string | null {
   const m = /^\/\/ dsmith init 스캐폴드 — \S+ \((?:결정|추천): (.+?)(?:, 결정 전)?\)/.exec(text);
@@ -404,7 +446,10 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const prevManifest = await readInitManifest(path.join(root, MANIFEST));
   const resolved = await resolveNaming(root, outDir, prevManifest, opts.naming);
   const naming = resolved.naming;
-  const draft: TokenDraft = buildTokenDraft(index.styles, { excludeDirs: [outDir], colorChoices, naming: naming.value });
+  const fresh: TokenDraft = buildTokenDraft(index.styles, { excludeDirs: [outDir], colorChoices, naming: naming.value });
+  // 명시 naming으로 이전 파일과 다른 형식을 요청하는 흐름(migrate --rename-prefix·--revert)은 이름만 바꾼다: 이미 코드가 var()로 쓰는 토큰이
+  // index가 바뀌어(migrate 적용 뒤) 사라지거나 값이 달라지지 않게 이전 토큰 파일의 토큰을 그대로 옮긴다
+  const draft: TokenDraft = (opts.naming !== undefined && resolved.previous !== null ? renamedDraft(resolved.previous, fresh) : null) ?? fresh;
 
   // 4. pending 결정 시드
   const clusters = draft.tokens
