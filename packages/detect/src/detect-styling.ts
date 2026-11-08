@@ -262,6 +262,24 @@ export function mergeMethods(styling: StylingDetection, extra: StylingDetection[
   }
 }
 
+const RN_METHOD = "react-native-stylesheet";
+
+/**
+ * React Native 프레임워크에서 RN 방식이 감지됐고 쓸 수 있으면 inline-style을 방식에서 뺀다(RN Extractor가 `style={{}}`도 읽는다).
+ * inline-style이 있었으면 RN 방식 근거에 `supersedes: inline-style`을 남긴다.
+ * `overrides.activeExtractors`로 되돌릴 수 있다.
+ */
+export function supersedeInlineStyle(styling: StylingDetection, framework: string, available: ExtractorMeta[] | undefined): void {
+  if (framework !== "react-native") return;
+  const rn = styling.methods.find((m) => m.name === RN_METHOD);
+  if (rn === undefined) return;
+  if (available !== undefined && !available.some((a) => a.name === RN_METHOD)) return;
+  const at = styling.methods.findIndex((m) => m.name === "inline-style");
+  if (at < 0) return;
+  styling.methods.splice(at, 1);
+  rn.evidence.push("supersedes: inline-style");
+}
+
 /** 예전 이름 → 현재 Extractor 이름. MUI sx 방식은 한때 `"sx"`로 보고됐다. */
 const LEGACY_EXTRACTOR_NAMES: Record<string, string> = { sx: "mui-sx" };
 

@@ -1,6 +1,7 @@
 import path from "node:path";
 import { normalizeSpecifier } from "@dsmith-dev/core";
-import { isDir, listFiles } from "./fs-utils.js";
+import type { JsThemeDetection } from "./detect-js-themes.js";
+import { isDir, listFiles, pathExists } from "./fs-utils.js";
 
 export interface DsDetection {
   kind: "npm" | "local" | "none";
@@ -9,7 +10,11 @@ export interface DsDetection {
   /** npm DS: DS로 판정되는 모든 의존성(import 집계에 쓴다) */
   packageNames?: string[];
   dir?: string;
+  /** 파일형 로컬 DS(`src/components/ui.tsx`). 있으면 dir = 확장자를 뺀 module 키 */
+  entry?: string;
   tokenFiles: string[];
+  /** 쓰이는 JS 테마 모듈(`export const colors = {…}`). 없으면 필드가 없다 */
+  jsThemes?: JsThemeDetection[];
 }
 
 const NPM_DS_PREFIXES = ["@radix-ui/", "@mantine/", "@chakra-ui/", "@mui/"];
@@ -18,7 +23,11 @@ const PRIMITIVE_PREFIXES = ["@radix-ui/", "@headlessui/"];
 /** 대표 패키지로 고르지 않는 보조 패키지(아이콘, @mui/x-*, styled-engine, utils, system). */
 const SECONDARY_PACKAGE = /icons|\/x-|styled-engine|utils|system/;
 const LOCAL_DS_DIRS = ["components/ui", "src/components/ui", "src/ui", "src/design-system", "packages/ui"];
-const TOKEN_FILES = "**/{tokens.css,tokens.ts,tokens.json,theme.ts,theme.css,design-tokens.*}";
+/** 디렉터리 DS가 없을 때 보는 파일형 로컬 DS(`src/components/ui.tsx`) */
+const LOCAL_DS_FILES = ["components/ui", "src/components/ui", "src/ui"].flatMap((base) =>
+  ["tsx", "ts", "jsx", "js"].map((ext) => ({ dir: base, entry: `${base}.${ext}` })),
+);
+const TOKEN_FILES ="**/{tokens.css,tokens.ts,tokens.json,theme.ts,theme.css,design-tokens.*}";
 
 function isNpmDs(name: string): boolean {
   return (
@@ -50,6 +59,16 @@ export async function detectDs(root: string, deps: string[], exclude: string[] =
       break;
     }
   }
+  let localEntry: string | undefined;
+  if (localDir === undefined) {
+    for (const candidate of LOCAL_DS_FILES) {
+      if (await pathExists(path.join(root, candidate.entry))) {
+        localDir = candidate.dir;
+        localEntry = candidate.entry;
+        break;
+      }
+    }
+  }
 
   // 프리미티브(@radix-ui, @headlessui)만 있고 로컬 DS 디렉터리가 있으면 로컬 디렉터리가 DS다.
   const onlyPrimitives = packageNames.every(isPrimitive);
@@ -57,7 +76,11 @@ export async function detectDs(root: string, deps: string[], exclude: string[] =
   if (representative !== undefined && !(onlyPrimitives && localDir !== undefined)) {
     return { kind: "npm", packageName: representative, packageNames, tokenFiles };
   }
-  if (localDir !== undefined) return { kind: "local", dir: localDir, tokenFiles };
+  if (localDir !== undefined) {
+    return localEntry === undefined
+      ? { kind: "local", dir: localDir, tokenFiles }
+      : { kind: "local", dir: localDir, entry: localEntry, tokenFiles };
+  }
   return { kind: "none", tokenFiles };
 }
 

@@ -25,6 +25,7 @@ export {
   normalizeSpecifier,
   readTsconfigPaths,
   resolveWithPaths,
+  stripModulePath,
 } from "./index/specifier.js";
 export { readIndex, writeIndex } from "./index/store.js";
 export type { ImportTable } from "./parse/member-ref.js";

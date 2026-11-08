@@ -2,6 +2,7 @@ import path from "node:path";
 import type { Index } from "@dsmith-dev/core";
 import type { ExtractorMeta } from "@dsmith-dev/extractor-api";
 import { detectDs, type DsDetection } from "./detect-ds.js";
+import { detectJsThemes } from "./detect-js-themes.js";
 import { detectFramework, type FrameworkDetection } from "./detect-framework.js";
 import { detectLint, type LintDetection } from "./detect-lint.js";
 import { decideState, sharesFromIndex, sharesFromSources } from "./detect-state.js";
@@ -14,12 +15,14 @@ import {
   markMonorepoRoot,
   mergeMethods,
   normalizeExtractorNames,
+  supersedeInlineStyle,
   type StylingDetection,
 } from "./detect-styling.js";
 import { loadSources, readDependencyNames, readDependencyRanges } from "./fs-utils.js";
 import { readDetect, writeDetect } from "./store.js";
 
 export type { DsDetection } from "./detect-ds.js";
+export type { JsThemeDetection } from "./detect-js-themes.js";
 export { isDsSpecifier } from "./detect-ds.js";
 export type { FrameworkDetection } from "./detect-framework.js";
 export type { LintDetection } from "./detect-lint.js";
@@ -96,12 +99,19 @@ export async function detect(rootArg: string, index?: Index, opts: DetectOptions
   const styling = await detectStyling(root, { deps, sources, exclude, ranges: await readDependencyRanges(root) });
   // Extractor가 선언한 signals로 감지한 방식(서드파티 포함)을 내장 방식 뒤에 붙인다.
   mergeMethods(styling, await detectSignalMethods(root, { deps, sources, exclude }, opts.available));
+  const framework = await detectFramework(root, deps);
+  // RN Extractor가 `style={{}}`도 읽으므로 둘 다 켜면 같은 값을 두 번 센다 — RN 프레임워크에서는 RN 방식이 inline-style을 대신한다.
+  supersedeInlineStyle(styling, framework.name, opts.available);
   // 폴백이 방식 목록에 inline-style을 더할 수 있으므로 index share·모노레포 표시는 그 뒤에 적용한다.
   const resolvedExtractors = activeExtractorsOf(styling, opts.available);
   if (index) applyIndexShares(styling, index);
   await markMonorepoRoot(root, styling);
   const dsDetected = await detectDs(root, deps, exclude);
-  const framework = await detectFramework(root, deps);
+  const jsThemes = await detectJsThemes(root, sources, exclude);
+  if (jsThemes.length > 0) {
+    dsDetected.jsThemes = jsThemes;
+    for (const t of jsThemes) if (!dsDetected.tokenFiles.includes(t.file)) dsDetected.tokenFiles.push(t.file);
+  }
   const storybook = await detectStorybook(root, exclude);
   const lint = await detectLint(root);
 
