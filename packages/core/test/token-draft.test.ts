@@ -371,6 +371,12 @@ describe("bestReplacement", () => {
       expect(bestReplacement(color("#fff", "background-color"), near)?.token.name).toBe("colors.white");
     });
 
+    it("onSurface·onBackground는 글자 역할이라 배경색에는 고르지 않는다", () => {
+      const material = [jsTok("colors.white"), jsTok("colors.onSurface"), jsTok("colors.onBackground")];
+      expect(bestReplacement(color("#fff", "background-color"), material)?.token.name).toBe("colors.white");
+      expect(bestReplacement(color("#fff", "color"), material)?.token.name).toBe("colors.onSurface");
+    });
+
     it("역할 단어는 이름 조각 단위로 본다(textured·background-image 같은 부분 일치는 아님)", () => {
       const tricky = [jsTok("colors.textured"), jsTok("colors.fg")];
       expect(bestReplacement(color("#fff", "color"), tricky)?.token.name).toBe("colors.fg");

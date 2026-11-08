@@ -195,6 +195,16 @@ describe("함수 style", () => {
     ]);
   });
 
+  it("조건 값의 undefined·null 가지는 세지 않고, 객체·배열 가지(transform·shadowOffset)는 예전처럼 dynamic 한 건", () => {
+    const usages = run(`const x = <View style={{ width: c ? undefined : 10, height: c ? null : 4, transform: c ? [{ scale: 1 }] : [], shadowOffset: c ? { width: 1, height: 1 } : { width: 0, height: 0 } }} />;`);
+    expect(usages.map((u) => [u.property, u.raw.length > 12 ? "…" : u.raw, u.source])).toEqual([
+      ["width", "10", "hardcoded"],
+      ["height", "4", "hardcoded"],
+      ["other", "…", "dynamic"],
+      ["other", "…", "dynamic"],
+    ]);
+  });
+
   it("블록 본문은 모든 return을 읽고 안쪽 함수의 return은 읽지 않는다", () => {
     const usages = run(`const x = <Pressable style={function (s) {
   const f = () => ({ margin: 99 });
@@ -238,6 +248,21 @@ describe("Reanimated", () => {
       ["padding", "spacing.md", "dynamic"],
     ]);
     expect(usages.find((u) => u.raw === "colors.surface")?.ref).toBeDefined();
+  });
+
+  it("다 읽을 수 없는 애니메이션 호출은 예전처럼 dynamic 한 건으로 남는다", () => {
+    const usages = run(`const s = useAnimatedStyle(() => ({
+  backgroundColor: interpolateColor(p.value, [0, 1], COLORS),
+  borderColor: interpolateColor(p.value, [0, 1], [...cs, "#fff"]),
+  opacity: withTiming(),
+  padding: theme.withTiming(8),
+}));`);
+    expect(usages.map((u) => [u.property, u.source])).toEqual([
+      ["background-color", "dynamic"],
+      ["border-color", "dynamic"],
+      ["other", "dynamic"],
+      ["padding", "dynamic"],
+    ]);
   });
 
   it("useAnimatedStyle만 있는 파일에도 appliesTo가 참", () => {

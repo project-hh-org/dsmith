@@ -113,7 +113,7 @@ npx dsmith guard --ci --base origin/main     # PR이 새로 들인 것만 검사
 
 ### 같은 규칙 엔진
 
-`migrate`가 후보를 고르는 규칙, ESLint 플러그인이 보고하는 규칙, `guard --ci`가 세는 규칙, MCP `lint_snippet`의 답은 모두 `@dsmith-dev/core`의 같은 함수(`evaluateFile`·`bestReplacement`)에서 나온다. 값이 같은 토큰이 여럿이면(테마의 `white`·`surface`·`textInverse`가 모두 `#ffffff`) 속성 역할에 맞는 이름을 고른다 — 배경색은 `bg`·`background`·`surface`…, 글자색은 `text`·`fg`·`on`…, 테두리색은 `border`·`outline`·`divider`… 이름 조각이 있는 토큰, 다음으로 역할 단어가 없는 토큰, 다른 역할 이름의 토큰 순이고 그다음은 파일 순서다. 그래서 migrate가 바꾼 것은 guard가 신규로 세지 않고, ESLint가 보고한 것은 guard가 같은 위치에서 같은 값으로 센다. `packages/cli/test/e2e-migrate-guard.test.ts`가 `examples/legacy-demo`에서 `init → migrate → guard`를 끝까지 돌려 이를 고정한다.
+`migrate`가 후보를 고르는 규칙, ESLint 플러그인이 보고하는 규칙, `guard --ci`가 세는 규칙, MCP `lint_snippet`의 답은 모두 `@dsmith-dev/core`의 같은 함수(`evaluateFile`·`bestReplacement`)에서 나온다. 값이 같은 토큰이 여럿이면(테마의 `white`·`surface`·`textInverse`가 모두 `#ffffff`) 속성 역할에 맞는 이름을 고른다 — 배경색은 `bg`·`background`·`surface`…, 글자색은 `text`·`fg`·`on`…, 테두리색은 `border`·`outline`·`divider`… 이름 조각이 있는 토큰, 다음으로 역할 단어가 없는 토큰, 다른 역할 이름의 토큰 순이고 그다음은 파일 순서다. `onSurface`처럼 `on`으로 시작하는 이름은 글자 역할로 본다. RN의 `shadowColor`·`tintColor`는 글자색과 같은 `color` 속성으로 분류되어 글자 역할 이름을 고를 수 있다. 그래서 migrate가 바꾼 것은 guard가 신규로 세지 않고, ESLint가 보고한 것은 guard가 같은 위치에서 같은 값으로 센다. `packages/cli/test/e2e-migrate-guard.test.ts`가 `examples/legacy-demo`에서 `init → migrate → guard`를 끝까지 돌려 이를 고정한다.
 
 쇼케이스: [docs/showcase/legacy-demo.md](docs/showcase/legacy-demo.md)
 

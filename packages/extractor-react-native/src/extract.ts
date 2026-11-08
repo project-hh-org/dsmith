@@ -36,25 +36,44 @@ const ANIMATED_STYLE_HOOKS: ReadonlySet<string> = new Set(["useAnimatedStyle"]);
 /** 속성 값 자리의 애니메이션 호출 → 리터럴이 있는 인자 위치. interpolateColor(값, 입력, 출력[]): 출력 배열의 원소들 */
 const ANIMATION_VALUE_CALLS: ReadonlySet<string> = new Set(["withTiming", "withSpring", "interpolateColor"]);
 
-/** 애니메이션 호출 안에서 스타일 값으로 쓰일 식들(`withTiming(40)` → 40, `interpolateColor(p, [0, 1], ["#fff", c])` → "#fff"·c) */
-function animationValues(call: CallExpression): Expression[] {
-  const name = calleeName(call);
+/**
+ * 애니메이션 호출 안에서 스타일 값으로 쓰일 식들(`withTiming(40)` → 40, `interpolateColor(p, [0, 1], ["#fff", c])` → "#fff"·c).
+ * 다 읽을 수 없으면(인자 없음, 출력 범위가 배열 리터럴이 아님, 스프레드 원소) null — 그때는 호출 전체를 dynamic 한 건으로 둔다.
+ */
+function animationValues(node: Node): Expression[] | null {
+  const name = calleeName(node);
+  if (node.type !== "CallExpression" || name === undefined || !ANIMATION_VALUE_CALLS.has(name)) return null;
+  // `withTiming(…)` 또는 `Reanimated.withTiming(…)`만 — 다른 객체의 같은 이름 메서드(`theme.withTiming`)는 아니다
+  const { callee } = node;
+  if (callee.type === "MemberExpression" && !(callee.object.type === "Identifier" && /^(?:Reanimated|Animated)$/.test(callee.object.name))) return null;
   if (name === "withTiming" || name === "withSpring") {
-    const first = call.arguments[0];
-    return first !== undefined && isExpression(first) ? [first] : [];
+    const first = node.arguments[0];
+    return first !== undefined && isExpression(first) ? [first] : null;
   }
-  if (name === "interpolateColor") {
-    const output = call.arguments[2];
-    if (output === undefined || output.type !== "ArrayExpression") return [];
-    return output.elements.filter((e): e is Expression => e !== null && isExpression(e));
+  const output = node.arguments[2];
+  if (output === undefined || output.type !== "ArrayExpression" || output.elements.length === 0) return null;
+  const values: Expression[] = [];
+  for (const e of output.elements) {
+    if (e === null || !isExpression(e)) return null;
+    values.push(e);
   }
-  return [];
+  return values;
 }
 
-const isAnimationValueCall = (node: Node): node is CallExpression => {
-  const name = calleeName(node);
-  return name !== undefined && ANIMATION_VALUE_CALLS.has(name);
-};
+/** `undefined`·`null` — 스타일 값이 아니다(속성을 안 쓰는 가지) */
+const isNoValue = (node: Node): boolean =>
+  node.type === "NullLiteral" || (node.type === "Identifier" && node.name === "undefined");
+
+/**
+ * `pressed ? "#eee" : "#fff"`의 값 가지들(`undefined`·`null` 가지 제외).
+ * 가지가 객체·배열(`shadowOffset`·`transform`)이면 어차피 재귀하지 않으므로 null — 호출자는 원래대로 dynamic 한 건으로 둔다.
+ */
+function conditionalBranches(node: Node): Expression[] | null {
+  if (node.type !== "ConditionalExpression") return null;
+  const branches = [node.consequent, node.alternate];
+  if (branches.some((b) => b.type === "ObjectExpression" || b.type === "ArrayExpression")) return null;
+  return branches.filter((b) => !isNoValue(b));
+}
 
 /** 함수 본문의 return 식들. 안쪽 함수의 return은 그 함수의 것이라 들어가지 않는다 */
 function returnedExpressions(fn: Node): Expression[] {
@@ -181,7 +200,7 @@ function extract(ctx: ExtractContext): StyleUsage[] {
 
   const classify: NonNullable<StyleObjectContext["classify"]> = (key, value, defaultClassify) => {
     // Platform.select·애니메이션 호출 값은 아래에서 따로 읽는다
-    if (isPlatformSelect(value) || isAnimationValueCall(value) || value.type === "ConditionalExpression") return null;
+    if (isPlatformSelect(value) || animationValues(value) !== null || conditionalBranches(value) !== null) return null;
     const mapped = classifyRnKey(key);
     if (mapped === undefined || mapped === "other") return undefined;
     return defaultClassify(mapped);
@@ -205,13 +224,13 @@ function extract(ctx: ExtractContext): StyleUsage[] {
       if (prop.type !== "ObjectProperty" || prop.computed) continue;
       const key = prop.key.type === "Identifier" ? prop.key.name : prop.key.type === "StringLiteral" ? prop.key.value : null;
       if (key === null) continue;
-      if (isPlatformSelect(prop.value)) selectCall(prop.value, key);
-      else if (isAnimationValueCall(prop.value)) for (const v of animationValues(prop.value)) keyedValue(key, v);
-      else if (prop.value.type === "ConditionalExpression") {
-        // `backgroundColor: pressed ? "#eee" : "#fff"` — 조건은 스타일이 아니고 두 가지가 그 키의 값이다
-        keyedValue(key, prop.value.consequent);
-        keyedValue(key, prop.value.alternate);
+      if (isPlatformSelect(prop.value)) {
+        selectCall(prop.value, key);
+        continue;
       }
+      // `backgroundColor: pressed ? "#eee" : "#fff"` — 조건은 스타일이 아니고 가지들이 그 키의 값이다. 애니메이션 호출은 목표값·출력 범위가 값이다
+      const values = animationValues(prop.value) ?? conditionalBranches(prop.value);
+      if (values !== null) for (const v of values) keyedValue(key, v);
     }
   }
 

@@ -377,7 +377,7 @@ export interface Replacement {
 
 /** 색 속성별 역할 단어. 토큰 이름 조각(`colors.textInverse` → text·inverse)과 비교한다 */
 const ROLE_WORDS: Partial<Record<StyleProperty, ReadonlySet<string>>> = {
-  color: new Set(["text", "fg", "foreground", "on", "content", "label", "ink", "heading", "title"]),
+  color: new Set(["text", "fg", "foreground", "content", "label", "ink", "heading", "title"]),
   "background-color": new Set(["bg", "background", "surface", "canvas", "card", "backdrop", "overlay"]),
   "border-color": new Set(["border", "outline", "divider", "separator", "stroke", "line", "ring"]),
   fill: new Set(["fill", "icon"]),
@@ -398,6 +398,8 @@ function roleScore(token: Token, property: StyleProperty): number {
   const own = ROLE_WORDS[property];
   if (own === undefined) return 1;
   const words = nameWords(token.name);
+  // `onSurface`·`onPrimary`(Material 관례)는 "그 위에 올리는 글자색"이라 뒤의 배경 단어와 상관없이 글자 역할이다
+  if (words.includes("on")) return property === "color" ? 2 : 0;
   if (words.some((w) => own.has(w))) return 2;
   const other = Object.entries(ROLE_WORDS).some(([p, set]) => p !== property && words.some((w) => set.has(w)));
   return other ? 0 : 1;
