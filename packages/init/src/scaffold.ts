@@ -77,6 +77,26 @@ function propLine(p: ScaffoldProp): string {
   return `  ${key}${optional}: unknown; // 원 타입: ${oneLine}`;
 }
 
+const RESERVED = new Set(
+  "break case catch class const continue debugger default delete do else enum export extends false finally for function if import in instanceof new null return super switch this throw true try typeof var void while with yield let static implements interface package private protected public await async arguments eval".split(" "),
+);
+
+/** 구조 분해 항목: 식별자이고 예약어가 아니면 이름 그대로, 아니면 `"이름": 별칭` */
+function bindingOf(name: string): string {
+  if (IDENTIFIER.test(name) && !RESERVED.has(name)) return name;
+  const words = name.split(/[^A-Za-z0-9_$]+/).filter((w) => w !== "");
+  let alias = words.map((w, i) => (i === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1))).join("");
+  if (alias === "" || !IDENTIFIER.test(alias)) alias = `prop${alias}`;
+  if (RESERVED.has(alias) || alias === name) alias = `${alias}Prop`;
+  return `${JSON.stringify(name)}: ${alias}`;
+}
+
+/** 함수 매개변수: props가 있으면 `{ a, b }: XProps`(readComponentProps가 타입을 읽는다), 없으면 `_props: XProps` */
+function paramOf(name: string, props: ScaffoldProp[]): string {
+  if (props.length === 0) return `_props: ${name}Props`;
+  return `{ ${props.map((p) => bindingOf(p.name)).join(", ")} }: ${name}Props`;
+}
+
 /** 컴포넌트 골격 텍스트. 결정적(타임스탬프·절대 경로 없음). */
 export function renderScaffold(input: ScaffoldInput): string {
   const origin =
@@ -97,9 +117,8 @@ export function renderScaffold(input: ScaffoldInput): string {
   } else {
     lines.push(`export interface ${input.name}Props {`, ...props.map(propLine), "}");
   }
+  lines.push("", `export function ${input.name}(${paramOf(input.name, props)}) {`);
   lines.push(
-    "",
-    `export function ${input.name}() {`,
     `  // TODO: 구현 — 받을 props는 ${input.name}Props 참고`,
     "  return null;",
     "}",

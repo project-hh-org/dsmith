@@ -1,3 +1,4 @@
+import { readComponentProps, validateEdit } from "@dsmith-dev/core";
 import { describe, expect, it } from "vitest";
 import { isSelfContainedType, renderScaffold } from "../src/scaffold.js";
 
@@ -50,12 +51,33 @@ describe("renderScaffold", () => {
         variant?: "primary" | "secondary" | "danger";
       }
 
-      export function Button() {
+      export function Button({ "aria-label": ariaLabel, children, onClick, variant }: ButtonProps) {
         // TODO: 구현 — 받을 props는 ButtonProps 참고
         return null;
       }
       "
     `);
+  });
+
+  it("스캐폴드는 props를 구조 분해로 받아 readComponentProps가 읽는다(식별자가 아닌 이름·예약어 포함)", () => {
+    const text = renderScaffold({
+      name: "Badge",
+      item: "Badge",
+      basis: "decided",
+      from: "src/Badge",
+      props: [{ name: "tone", type: '"a" | "b"' }, { name: "data-x" }, { name: "default" }, { name: "children", type: "ReactNode" }],
+      topUses: [],
+      tokensRef: "ds/tokens.css",
+    });
+    const read = readComponentProps(text, "design-system/components/Badge.tsx", "Badge");
+    expect(read?.props.map((p) => p.name).sort()).toEqual(["children", "data-x", "default", "tone"]);
+    expect(validateEdit("Badge.tsx", "", text)).toEqual({ ok: true });
+  });
+
+  it("props가 없어도 매개변수에 타입을 달아 읽을 수 있다", () => {
+    const text = renderScaffold({ name: "Card", item: "Card", basis: "decided", from: "x", props: [], topUses: [], tokensRef: "t.css" });
+    expect(text).toContain("export function Card(_props: CardProps) {");
+    expect(readComponentProps(text, "Card.tsx", "Card")).toEqual({ props: [], inherits: [] });
   });
 
   it("추천 기준 첫 줄, props 없음", () => {
