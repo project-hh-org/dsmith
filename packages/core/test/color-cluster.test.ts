@@ -157,8 +157,41 @@ describe("clusterColors hue 구간 경계", () => {
     expect(nameAt(359.9)).toBe("pink");
   });
 
-  it("채도 0.03 미만은 gray, 0.03 이상은 hue 이름이다", () => {
-    expect(nameAt(260, 0.0299)).toBe("gray");
-    expect(nameAt(260, 0.03)).toBe("blue");
+  it("중간 밝기에서는 채도 0.045 미만이 gray, 이상이 hue 이름이다", () => {
+    expect(nameAt(260, 0.0449)).toBe("gray");
+    expect(nameAt(260, 0.045)).toBe("blue");
+  });
+});
+
+describe("clusterColors gray 판정은 밝기에 따라 달라진다", () => {
+  const family = (hex: string) => clusterColors(repeat(hex, 1))[0]?.suggestedName.split("-")[0];
+  const TAILWIND = {
+    gray: ["#f9fafb", "#f3f4f6", "#e5e7eb", "#d1d5db", "#9ca3af", "#6b7280", "#4b5563", "#374151", "#1f2937", "#111827", "#030712"],
+    slate: ["#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1", "#94a3b8", "#64748b", "#475569", "#334155", "#1e293b", "#0f172a", "#020617"],
+    stone: ["#fafaf9", "#f5f5f4", "#e7e5e4", "#d6d3d1", "#a8a29e", "#78716c", "#57534e", "#44403c", "#292524", "#1c1917", "#0c0a09"],
+    zinc: ["#fafafa", "#f4f4f5", "#e4e4e7", "#d4d4d8", "#a1a1aa", "#71717a", "#52525b", "#3f3f46", "#27272a", "#18181b", "#09090b"],
+    neutral: ["#fafafa", "#f5f5f5", "#e5e5e5", "#d4d4d4", "#a3a3a3", "#737373", "#525252", "#404040", "#262626", "#171717", "#0a0a0a"],
+  };
+
+  for (const [name, hexes] of Object.entries(TAILWIND)) {
+    it(`Tailwind ${name} 50–950은 모두 gray 계열이다`, () => {
+      for (const hex of hexes) expect(family(hex), `${name} ${hex}`).toBe("gray");
+    });
+  }
+
+  it("연한 색조(50)는 자기 hue를 유지한다", () => {
+    expect(family("#eff6ff")).toBe("blue"); // blue-50
+    expect(family("#f0f9ff")).toBe("sky"); // sky-50
+    expect(family("#eef2ff")).toBe("blue"); // indigo-50 (hue 구간상 blue)
+    expect(family("#fff1f2")).toBe("red"); // rose-50
+    expect(family("#f0fdfa")).toBe("teal"); // teal-50
+    expect(family("#f5f3ff")).not.toBe("gray"); // violet-50
+    expect(family("#fffbeb")).not.toBe("gray"); // amber-50
+  });
+
+  it("#374151·#111827은 gray, #eff6ff는 blue", () => {
+    expect(family("#374151")).toBe("gray");
+    expect(family("#111827")).toBe("gray");
+    expect(family("#eff6ff")).toBe("blue");
   });
 });

@@ -64,6 +64,8 @@ export interface DecisionCard {
     reason: string;
     confidence: Confidence;
     rule: "ds-module" | "usage" | "token-rate" | "tie";
+    /** 추천을 그대로 믿기 전에 확인할 점(예: 이름만 같은 다른 컴포넌트일 수 있음). 없으면 생략 */
+    note?: string;
   };
   decided?: { chosen: string; decidedAt: string; note?: string; stale?: true };
 }

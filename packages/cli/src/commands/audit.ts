@@ -4,6 +4,7 @@ import {
   clusterColors,
   clusterSpacing,
   duplicateNames,
+  findInitDir,
   indexRepo,
   isRatedUsage,
   localDefinitionsOf,
@@ -97,8 +98,11 @@ export async function runAudit(rootArg: string, opts: RunOptions = {}): Promise<
   const provisional = await detect(root, undefined, { available: metas(), exclude: runExclude });
   await writeDetect(root, provisional);
 
+  // init이 만든 산출 디렉터리(migrate가 치환 대상에서 빼는 것과 같은 디렉터리)는 인덱싱하지 않는다 — 감지(토큰 파일 인식)에는 그대로 쓰인다
+  const initDir = await findInitDir(root);
+  const initExclude = initDir === null || initDir === "." ? [] : [`${initDir}/**`];
   const index = await indexRepo(root, buildExtractors(provisional.activeExtractors), {
-    exclude: excludeGlobs(provisional.overrides, runExclude),
+    exclude: [...excludeGlobs(provisional.overrides, runExclude), ...initExclude],
   });
   await writeIndex(root, index);
 

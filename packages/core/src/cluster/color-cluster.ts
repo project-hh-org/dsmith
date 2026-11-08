@@ -10,7 +10,28 @@ export interface ColorCluster {
 }
 
 const DEFAULT_THRESHOLD = 0.03;
-const ACHROMATIC_CHROMA = 0.03;
+
+/**
+ * gray 판정 채도 상한(밝기별). 어두운 slate(C≈.04)는 gray로, 아주 밝은 색조(blue-50, C≈.014)는 hue로 남기려고
+ * 밝기에 따라 (l, 상한) 점을 잇는다.
+ */
+const ACHROMATIC_CHROMA_BY_LIGHTNESS: readonly (readonly [number, number])[] = [
+  [0, 0.045],
+  [0.8, 0.045],
+  [0.93, 0.022],
+  [0.99, 0.008],
+  [1, 0.008],
+];
+
+function achromaticLimit(l: number): number {
+  const pts = ACHROMATIC_CHROMA_BY_LIGHTNESS;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1] as readonly [number, number];
+    const [x1, y1] = pts[i] as readonly [number, number];
+    if (l <= x1) return y0 + ((y1 - y0) * (l - x0)) / (x1 - x0);
+  }
+  return (pts[pts.length - 1] as readonly [number, number])[1];
+}
 
 // 30° 폭 12구간. oklch hue 기준으로 red가 10°에서 시작한다(Tailwind red≈25°, blue≈260°, green≈150°).
 const HUE_ORIGIN = 10;
@@ -43,13 +64,24 @@ const LIGHTNESS_STEPS: readonly (readonly [number, number])[] = [
   [0.12, 900],
 ];
 
+/** 이름에 쓰는 단계 사다리(밝은 쪽이 앞). `LIGHTNESS_STEPS`의 단계 + 950 */
+export const COLOR_STEPS: readonly number[] = [...LIGHTNESS_STEPS.map(([, step]) => step), 950];
+
+/** 색상 계열 이름: 채도가 낮으면 gray, 아니면 hue 구간 */
+export function colorFamily(color: NormalizedColor): string {
+  return color.c < achromaticLimit(color.l)
+    ? "gray"
+    : (HUE_BUCKETS[Math.floor((((color.h - HUE_ORIGIN) % 360) + 360) % 360 / 30)] ?? "gray");
+}
+
+/** 밝기(OKLCH l)에 해당하는 이상적인 단계의 `COLOR_STEPS` 인덱스 */
+export function idealStepIndex(l: number): number {
+  const i = LIGHTNESS_STEPS.findIndex(([min]) => l >= min);
+  return i === -1 ? COLOR_STEPS.length - 1 : i;
+}
+
 function suggestName(color: NormalizedColor): string {
-  const hue =
-    color.c < ACHROMATIC_CHROMA
-      ? "gray"
-      : (HUE_BUCKETS[Math.floor((((color.h - HUE_ORIGIN) % 360) + 360) % 360 / 30)] ?? "gray");
-  const step = LIGHTNESS_STEPS.find(([min]) => color.l >= min)?.[1] ?? 950;
-  return `${hue}-${step}`;
+  return `${colorFamily(color)}-${COLOR_STEPS[idealStepIndex(color.l)]}`;
 }
 
 export function clusterColors(

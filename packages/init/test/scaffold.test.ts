@@ -1,3 +1,9 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { readComponentProps, validateEdit } from "@dsmith-dev/core";
 import { describe, expect, it } from "vitest";
 import { isSelfContainedType, renderScaffold } from "../src/scaffold.js";
 
@@ -50,12 +56,55 @@ describe("renderScaffold", () => {
         variant?: "primary" | "secondary" | "danger";
       }
 
-      export function Button() {
+      export function Button(_props: ButtonProps) {
         // TODO: 구현 — 받을 props는 ButtonProps 참고
         return null;
       }
       "
     `);
+  });
+
+  it("스캐폴드는 항상 `_props: XProps`를 받고 readComponentProps가 읽는다(식별자가 아닌 이름·예약어 포함)", () => {
+    const text = renderScaffold({
+      name: "Badge",
+      item: "Badge",
+      basis: "decided",
+      from: "src/Badge",
+      props: [{ name: "tone", type: '"a" | "b"' }, { name: "data-x" }, { name: "default" }, { name: "children", type: "ReactNode" }],
+      topUses: [],
+      tokensRef: "ds/tokens.css",
+    });
+    const read = readComponentProps(text, "design-system/components/Badge.tsx", "Badge");
+    expect(read?.props.map((p) => p.name).sort()).toEqual(["children", "data-x", "default", "tone"]);
+    expect(validateEdit("Badge.tsx", "", text)).toEqual({ ok: true });
+    expect(text).toContain("export function Badge(_props: BadgeProps) {");
+  });
+
+  it("생성된 스캐폴드가 tsc --strict --noUnusedParameters --noUnusedLocals로 컴파일된다", () => {
+    const dir = mkdtempSync(join(tmpdir(), "dsmith-scaffold-"));
+    try {
+      const props = [{ name: "tone", type: '"a" | "b"' }, { name: "data-x" }, { name: "default" }, { name: "children", type: "ReactNode" }];
+      writeFileSync(join(dir, "Badge.tsx"), renderScaffold({ name: "Badge", item: "Badge", basis: "decided", from: "x", props, topUses: [], tokensRef: "t.css" }));
+      writeFileSync(join(dir, "Card.tsx"), renderScaffold({ name: "Card", item: "Card", basis: "decided", from: "x", props: [], topUses: [], tokensRef: "t.css" }));
+      // 모노레포에 @types/react가 없어 React 전역 네임스페이스만 최소로 선언한다
+      writeFileSync(join(dir, "react-stub.d.ts"), "declare namespace React { type ReactNode = string | number | boolean | null | undefined; }\n");
+      const tsc = join(dirname(createRequire(import.meta.url).resolve("typescript/package.json")), "bin", "tsc");
+      const run = spawnSync(
+        process.execPath,
+        [tsc, "--noEmit", "--strict", "--noUnusedParameters", "--noUnusedLocals", "--jsx", "react-jsx", "--skipLibCheck", "--target", "es2022", "--module", "esnext", "--moduleResolution", "bundler", "Badge.tsx", "Card.tsx", "react-stub.d.ts"],
+        { cwd: dir, encoding: "utf8" },
+      );
+      expect(run.stdout + run.stderr).toBe("");
+      expect(run.status).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("props가 없어도 매개변수에 타입을 달아 읽을 수 있다", () => {
+    const text = renderScaffold({ name: "Card", item: "Card", basis: "decided", from: "x", props: [], topUses: [], tokensRef: "t.css" });
+    expect(text).toContain("export function Card(_props: CardProps) {");
+    expect(readComponentProps(text, "Card.tsx", "Card")).toEqual({ props: [], inherits: [] });
   });
 
   it("추천 기준 첫 줄, props 없음", () => {

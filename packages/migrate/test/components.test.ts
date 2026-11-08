@@ -181,11 +181,52 @@ describe("planComponentEdits: props", () => {
     expect(run(code, [target()]).held).toEqual([]);
   });
 
-  it("props를 모르면(null) 검사하지 않는다", () => {
-    const code = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button whatever={1} />;\n';
+  it("대상 props를 모르면(null) 안전한 passthrough 밖의 prop이 있을 때 target-props-unknown으로 보류한다", () => {
+    const code = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button whatever={1} virtualized size="sm" className="c" />;\n';
+    const r = run(code, [target({ props: null })]);
+    expect(r.edits).toEqual([]);
+    expect(r.held).toHaveLength(1);
+    expect(r.held[0]).toMatchObject({ reason: "target-props-unknown", item: "Button" });
+    expect(r.held[0]?.detail).toContain("whatever");
+    expect(r.held[0]?.detail).toContain("virtualized");
+    expect(r.held[0]?.detail).toContain("size");
+    expect(r.held[0]?.detail).not.toContain("className");
+  });
+
+  it("대상 props를 몰라도 passthrough(children·className·style·key·ref·id·data-*·aria-*)만 쓰면 치환한다", () => {
+    const code = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button key="k" ref={r} id="i" className="c" style={{}} aria-label="a" data-x="1">x</Button>;\n';
     const r = run(code, [target({ props: null })]);
     expect(r.held).toEqual([]);
     expect(r.edits.length).toBeGreaterThan(0);
+  });
+
+  it("대상 props를 몰라도 --map에 나온 prop은 사용자가 확인한 것으로 보고 통과한다", () => {
+    const code = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button kind="x" size="sm" />;\n';
+    const held = run(code, [target({ props: null, mapping: { kind: "variant" } })]);
+    expect(held.held[0]).toMatchObject({ reason: "target-props-unknown" });
+    expect(held.held[0]?.detail).toContain("size");
+    expect(held.held[0]?.detail).not.toContain("kind");
+    const ok = run(code, [target({ props: null, mapping: { kind: "variant", size: "size" } })]);
+    expect(ok.held).toEqual([]);
+    expect(ok.after).toContain('<Button variant="x" size="sm" />');
+  });
+
+  it("대상 props를 모르고 값 대응만 있으면 대응에 없는 값은 보류하고 detail에 값이 나온다", () => {
+    const mapping = { "variant=a": "variant=b" };
+    const unmapped = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button variant="primary" />;\n';
+    const held = run(unmapped, [target({ props: null, mapping })]);
+    expect(held.edits).toEqual([]);
+    expect(held.held[0]).toMatchObject({ reason: "target-props-unknown", item: "Button" });
+    expect(held.held[0]?.detail).toContain('variant="primary"');
+    const mapped = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button variant="a" />;\n';
+    const ok = run(mapped, [target({ props: null, mapping })]);
+    expect(ok.held).toEqual([]);
+    expect(ok.after).toContain('<Button variant="b" />');
+  });
+
+  it("props를 알면 기존대로 동작한다(없는 prop은 mapping-missing)", () => {
+    const code = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button whatever={1} />;\n';
+    expect(run(code, [target()]).held[0]?.reason).toBe("mapping-missing");
   });
 
   it("상속한 네이티브 속성(onClick·disabled 등)은 통과한다", () => {

@@ -18,7 +18,7 @@ export function Pagination({ page, pageCount, onChange }: Props) {
         <Button
           key={p}
           variant={p === page ? "default" : "outline"}
-          className={p === page ? "bg-[color:var(--color-brand)]" : "text-[color:var(--color-blue-900)]"}
+          className={p === page ? "bg-[color:var(--color-brand)]" : "text-[color:var(--color-gray-900)]"}
           aria-current={p === page ? "page" : undefined}
           onClick={() => onChange(p)}
         >

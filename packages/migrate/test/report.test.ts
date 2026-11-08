@@ -32,6 +32,23 @@ describe("report", () => {
     expect(text).not.toContain("dsmith migrate --apply");
   });
 
+  it("--only components에서 컴포넌트 편집만 있으면 '치환할 것이 없음' 대신 파일 수와 '토큰 치환 없음'을 낸다 (M1)", async () => {
+    const root = syntheticRepo();
+    await auditFixture(root);
+    const plan = await planMigration({ root, ...(await loadState(root)), only: "components" });
+    const file = plan.files[0] ?? { file: "src/A.tsx", replacements: [], components: [] };
+    const withEdit = {
+      ...plan,
+      planned: 0,
+      files: [{ ...file, replacements: [], components: [{ kind: "import" }] }],
+      components: { ...plan.components, decided: 1, files: 1, imports: 1 },
+    } as unknown as typeof plan;
+    const text = formatPlanSummary(withEdit, null);
+    expect(text).toContain("계획: 파일 1 (컴포넌트만 1) · 토큰 치환 없음");
+    expect(text).not.toContain("계획: 치환할 것이 없음");
+    expect(text).toContain("dsmith migrate --apply");
+  });
+
   it("적용 안내는 계획에 쓴 범위 플래그(--close·--files·--category·--only)를 그대로 되풀이한다 (M1)", async () => {
     const root = syntheticRepo();
     await auditFixture(root);

@@ -339,6 +339,32 @@ describe("examples/legacy-demo 상태 0: audit → init --all → ai → init", 
   });
 });
 
+describe("audit은 init이 만든 산출 디렉터리를 스캔하지 않는다", () => {
+  it("init --all 뒤 다시 audit해도 스캔 파일 수·스타일·컴포넌트 수가 같다", async () => {
+    const root = tmpCopy("legacy-demo", "examples");
+    const { result: before } = await runAudit(root);
+    const init = (await runInitCommand({ root, all: true })).result;
+    expect(init.outcomes.length).toBeGreaterThan(0);
+    expect(fs.existsSync(path.join(root, "design-system", "tokens.css"))).toBe(true);
+    const { result: after } = await runAudit(root);
+    expect(after.index.files.scanned).toBe(before.index.files.scanned);
+    expect(after.index.styleCount).toBe(before.index.styleCount);
+    expect(after.index.componentCount).toBe(before.index.componentCount);
+    expect(after.health.rated).toBe(before.health.rated);
+    // 감지는 그대로 init 토큰 파일을 DS 토큰으로 본다
+    expect(after.detect.ds.tokenFiles).toContain("design-system/tokens.css");
+  });
+
+  it("--out으로 다른 디렉터리에 만들었으면 그 디렉터리를 제외한다", async () => {
+    const root = tmpCopy("legacy-demo", "examples");
+    const { result: before } = await runAudit(root);
+    await runInitCommand({ root, all: true, out: "generated/ds" });
+    expect(fs.existsSync(path.join(root, "generated", "ds", "tokens.css"))).toBe(true);
+    const { result: after } = await runAudit(root);
+    expect(after.index.files.scanned).toBe(before.index.files.scanned);
+  });
+});
+
 describe("examples/legacy-demo 상태 1: init → decide → init → ai", () => {
   it("--all 없이 스캐폴드 0·pending ≥ 2, Badge를 고르면 Badge.tsx가 생기고 카탈로그에 로컬 DS Button과 init Badge가 함께 있다", async () => {
     const root = tmpCopy("legacy-demo", "examples");

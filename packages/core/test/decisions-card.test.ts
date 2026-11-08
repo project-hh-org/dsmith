@@ -52,6 +52,61 @@ describe("buildDecisionCard 추천 규칙", () => {
     expect(card.options.find((o) => o.id === "ui/A")?.isDs).toBe(true);
   });
 
+  describe("이름만 같은 컴포넌트(npm DS vs 사내 구현)", () => {
+    const dsOnly = (m: string) => m === "@mui/material";
+    const lowOverlap = (): ComponentUsage[] => [
+      ...use("@mui/material", 6, { props: ["maxWidth", "disableGutters", "sx"] }),
+      ...use("src/layout/Container", 35, { props: ["fluid", "gap", "bg"] }),
+    ];
+
+    it("props 겹침(Jaccard)이 0.5 미만이면 ds-module이어도 medium이고 안내와 사용 수를 싣는다", () => {
+      const card = build({
+        candidate: candidate(["@mui/material", "src/layout/Container"]),
+        index: indexOf(lowOverlap()),
+        isDsModule: dsOnly,
+        definitionFiles: { "src/layout/Container": "src/layout/Container.tsx" },
+      });
+      expect(card.recommendation).toMatchObject({ optionId: "@mui/material", rule: "ds-module", confidence: "medium" });
+      expect(card.recommendation.note).toContain("이름만 같고 props가 달라 같은 컴포넌트인지 확인 필요");
+      expect(card.recommendation.note).toContain("35회");
+      expect(card.recommendation.note).toContain("6회");
+    });
+
+    it("겹침이 충분하면 high 그대로이고 note가 없다", () => {
+      const card = build({
+        candidate: candidate(["@mui/material", "src/layout/Container"]),
+        index: indexOf([
+          ...use("@mui/material", 6, { props: ["maxWidth", "sx", "disableGutters"] }),
+          ...use("src/layout/Container", 35, { props: ["maxWidth", "sx", "gap"] }),
+        ]),
+        isDsModule: dsOnly,
+      });
+      expect(card.recommendation.confidence).toBe("high");
+      expect(card.recommendation.note).toBeUndefined();
+    });
+
+    it("한쪽 props만 알면(다른 쪽은 관측 0) 확인할 수 없으므로 medium이다", () => {
+      const card = build({
+        candidate: candidate(["@mui/material", "src/layout/Container"]),
+        index: indexOf([...use("@mui/material", 6), ...use("src/layout/Container", 4, { props: ["fluid"] })]),
+        isDsModule: dsOnly,
+      });
+      expect(card.recommendation).toMatchObject({ confidence: "medium", rule: "ds-module" });
+      expect(card.recommendation.note).toContain("확인 필요");
+      expect(card.recommendation.note).not.toContain("회로 많다");
+    });
+
+    it("로컬 사용 수가 DS의 3배 미만이면 사용 수는 말하지 않는다", () => {
+      const card = build({
+        candidate: candidate(["@mui/material", "src/layout/Container"]),
+        index: indexOf([...use("@mui/material", 6, { props: ["a"] }), ...use("src/layout/Container", 10, { props: ["b"] })]),
+        isDsModule: dsOnly,
+      });
+      expect(card.recommendation.confidence).toBe("medium");
+      expect(card.recommendation.note).not.toContain("10회");
+    });
+  });
+
   it("DS 옵션이 2개면 그 안에서 사용 수로 가린다", () => {
     const card = build({
       candidate: candidate(["ui/A", "ui/B", "x/C"]),

@@ -88,14 +88,16 @@ describe("proposalTokens", () => {
     expect(colors[0]?.value).toBe("#3b82f6");
   });
 
-  it("같은 suggestedName 두 클러스터는 -2 접미로 구분한다", () => {
+  it("같은 suggestedName 두 클러스터는 접미사 없이 밝기 순서대로 가까운 빈 단계를 받는다", () => {
     // 같은 hue/명도 구간이지만 서로 0.03 넘게 떨어진 색
     const a = colorUsage("#3b82f6");
     const b = colorUsage("#5b7cf5");
     const tokens = proposalTokens([a, a, b]);
-    const names = tokens.filter((t) => t.category === "color").map((t) => t.name);
-    expect(names).toHaveLength(2);
-    expect(names[1]).toBe(`${names[0]}-2`);
+    const named = tokens.filter((t) => t.category === "color").map((t) => ({ name: t.name, hex: t.value }));
+    expect(named).toHaveLength(2);
+    expect(named.every((n) => /^blue-\d+$/.test(n.name))).toBe(true);
+    expect(named.find((n) => n.hex === "#5b7cf5")?.name).toBe("blue-400"); // 더 밝은 쪽이 더 작은 번호
+    expect(named.find((n) => n.hex === "#3b82f6")?.name).toBe("blue-500");
   });
 
   it("간격은 4px 스케일 위의 값만 space-N으로 낸다", () => {

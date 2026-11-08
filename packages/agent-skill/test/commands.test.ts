@@ -97,7 +97,7 @@ describe("loadCommands — 실제 명령 소스", () => {
     expect(c?.body).toContain("`plan.tokens.loaded.css`");
     expect(c?.body).toContain("--with-tokens");
     // M5: 보류 사유를 전부 풀어 쓴다
-    for (const reason of ["decision-pending", "mapping-missing", "mapping-conflict", "non-jsx-use", "spread-props", "export-unknown", "overlap", "rolled-back"]) {
+    for (const reason of ["decision-pending", "mapping-missing", "target-props-unknown", "mapping-conflict", "non-jsx-use", "spread-props", "export-unknown", "overlap", "rolled-back"]) {
       expect(c?.body, reason).toContain(`\`${reason}\``);
     }
     expect(c?.body).toContain("JSON에 없는 숫자는 말하지 않는다");
@@ -122,6 +122,11 @@ describe("loadCommands — 실제 명령 소스", () => {
     expect(body).toContain("`differences`에 props 차이가 있으면 사람에게 대응을 묻고 `--map <from>:<to>`를 함께 넘긴다");
     expect(body).toContain("`prop=value:prop=value`");
     expect(body).toContain("대응을 모르면 비워 둔다 — migrate가 그 사용을 보류한다");
+  });
+
+  it("ds-decide는 recommendation.note가 있으면 그대로 보여 주라고 안내한다", async () => {
+    const body = (await loadCommands()).find((x) => x.name === "ds-decide")?.body ?? "";
+    expect(body).toContain("`recommendation.note`가 있으면 추천 옆에 그대로 보여 준다");
   });
 
   it("ds-init·ds-ai는 dry-run 미리보기를 먼저 부르고 같은 인자로 실제 실행을 안내한다", async () => {

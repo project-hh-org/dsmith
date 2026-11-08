@@ -97,9 +97,8 @@ export function renderScaffold(input: ScaffoldInput): string {
   } else {
     lines.push(`export interface ${input.name}Props {`, ...props.map(propLine), "}");
   }
+  lines.push("", `export function ${input.name}(_props: ${input.name}Props) {`);
   lines.push(
-    "",
-    `export function ${input.name}() {`,
     `  // TODO: 구현 — 받을 props는 ${input.name}Props 참고`,
     "  return null;",
     "}",
