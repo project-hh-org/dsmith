@@ -132,7 +132,7 @@ export function formatPlanSummary(
         ? `파일 ${tokenFiles + componentOnly} (컴포넌트만 ${componentOnly}) · 토큰 치환 없음`
         : "치환할 것이 없음"
       : `파일 ${fileCount} · 치환 ${plan.planned} (${categorySummary(plan.byCategory)})`;
-  const importCount = plan.files.reduce((n, f) => n + f.imports.length, 0);
+  const importCount = plan.files.reduce((n, f) => n + (f.imports?.length ?? 0), 0);
   lines.push(`계획: ${planned}${importCount > 0 ? ` · import 추가 ${importCount}개` : ""}`);
   if (plan.planned > 0) {
     const c = plan.confidence;
@@ -180,7 +180,7 @@ export function renderMigrateReport(input: { plan: MigratePlan; applied: ApplyRe
   lines.push("## 치환", "");
   const importsAdded = plan.files
     .filter((f) => appliedFiles.some((a) => a.file === f.file))
-    .reduce((n, f) => n + f.imports.length, 0);
+    .reduce((n, f) => n + (f.imports?.length ?? 0), 0);
   lines.push(`적용: ${appliedFiles.length}개 파일 · 치환 ${applied.replaced}${importsAdded > 0 ? ` · import 추가 ${importsAdded}개` : ""}`, "");
   lines.push("| 카테고리 | 계획 |", "| --- | --- |");
   for (const c of CATEGORIES) lines.push(`| ${CATEGORY_LABEL[c]} | ${plan.byCategory[c]} |`);

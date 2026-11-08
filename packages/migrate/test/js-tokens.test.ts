@@ -81,13 +81,13 @@ describe("migrate: JS 테마 토큰", () => {
 
     const card = plan.files.find((f) => f.file === "src/components/Card.tsx")!;
     // 사용 순서대로, 같은 module은 한 줄로
-    expect(card.imports.map((i) => i.name)).toEqual(["colors", "spacing", "radius"]);
+    expect(card.imports?.map((i) => i.name)).toEqual(["colors", "spacing", "radius"]);
     const importPatches = card.patches.filter((p) => p.replacement.includes("import"));
     expect(importPatches).toHaveLength(1);
     expect(importPatches[0]!.replacement).toContain(`import { colors, spacing, radius } from "../theme";`);
 
     const chip = plan.files.find((f) => f.file === "src/components/Chip.tsx")!;
-    expect(chip.imports.map((i) => i.name)).toEqual(["colors"]);
+    expect(chip.imports?.map((i) => i.name)).toEqual(["colors"]);
     expect(plan.notes.join("\n")).not.toMatch(/Colors\.light/);
     expect(plan.files.find((f) => f.file === "src/screens/Home.tsx")!.replacements[0]!.ref).toBe("colors.surface");
   });
@@ -102,7 +102,8 @@ describe("migrate: JS 테마 토큰", () => {
     // 별칭 import를 그대로 쓴다
     const border = plan.files.find((f) => f.file === "src/components/Border.tsx");
     expect(border?.replacements.map((r) => r.ref)).toEqual(["c.text"]);
-    expect(border?.imports).toEqual([]);
+    expect(border).toBeDefined();
+    expect(border && "imports" in border).toBe(false); // 새 import가 없으면 필드 자체가 없다
     const skipped = Object.values(plan.skipped).reduce((n, v) => n + (v ?? 0), 0);
     expect(plan.planned + skipped + plan.scope.outOfRange + plan.close.length).toBe(plan.scope.candidates);
   });
@@ -169,7 +170,7 @@ describe("migrate: JS 테마 토큰", () => {
     const refs = plan.files.flatMap((f) => f.replacements.map((r) => r.ref));
     expect(refs.length).toBeGreaterThan(0);
     expect(refs.every((r) => r.startsWith("var(--"))).toBe(true);
-    expect(plan.files.every((f) => f.imports.length === 0)).toBe(true);
+    expect(plan.files.every((f) => !("imports" in f))).toBe(true);
     expect(plan.files.flatMap((f) => f.replacements).every((r) => r.js === undefined)).toBe(true);
   });
 });

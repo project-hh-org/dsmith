@@ -104,8 +104,8 @@ export interface FilePlan {
   /** 계획 시점 내용의 sha256Text */
   sha256: string;
   replacements: PlannedReplacement[];
-  /** 이 파일에 새로 더하는 테마 import(이미 import한 것은 없다). patches에 포함돼 있다. JS 테마 치환이 있을 때만 비지 않는다 */
-  imports: { module: string; name: string; local: string }[];
+  /** 이 파일에 새로 더하는 테마 import(이미 import한 것은 없다). patches에 포함돼 있다. 있을 때만 필드가 생긴다(웹 JSON 출력 불변) */
+  imports?: { module: string; name: string; local: string }[];
   components: PlannedComponentEdit[];
   /** 적용 뒤 재추출 검증: 이 파일의 컴포넌트 사용 중 item의 module이 전부 module이어야 한다(import를 옮긴 항목) */
   componentChecks: { item: string; module: string }[];
@@ -530,7 +530,7 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
     const jsLocal: Record<string, string> = {};
     const jsModuleOf = new Map<string, string>();
     /** 치환에 쓰인 JS 테마 export들의 import 편집(이미 있는 것은 없다) */
-    const importEditsFor = (reps: PlannedReplacement[]): { patches: TextPatch[]; added: FilePlan["imports"] } =>
+    const importEditsFor = (reps: PlannedReplacement[]): { patches: TextPatch[]; added: NonNullable<FilePlan["imports"]> } =>
       planNamedImports(
         { file, code, tsPaths: moduleEnv.tsPaths, moduleContext: moduleEnv.moduleContext },
         reps.flatMap((r) => (r.js === undefined ? [] : [{ module: r.js.module, name: r.js.export, isPath: true as const }])),
@@ -672,7 +672,7 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
       file,
       sha256: sha256Text(code),
       replacements: tokenKept,
-      imports: usedImports.added,
+      ...(usedImports.added.length > 0 ? { imports: usedImports.added } : {}),
       components: compEdits,
       componentChecks,
       importTargets,
