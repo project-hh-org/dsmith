@@ -388,3 +388,144 @@ describe("legacy-demo: tokens.css 로드 안내 · 컴포넌트 결정이 있는
     expect(demo.report).not.toContain("토큰 스타일시트가 로드되지 않음");
   });
 });
+
+/**
+ * fixtures/rn-app 전 구간: audit → migrate 계획(--close) → 적용 → 재audit → guard init → guard --ci → revert.
+ * JS 테마 토큰(`src/theme.ts`)으로 치환하고, 테마를 import하지 않던 파일에는 import를 더한다.
+ */
+interface RnPlanJson extends PlanJson {
+  files: (PlanJson["files"][number] & { file: string; imports?: { module: string; name: string; local: string }[]; replacements: { ref: string; patch: { start: number } }[] })[];
+  tokens: { source: string; files: string[] };
+}
+
+describe("fixtures/rn-app 전 구간: audit → migrate → apply → guard", () => {
+  const rn: {
+    root: string;
+    scoreBefore: number;
+    planText: string;
+    planJson: MigrateJson & { plan: RnPlanJson };
+    applyJson: MigrateJson;
+    applyStatus: number | null;
+    auditAfter: { score: number; hardcodedShare: number };
+    branchCommits: number;
+    settingsAfter: string;
+    guardClean: GuardJson;
+    guardCleanStatus: number | null;
+    guardDirty: GuardJson;
+    guardDirtyStatus: number | null;
+    revert: { treeBefore: string; treeApplied: string; treeAfter: string; status: number | null };
+  } = {} as never;
+
+  beforeAll(async () => {
+    const root = tmpDir("dsmith-e2e-rn-");
+    rn.root = root;
+    fs.cpSync(path.join(repoRoot, "fixtures/rn-app"), root, { recursive: true, filter: (p) => !p.split(path.sep).includes(".dsmith") });
+    fs.writeFileSync(path.join(root, "eslint.config.mjs"), 'import tseslint from "typescript-eslint";\n\nexport default [\n  tseslint.configs.base,\n  { rules: {} },\n];\n');
+    fs.writeFileSync(path.join(root, ".gitignore"), ".dsmith/*\n!.dsmith/guard.json\n");
+    git(root, "init", "-q", "-b", "main");
+    git(root, "config", "user.name", "Dahee Hwang");
+    git(root, "config", "user.email", "dahee@project-hh.com");
+
+    rn.scoreBefore = (await runAudit(root)).result.health.score;
+    rn.planText = dsmith(root, "migrate", "--close").stdout;
+    rn.planJson = dsmithJson<MigrateJson & { plan: RnPlanJson }>(root, "migrate", "--close").json;
+    git(root, "add", "-A");
+    git(root, "commit", "-q", "-m", "base");
+
+    const copy = tmpDir("dsmith-e2e-rn-copy-");
+    fs.cpSync(root, copy, { recursive: true, filter: (p) => !p.split(path.sep).includes(".git") });
+    const treeBefore = treeHash(copy);
+    const humanApply = dsmith(copy, "migrate", "--apply", "--close");
+    const treeApplied = treeHash(copy);
+    const id = /기록 \.dsmith\/migrations\/([\w-]+)\.json/.exec(humanApply.stdout)?.[1] ?? "";
+    const rev = dsmith(copy, "migrate", "--revert", id);
+    rn.revert = { treeBefore, treeApplied, treeAfter: treeHash(copy), status: rev.status };
+
+    const applied = dsmithJson<MigrateJson>(root, "migrate", "--apply", "--close", "--branch", "ds/migrate-tokens");
+    rn.applyJson = applied.json;
+    rn.applyStatus = applied.status;
+    rn.branchCommits = Number(git(root, "rev-list", "--count", "main..ds/migrate-tokens").trim());
+    rn.settingsAfter = fs.readFileSync(path.join(root, "app/settings.tsx"), "utf-8");
+    const after = (await runAudit(root)).result.health;
+    rn.auditAfter = { score: after.score, hardcodedShare: after.hardcodedShare };
+
+    expect(dsmith(root, "guard", "init").status).toBe(0);
+    git(root, "add", "-A");
+    git(root, "commit", "-q", "-m", "guard");
+    const clean = dsmithJson<GuardJson>(root, "guard", "--ci", "--base", "main");
+    rn.guardClean = clean.json;
+    rn.guardCleanStatus = clean.status;
+
+    const page = path.join(root, "app/index.tsx");
+    const src = fs.readFileSync(page, "utf-8");
+    const edited = src.replace("<Text style={styles.title}>홈</Text>", '<Text style={styles.title}>홈</Text>\n      <Text style={{ color: "#e11d48" }}>주의</Text>');
+    expect(edited).not.toBe(src);
+    fs.writeFileSync(page, edited);
+    git(root, "add", "-A");
+    git(root, "commit", "-q", "-m", "warn");
+    const dirty = dsmithJson<GuardJson>(root, "guard", "--ci", "--base", "main");
+    rn.guardDirty = dirty.json;
+    rn.guardDirtyStatus = dirty.status;
+  }, 240_000);
+
+  it("migrate 계획: 토큰은 src/theme.ts의 JS 토큰, 치환 ref는 전부 JS 식이고 불변식이 맞는다", () => {
+    const { plan } = rn.planJson;
+    expect(plan.tokens).toMatchObject({ source: "token-file", files: ["src/theme.ts"] });
+    expect(plan.planned).toBeGreaterThan(0);
+    expect(plan.planned + sum(plan.skipped) + plan.scope.outOfRange + plan.close.length).toBe(plan.scope.candidates);
+    const refs = plan.files.flatMap((f) => f.replacements.map((r) => r.ref));
+    expect(refs).toHaveLength(plan.planned);
+    expect(refs.every((r) => /^(?:colors|spacing|radius|typography)\.[A-Za-z0-9_.]+$/.test(r))).toBe(true);
+    expect(refs.some((r) => r.startsWith("colors."))).toBe(true);
+    expect(refs.some((r) => r.startsWith("spacing."))).toBe(true);
+    expect(JSON.stringify(plan)).not.toContain("var(--");
+  });
+
+  it("테마를 import하지 않던 파일에만 import를 더한다 (settings.tsx에 typography)", () => {
+    const { plan } = rn.planJson;
+    const withImports = plan.files.filter((f) => (f.imports?.length ?? 0) > 0);
+    expect(withImports.map((f) => f.file)).toEqual(["app/settings.tsx"]);
+    expect(withImports[0]?.imports).toEqual([{ module: "src/theme", name: "typography", local: "typography" }]);
+    expect(rn.planText).toContain("import 추가 1개");
+  });
+
+  it("--apply --branch: 브랜치에 커밋 1개, 점수↑·하드코딩 비율↓, 예상 == 실제 == 재audit", () => {
+    expect(rn.applyStatus).toBe(0);
+    expect(rn.applyJson.applied?.files.every((f) => f.status === "applied")).toBe(true);
+    expect(rn.applyJson.applied?.replaced).toBe(rn.planJson.plan.planned);
+    expect(rn.auditAfter.score).toBeGreaterThan(rn.scoreBefore);
+    expect(rn.applyJson.actual?.after.score).toBe(rn.auditAfter.score);
+    expect(rn.applyJson.actual?.after.hardcodedShare).toBe(rn.auditAfter.hardcodedShare);
+    expect(rn.applyJson.projected?.after.score).toBe(rn.auditAfter.score);
+    expect(rn.branchCommits).toBe(1);
+  });
+
+  it("적용한 파일: 기존 import에 합치지 않고 typography만 더하고 값은 테마 식이다", () => {
+    expect(rn.settingsAfter).toContain('import { colors, spacing, typography } from "@/theme";');
+    expect(rn.settingsAfter).toContain("fontSize: typography.body.fontSize");
+    expect(rn.settingsAfter).toContain("backgroundColor: colors.background");
+    expect(rn.settingsAfter).not.toContain("#ecfdf5");
+  });
+
+  it("guard --ci: 마이그레이션 브랜치는 신규 하드코딩 0건·종료 코드 0", () => {
+    expect(rn.guardCleanStatus).toBe(0);
+    expect(rn.guardClean.counts.newHardcoded).toBe(0);
+    expect(rn.guardClean.staleSnapshot).toEqual([]);
+    expect(rn.guardClean.counts.removedHardcoded).toBeGreaterThan(0);
+  });
+
+  it("style={{ color: hex }}를 더하면 guard --ci는 신규 1건·종료 코드 1", () => {
+    expect(rn.guardDirtyStatus).toBe(1);
+    expect(rn.guardDirty.counts.newHardcoded).toBe(1);
+    const [finding] = rn.guardDirty.newFindings;
+    expect(finding?.rule).toBe("no-hardcoded-style");
+    expect(finding?.file).toBe("app/index.tsx");
+    expect(finding?.style?.property).toBe("color");
+  });
+
+  it("별도 복사본: --apply → --revert 뒤 트리 해시(.dsmith 제외)가 적용 전과 같다", () => {
+    expect(rn.revert.treeApplied).not.toBe(rn.revert.treeBefore);
+    expect(rn.revert.status).toBe(0);
+    expect(rn.revert.treeAfter).toBe(rn.revert.treeBefore);
+  });
+});
