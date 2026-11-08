@@ -352,6 +352,11 @@ export function limitLines(result: BenchResult, originLine: string | string[]): 
   out.push("- 모델 하나·에이전트 하나(관측 모델: " + (result.agent.models.length === 0 ? "기록 없음" : result.agent.models.join(", ")) + "), 레포 하나(" + result.repo + ")다. 다른 모델·에이전트·코드베이스로 일반화하지 못한다.");
   if (legacy) {
     out.push("- dsmith 조건의 개선이 AGENTS.md DS 섹션 때문인지 MCP 도구(`lint_snippet` 등) 때문인지 분리하지 않았다(AGENTS.md DS 섹션·`.mcp.json`·`.dsmith/`·`.claude/skills`가 함께 켜진 조건 하나뿐). MCP 호출 수를 요약에 싣지만 그것만으로 원인을 가르지 못한다.");
+  } else if (result.setupFingerprint) {
+    // 설정 지문이 있는 결과 = 조건을 실제 install 명령(기본·--mcp·--mcp --skills)으로 만든 하네스
+    out.push(
+      "- 조건 구성: 각 조건은 사용자가 칠 install 명령 그대로 만들었다 — agents-only = `install`(기본: AGENTS.md DS 섹션만, MCP·슬래시 명령 언급 없음), agents-mcp = `install --mcp`, mcp-only = `install --mcp` 뒤 AGENTS.md 섹션 삭제, dsmith = `install --mcp --skills`. AGENTS.md 섹션 문구는 설치된 표면에 따라 다르므로 조건 사이 차이에는 문구 차이가 함께 들어 있다(실제 사용자가 받는 차이와 같다). 에이전트 명령은 모든 조건이 같다(`--allowedTools mcp__dsmith` 포함).",
+    );
   } else {
     out.push(
       "- 2×2 분리: agents-only는 AGENTS.md DS 섹션과 `.dsmith/`만, mcp-only는 `.mcp.json`과 `.dsmith/`만 갖고, `.claude/skills`는 dsmith 조건에만 있다. 그래서 dsmith와 단일 요소 조건의 차이에는 스킬이 섞이고, agents-only의 AGENTS.md는 등록되지 않은 MCP 도구를 언급하며, mcp-only는 AGENTS.md 안내 없이 서버가 노출하는 도구 설명만 본다. 에이전트 명령은 네 조건이 같다(`--allowedTools mcp__dsmith` 포함). 요약의 `MCP 도구 호출`은 agents-only에서 0이어야 하고, mcp-only·dsmith에서 0이면 개선이 도구 호출에서 오지 않은 것이다. 두 요소의 상호작용은 네 조건의 차이로만 읽을 수 있다.",
