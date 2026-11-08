@@ -126,7 +126,10 @@ describe("migrate: JS 테마 토큰", () => {
 
     // 재추출: 치환된 사용은 token
     const { detect } = await loadState(root);
-    const rt = await loadReplacementTokens(root, detect.ds.tokenFiles, { framework: detect.framework.name });
+    const rt = await loadReplacementTokens(root, detect.ds.tokenFiles, {
+      framework: detect.framework.name,
+      jsThemeFiles: (detect.ds.jsThemes ?? []).map((t) => t.file),
+    });
     const resolveRef = buildTokenRefResolver(rt.allTokens, await loadModuleEnv(root));
     const styles = extractFileStyles({ root, file: "src/components/Card.tsx", code: card }, extractorMatchers(ALL), { resolveRef }).styles;
     expect(styles.filter((s) => s.source === "token").map((s) => s.property).sort()).toEqual(["background-color", "border-radius", "padding"]);
@@ -144,6 +147,15 @@ describe("migrate: JS 테마 토큰", () => {
     await applyMigration(root, plan, { extractors, version: "test" });
     const again = await planRn(root);
     expect(again.planned).toBe(0);
+  });
+
+  it("웹 레포에서 아무도 import하지 않는 theme.ts(차트 설정)는 토큰이 아니다 — main처럼 '치환할 토큰이 없음'", async () => {
+    const root = makeRepo({
+      "package.json": JSON.stringify({ name: "web", dependencies: { react: "18", next: "14" } }),
+      "src/lib/theme.ts": `export const chart = { axis: { color: "#10B981", grid: "#E5E7EB" }, bar: { fill: "#3b82f6" } };\n`,
+      "src/a.tsx": `export const A = () => <div style={{ color: "#10B981", padding: 8 }} />;\n`,
+    });
+    await expect(planRn(root)).rejects.toThrow("치환할 토큰이 없음");
   });
 
   it("웹 레포(CSS 토큰 + JS 테마)는 CSS 변수로만 치환하고 import를 더하지 않는다", async () => {

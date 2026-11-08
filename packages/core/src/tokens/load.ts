@@ -58,14 +58,18 @@ export { tokenCategoryOf } from "./category.js";
  * DS 토큰 파일(.css/.scss)에서 토큰을 읽고, 파일에 토큰이 하나도 없는 카테고리는 audit 제안 토큰으로 채운다.
  * 같은 이름이 여러 파일에 있으면 먼저 나온 파일이 이긴다. var() 참조는 모든 파일에 걸쳐 푼다.
  * .json은 W3C Design Tokens(구형 문자열 값 포함)로 읽는다. CSS를 JSON보다 먼저 읽으므로 이름이 겹치면 CSS가 이긴다.
- * .ts/.js/.mjs는 JS 테마 객체로 읽는다(`readJsThemeTokens`, CSS → JSON → JS 순). 토큰이 하나도 없으면 ignored.
+ * .ts/.js/.mjs는 `opts.jsFiles`에 든 것만 JS 테마 객체로 읽는다(`readJsThemeTokens`, CSS → JSON → JS 순). 토큰이 하나도 없으면 ignored.
+ * jsFiles에 없는 .ts/.js(아무도 import하지 않는 theme.ts 등)는 읽지 않고 ignored — 사용 증거(결정 2a(b))가 없는 파일은 토큰이 아니다.
  * 단, 같은 디렉터리에 tokens.json이 있으면 init 산출 쌍이라 읽지도 ignored에 넣지도 않는다.
  */
 export async function loadTokens(
   root: string,
   tokenFiles: string[],
   styles: StyleUsage[],
+  /** jsFiles = JS 테마로 읽을 .ts/.js 파일(detect `ds.jsThemes`의 사용 증거를 통과한 것 + init이 만든 RN `tokens.ts`). 나머지 .ts/.js는 읽지 않고 ignored */
+  opts: { jsFiles?: readonly string[] } = {},
 ): Promise<LoadedTokens> {
+  const jsAllowed = new Set(opts.jsFiles ?? []);
   const files: string[] = [];
   const ignored: string[] = [];
   const warnings: string[] = [];
@@ -78,7 +82,7 @@ export async function loadTokens(
   for (const file of ordered) {
     const isCss = CSS_FILE.test(file);
     const isJson = JSON_FILE.test(file);
-    const isJs = JS_FILE.test(file);
+    const isJs = JS_FILE.test(file) && jsAllowed.has(file);
     if (!isCss && !isJson) {
       if (/(^|\/)tokens\.(ts|js)$/i.test(file) && jsonDirs.has(path.posix.dirname(file))) continue;
       if (!isJs) {

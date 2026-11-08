@@ -59,7 +59,10 @@ function clonePolicy(p: GuardPolicy): GuardPolicy {
 export async function buildGuardSnapshot(opts: BuildGuardSnapshotOptions): Promise<GuardSnapshot> {
   const { root, detect, version, existing } = opts;
 
-  const replacement = await loadReplacementTokens(root, detect.ds.tokenFiles, { framework: detect.framework.name });
+  const replacement = await loadReplacementTokens(root, detect.ds.tokenFiles, {
+    framework: detect.framework.name,
+    jsThemeFiles: (detect.ds.jsThemes ?? []).map((t) => t.file),
+  });
   const tokens = replacement.tokens.map((t) => ({
     name: t.name,
     value: t.value,

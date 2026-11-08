@@ -466,7 +466,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     ? { tokens: [], mappings: [], naming: naming.value }
     : buildTokenDraft(index.styles, { excludeDirs: [outDir], colorChoices, naming: naming.value });
   const themeTokens = themeMode
-    ? (await loadReplacementTokens(root, detected.ds.tokenFiles, { framework: detected.framework.name })).tokens.filter(
+    ? (await loadReplacementTokens(root, detected.ds.tokenFiles, { framework: detected.framework.name, jsThemeFiles })).tokens.filter(
         (t) => t.js !== undefined && t.file !== undefined && jsThemeFiles.includes(t.file),
       )
     : [];

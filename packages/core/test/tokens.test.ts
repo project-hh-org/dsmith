@@ -179,7 +179,7 @@ describe("loadTokens", () => {
     fs.mkdirSync(path.join(dir, "design-system"), { recursive: true });
     fs.writeFileSync(path.join(dir, "src/lib/theme.ts"), `export const theme = { primary: "#3B82F6", muted: "#6B7280", radius: 6 };`);
     fs.writeFileSync(path.join(dir, "design-system/tokens.css"), ":root{--color-primary:#3b82f6;--space-2:8px}");
-    const loaded = await loadTokens(dir, ["src/lib/theme.ts", "design-system/tokens.css"], []);
+    const loaded = await loadTokens(dir, ["src/lib/theme.ts", "design-system/tokens.css"], [], { jsFiles: ["src/lib/theme.ts"] });
     expect(loaded.source).toBe("token-file");
     expect(loaded.files).toEqual(["src/lib/theme.ts", "design-system/tokens.css"]);
     expect(loaded.ignored).toEqual([]);
@@ -192,8 +192,17 @@ describe("loadTokens", () => {
     fs.mkdirSync(path.join(dir, "src"), { recursive: true });
     fs.writeFileSync(path.join(dir, "src/status.ts"), `export const STATUS = { ok: "#22c55e" } as const;`);
     fs.writeFileSync(path.join(dir, "src/theme.ts"), `import { STATUS } from "./status";\nexport const colors = { surface: "#fff", status: STATUS };`);
-    const loaded = await loadTokens(dir, ["src/theme.ts"], []);
+    const loaded = await loadTokens(dir, ["src/theme.ts"], [], { jsFiles: ["src/theme.ts"] });
     expect(loaded.tokens.map((t) => t.name)).toEqual(["colors.surface", "colors.status.ok"]);
+  });
+
+  it("jsFiles(사용 증거)에 없는 .ts는 토큰 모양이어도 읽지 않고 ignored", async () => {
+    fs.mkdirSync(path.join(dir, "src/lib"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "src/lib/theme.ts"), `export const chart = { axis: { color: "#10B981", grid: "#E5E7EB" } };`);
+    const loaded = await loadTokens(dir, ["src/lib/theme.ts"], []);
+    expect(loaded.tokens.some((t) => t.js !== undefined)).toBe(false);
+    expect(loaded.files).toEqual([]);
+    expect(loaded.ignored).toEqual(["src/lib/theme.ts"]);
   });
 
   it("토큰이 없는 JS 파일과 init 쌍 tokens.ts는 읽지 않는다", async () => {

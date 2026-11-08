@@ -264,7 +264,10 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
   const includeClose = opts.close === true;
   const notes: string[] = [];
 
-  const rt = await loadReplacementTokens(root, detect.ds.tokenFiles, { framework: detect.framework.name });
+  const rt = await loadReplacementTokens(root, detect.ds.tokenFiles, {
+    framework: detect.framework.name,
+    jsThemeFiles: (detect.ds.jsThemes ?? []).map((t) => t.file),
+  });
   if (rt.source === "none") {
     throw new Error("치환할 토큰이 없음 — 먼저 `dsmith init`(토큰 초안) 또는 토큰 파일을 두세요");
   }

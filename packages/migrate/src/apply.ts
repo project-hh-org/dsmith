@@ -79,7 +79,8 @@ export async function applyMigration(
   const id = await newMigrationId(root, opts.now ?? new Date());
   const env = await loadModuleEnv(root);
   // 계획과 같은 JS 테마 참조 해석기(계획이 읽은 토큰 파일 기준) — 치환한 `colors.surface`가 적용 뒤 token으로 읽히는지 확인한다
-  const resolveRef = buildTokenRefResolver((await loadTokens(root, plan.tokens.files, [])).tokens, env);
+  // plan.tokens.files는 계획이 사용 증거로 걸러 읽은 파일이라 JS 파일도 그대로 읽는다
+  const resolveRef = buildTokenRefResolver((await loadTokens(root, plan.tokens.files, [], { jsFiles: plan.tokens.files })).tokens, env);
 
   const prepared: Prepared[] = [];
   for (const fp of plan.files) {

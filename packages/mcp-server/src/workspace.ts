@@ -6,6 +6,7 @@ import {
   readCatalog,
   readDecisions,
   readIndex,
+  readableJsThemeFiles,
   recordedTokenFiles,
   staleCatalogTokenFiles,
   summarizeComponents,
@@ -169,7 +170,7 @@ export async function openWorkspace(deps: ServerDeps): Promise<WorkspaceHandle> 
         tokens =
           useCatalog && catalog !== null
             ? tokensFromCatalog(catalog.tokens, index.styles)
-            : await loadTokens(root, tokenFiles, index.styles);
+            : await loadTokens(root, tokenFiles, index.styles, { jsFiles: await readableJsThemeFiles(root, detect.ds) });
         tokenSources = sourcesOf(tokens);
         stamps.tokens = tokensStamp;
       } catch (err) {

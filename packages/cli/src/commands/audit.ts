@@ -109,7 +109,10 @@ export async function runAudit(rootArg: string, opts: RunOptions = {}): Promise<
   const initDir = await findInitDir(root);
   const initExclude = initDir === null || initDir === "." ? [] : [`${initDir}/**`];
   // JS 테마 참조(`colors.surface`)를 토큰 사용으로 세는 해석기. JS 토큰이 없으면 만들지 않는다(웹 레포는 이전과 같다)
-  const rt = await loadReplacementTokens(root, provisional.ds.tokenFiles, { framework: provisional.framework.name });
+  const rt = await loadReplacementTokens(root, provisional.ds.tokenFiles, {
+    framework: provisional.framework.name,
+    jsThemeFiles: (provisional.ds.jsThemes ?? []).map((t) => t.file),
+  });
   let resolveRef: RefResolver | undefined;
   if (rt.allTokens.some((t) => t.js !== undefined)) {
     const tsPaths = await readTsconfigPaths(root);

@@ -5,6 +5,7 @@ import {
   managedFileHash,
   readCatalogTokens,
   readInitHashes,
+  readableJsThemeFiles,
   withTokenFiles,
   type Catalog,
   type CatalogComponent,
@@ -108,7 +109,7 @@ export async function buildCatalog(opts: BuildCatalogOptions): Promise<BuildCata
 
   const initTokens = initDir !== null ? (initDir === "." ? "tokens.json" : `${initDir}/tokens.json`) : null;
   const tokenFiles = [...new Set([...ds.tokenFiles, ...(initTokens !== null ? [initTokens] : [])])];
-  const read = await readCatalogTokens(root, tokenFiles);
+  const read = await readCatalogTokens(root, tokenFiles, { jsFiles: await readableJsThemeFiles(root, ds) });
   const tokens: CatalogToken[] = read.tokens;
   warnings.push(...read.warnings);
   for (const f of read.ignored) warnings.push(`토큰 파일 형식을 읽지 않음(건너뜀): ${f}`);

@@ -21,6 +21,14 @@ export interface ReplacementTokens {
   warnings: string[];
 }
 
+/**
+ * JS 테마로 읽어도 되는 파일: detect가 사용 증거(다른 소스가 import)로 확인한 `ds.jsThemes` + init이 만든 RN `tokens.ts`.
+ * `loadTokens`의 `jsFiles`에 넘긴다.
+ */
+export async function readableJsThemeFiles(root: string, ds: { jsThemes?: readonly { file: string }[] }): Promise<string[]> {
+  return [...new Set([...(ds.jsThemes ?? []).map((t) => t.file), ...(await findInitTokensTs(root))])];
+}
+
 async function isFile(abs: string): Promise<boolean> {
   try {
     return (await fs.stat(abs)).isFile();
@@ -40,7 +48,7 @@ export async function loadReplacementTokens(
   root: string,
   detectTokenFiles: string[],
   /** framework = detect.framework.name. 없으면 웹으로 본다(JS 테마 토큰은 CSS·DTCG 토큰이 없을 때만 치환 대상) */
-  opts: { framework?: string } = {},
+  opts: { framework?: string; jsThemeFiles?: readonly string[] } = {},
 ): Promise<ReplacementTokens> {
   const initDir = await findInitDir(root);
   const excludeDirs = initDir === null ? [] : [initDir];
@@ -53,16 +61,21 @@ export async function loadReplacementTokens(
   }
 
   // RN init 산출(`tokens.json` 없이 `tokens.ts`만)은 JS 테마로 읽는다 — 웹 산출 쌍은 위 json·css가 정본이다
-  for (const rel of await findInitTokensTs(root)) if (!tokenFiles.includes(rel)) tokenFiles.push(rel);
+  const jsFiles = [...(opts.jsThemeFiles ?? [])];
+  for (const rel of await findInitTokensTs(root)) {
+    if (!tokenFiles.includes(rel)) tokenFiles.push(rel);
+    jsFiles.push(rel);
+  }
 
-  const loaded = await loadTokens(root, tokenFiles, []);
+  // JS 파일은 사용 증거가 있는 테마(`jsThemeFiles` = detect `ds.jsThemes`)와 init이 만든 tokens.ts만 읽는다 — 나머지 .ts/.js는 main처럼 ignored
+  const loaded = await loadTokens(root, tokenFiles, [], { jsFiles });
   // 치환 대상은 `replacementCandidates`(결정 2d): 웹 프레임워크에 CSS·DTCG 토큰이 있으면 JS 테마 토큰은 참조 해석에만 쓰이고 치환 대상이 아니다.
   // 그 경우 JS 테마 파일은 읽은 토큰 파일(files)에서도 뺀다 — 이전 동작과 바이트 단위로 같게 유지한다.
   const allFromFiles = loaded.tokens.filter((t) => t.source === "token-file");
   const fromFiles = replacementCandidates(allFromFiles, { framework: opts.framework ?? "" });
   const jsReplaceable = fromFiles.some((t) => t.js !== undefined);
-  const jsFiles = new Set(allFromFiles.filter((t) => t.js !== undefined && t.file !== undefined).map((t) => t.file));
-  const loadedFiles = jsReplaceable ? loaded.files : loaded.files.filter((f) => !jsFiles.has(f));
+  const jsTokenFiles = new Set(allFromFiles.filter((t) => t.js !== undefined && t.file !== undefined).map((t) => t.file));
+  const loadedFiles = jsReplaceable ? loaded.files : loaded.files.filter((f) => !jsTokenFiles.has(f));
   if (fromFiles.length > 0) {
     return {
       source: "token-file",
