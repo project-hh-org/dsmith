@@ -10,7 +10,28 @@ export interface ColorCluster {
 }
 
 const DEFAULT_THRESHOLD = 0.03;
-const ACHROMATIC_CHROMA = 0.03;
+
+/**
+ * gray 판정 채도 상한(밝기별). 어두운 slate(C≈.04)는 gray로, 아주 밝은 색조(blue-50, C≈.014)는 hue로 남기려고
+ * 밝기에 따라 (l, 상한) 점을 잇는다.
+ */
+const ACHROMATIC_CHROMA_BY_LIGHTNESS: readonly (readonly [number, number])[] = [
+  [0, 0.045],
+  [0.8, 0.045],
+  [0.93, 0.022],
+  [0.99, 0.008],
+  [1, 0.008],
+];
+
+function achromaticLimit(l: number): number {
+  const pts = ACHROMATIC_CHROMA_BY_LIGHTNESS;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1] as readonly [number, number];
+    const [x1, y1] = pts[i] as readonly [number, number];
+    if (l <= x1) return y0 + ((y1 - y0) * (l - x0)) / (x1 - x0);
+  }
+  return (pts[pts.length - 1] as readonly [number, number])[1];
+}
 
 // 30° 폭 12구간. oklch hue 기준으로 red가 10°에서 시작한다(Tailwind red≈25°, blue≈260°, green≈150°).
 const HUE_ORIGIN = 10;
@@ -48,7 +69,7 @@ export const COLOR_STEPS: readonly number[] = [...LIGHTNESS_STEPS.map(([, step])
 
 /** 색상 계열 이름: 채도가 낮으면 gray, 아니면 hue 구간 */
 export function colorFamily(color: NormalizedColor): string {
-  return color.c < ACHROMATIC_CHROMA
+  return color.c < achromaticLimit(color.l)
     ? "gray"
     : (HUE_BUCKETS[Math.floor((((color.h - HUE_ORIGIN) % 360) + 360) % 360 / 30)] ?? "gray");
 }
