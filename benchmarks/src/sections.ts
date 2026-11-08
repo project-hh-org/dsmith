@@ -14,7 +14,7 @@ import {
 } from "./analysis.js";
 import { DASH, num, pValue, pct, pp, ppNum, rangeCell, ratioCell, signedNum, table } from "./format.js";
 import type { BenchResult, Condition, MergedSource, RunRecord } from "./model.js";
-import { CONDITIONS } from "./model.js";
+import { CONDITIONS, isRnRepo } from "./model.js";
 import { BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED, summarize } from "./stats.js";
 
 /** 보고서의 통계·독립 채점 절. 숫자는 result 값과 analysis.ts의 순수 계산만 쓴다 */
@@ -151,13 +151,15 @@ interface IndepSums {
   tailwindPalette: number;
   dsComponents: number;
   otherLocalComponents: number;
+  /** RN: 로컬 테마 모듈의 멤버 참조. 옛 결과·웹은 0 */
+  themeRefs: number;
   parseFailed: number;
   runs: number;
   undefinedNames: Set<string>;
 }
 
 function indepSums(runs: RunRecord[]): IndepSums {
-  const s: IndepSums = { varDefined: 0, varUndefined: 0, colorLiterals: 0, lengthLiterals: 0, tailwindPalette: 0, dsComponents: 0, otherLocalComponents: 0, parseFailed: 0, runs: 0, undefinedNames: new Set() };
+  const s: IndepSums = { varDefined: 0, varUndefined: 0, colorLiterals: 0, lengthLiterals: 0, tailwindPalette: 0, dsComponents: 0, otherLocalComponents: 0, themeRefs: 0, parseFailed: 0, runs: 0, undefinedNames: new Set() };
   for (const r of runs) {
     const t = r.independent?.totals;
     if (t === undefined) continue;
@@ -169,13 +171,17 @@ function indepSums(runs: RunRecord[]): IndepSums {
     s.tailwindPalette += t.tailwindPalette;
     s.dsComponents += t.dsComponents;
     s.otherLocalComponents += t.otherLocalComponents;
+    s.themeRefs += t.themeRefs ?? 0;
     s.parseFailed += t.parseFailed;
     for (const n of r.independent?.undefinedVars ?? []) s.undefinedNames.add(n);
   }
   return s;
 }
 
-const indepDen = (s: IndepSums): number => s.varDefined + s.varUndefined + s.colorLiterals + s.lengthLiterals + s.tailwindPalette;
+const indepDen = (s: IndepSums): number => s.varDefined + s.varUndefined + s.colorLiterals + s.lengthLiterals + s.tailwindPalette + s.themeRefs;
+
+/** RN 결과(또는 themeRef가 하나라도 있는 결과)에서만 JS 테마 참조 항목을 보인다 — 웹 보고서는 글자 그대로 같다 */
+const showsThemeRefs = (result: BenchResult): boolean => isRnRepo(result.repo) || result.runs.some((r) => (r.independent?.totals.themeRefs ?? 0) > 0);
 
 interface TypeSums {
   checkedRuns: number;
@@ -214,13 +220,17 @@ export function independentSection(result: BenchResult): string[] {
   const cells = (f: (runs: RunRecord[]) => string): string[] => conds.map((c) => cell(c, f));
 
   if (indep) {
+    const theme = showsThemeRefs(result);
     lines.push(
-      "dsmith의 규칙 엔진·`@dsmith-dev/*` 코드를 쓰지 않는 별도 채점기(`benchmarks/src/independent/`)가 같은 산출물에서 센 값이다. 에이전트가 새로 만든 등장만 센다(수정 파일은 before 대비 다중집합 차). 독립 사용률 = 정의된 var 참조 / (정의된 var + 정의 없는 var + 색 리터럴 + px·rem 길이 리터럴 + Tailwind 기본 팔레트·스케일).",
+      theme
+        ? "dsmith의 규칙 엔진·`@dsmith-dev/*` 코드를 쓰지 않는 별도 채점기(`benchmarks/src/independent/`)가 같은 산출물에서 센 값이다. 에이전트가 새로 만든 등장만 센다(수정 파일은 before 대비 다중집합 차). 독립 사용률 = (정의된 var 참조 + JS 테마 참조) / (정의된 var + 정의 없는 var + 색 리터럴 + 길이 리터럴 + Tailwind 기본 팔레트·스케일 + JS 테마 참조). JS 테마 참조 = 로컬 객체 모듈에서 import한 바인딩으로 시작하는 멤버 식·스프레드(스냅샷을 쓰지 않고 파일 내용으로 판정)."
+        : "dsmith의 규칙 엔진·`@dsmith-dev/*` 코드를 쓰지 않는 별도 채점기(`benchmarks/src/independent/`)가 같은 산출물에서 센 값이다. 에이전트가 새로 만든 등장만 센다(수정 파일은 before 대비 다중집합 차). 독립 사용률 = 정의된 var 참조 / (정의된 var + 정의 없는 var + 색 리터럴 + px·rem 길이 리터럴 + Tailwind 기본 팔레트·스케일).",
       "",
     );
     const rows: [string, (s: IndepSums) => string][] = [
-      ["독립 사용률", (s) => ratioCell(s.varDefined, indepDen(s))],
+      ["독립 사용률", (s) => ratioCell(s.varDefined + s.themeRefs, indepDen(s))],
       ["정의된 var 참조", (s) => String(s.varDefined)],
+      ...(theme ? [["JS 테마 참조", (s: IndepSums) => String(s.themeRefs)] as [string, (s: IndepSums) => string]] : []),
       ["정의 없는 var 참조", (s) => String(s.varUndefined)],
       ["색 리터럴", (s) => String(s.colorLiterals)],
       ["길이 리터럴(px·rem)", (s) => String(s.lengthLiterals)],

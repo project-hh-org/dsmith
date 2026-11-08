@@ -60,8 +60,9 @@ export function sumsOf(run: RunRecord): RunSums {
       ind === undefined
         ? null
         : {
-            varDefined: ind.varDefined,
-            denominator: ind.varDefined + ind.varUndefined + ind.colorLiterals + ind.lengthLiterals + ind.tailwindPalette,
+            // themeRefs는 RN 항목이다. 옛 결과 JSON에는 없고 웹 파일은 0이라 웹 수치는 그대로다
+            varDefined: ind.varDefined + (ind.themeRefs ?? 0),
+            denominator: ind.varDefined + ind.varUndefined + ind.colorLiterals + ind.lengthLiterals + ind.tailwindPalette + (ind.themeRefs ?? 0),
             otherLocal: ind.otherLocalComponents,
             dsComponents: ind.dsComponents,
           },

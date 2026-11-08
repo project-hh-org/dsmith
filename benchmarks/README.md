@@ -24,7 +24,7 @@
 
 ## 격리 (중요)
 
-`benchmarks/`는 **에이전트가 보는 복사본에 들어가면 안 된다.** 채점 코드·프롬프트 정답 기준이 에이전트에 노출되면 결과가 오염된다. 실행기(`src/base.ts`·`src/run.ts`)는 `examples/legacy-demo`·`fixtures/with-ds-app` 원본만 `os.tmpdir()` 아래(모노레포 밖)로 복사하며, 복사본에 `benchmarks/`가 없다는 것을 강제한다.
+`benchmarks/`는 **에이전트가 보는 복사본에 들어가면 안 된다.** 채점 코드·프롬프트 정답 기준이 에이전트에 노출되면 결과가 오염된다. 실행기(`src/base.ts`·`src/run.ts`)는 `examples/legacy-demo`·`fixtures/with-ds-app`·`fixtures/rn-app` 원본(과 `--repo knowing-saju`의 외부 앱, 아래 "React Native 벤치마크")만 `os.tmpdir()` 아래(모노레포 밖)로 복사하며, 복사본에 `benchmarks/`가 없다는 것을 강제한다.
 
 ## 채점 기준(스냅샷)
 
@@ -32,7 +32,8 @@
 
 ## 구성
 
-- `prompts/*.md` — frontmatter(`id`, `file`) + 본문. 모두 `이 레포 스타일로 `로 시작한다.
+- `prompts/*.md` — frontmatter(`id`, `file`) + 본문. 모두 `이 레포 스타일로 `로 시작한다. `prompts-rn/*.md`는 RN 레포용 12개(`이 앱 스타일로 `로 시작).
+- `src/redact.ts` — 비공개 레포 결과를 수치뿐인 md·JSON으로 줄인다(`bench:report --redact`).
 - `src/score.ts` — 순수 채점 함수(파일시스템·프로세스 없음). 새로 생긴 사용·finding만 센다(추가 파일은 전부, 수정 파일은 base 대비 다중집합 차 — `guard --ci`와 같은 방식).
   - 토큰 준수율 = `token / (token + hardcoded)` (rated 사용, tailwind-default·dynamic 제외). 보고서·README 줄은 `12.5% (1/8)`처럼 분자/분모를 함께 쓴다. 변수·상수에 담은 className(`className={fieldClass}`)은 dynamic으로만 세며 분모에 들어가지 않는다 — dynamic이 많은 실행은 분모가 작아 준수율이 부풀려 보일 수 있으니 dynamic 열을 같이 본다
   - 토큰 사용률 = `token / (token + hardcoded + tailwindDefault)`
@@ -65,7 +66,7 @@
 | (e) 컴포넌트 | JSX 요소의 import가 DS 모듈(스냅샷 `ds.modules`)로 풀리면 DS, 다른 로컬 경로(상대·`paths` 별칭)로 풀리면 other-local | JSX |
 
 - 어느 문자열을 보는가: 클래스 문맥(`className`/`class` 속성, `clsx`·`cn`·`cva` 등의 인자, `className`에 식별자로 쓰인 변수의 초기값), 스타일 문맥(`style`/`sx` 속성, `style`에 쓰인 변수의 초기값, `css()` 인자), CSS 템플릿(`styled.x`·`css`·`keyframes`). 사용자 문구("Order #123")는 보지 않는다.
-- 독립 사용률 = `defined var / (defined var + undefined var + 색 + 길이 + Tailwind 팔레트)`. 분모 0이면 값 없음.
+- 독립 사용률 = `defined var / (defined var + undefined var + 색 + 길이 + Tailwind 팔레트)`. 분모 0이면 값 없음. React Native 파일은 (f) `themeRef`가 분자·분모에 더해진다(아래 "React Native 벤치마크").
 - `--custom: 값;` 선언의 값은 리터럴로 세지 않는다(토큰 정의라서). 에이전트가 자기 CSS에서 새로 선언한 변수는 defined가 된다.
 - 알려진 빈틈: 정규식·AST 휴리스틱이라 문맥을 못 잡는 문자열(함수가 반환하는 클래스 문자열 등)은 놓친다. dsmith 점수와 어긋나는 곳이 곧 오류는 아니다 — 보고서의 `### 일치도`가 방향 일치(프롬프트별)와 스피어만 ρ(실행별)를 밝힌다.
 
@@ -105,6 +106,38 @@ pnpm bench:report --in a.json --in b.json --out benchmarks/results/<이름>.md  
 - 병합 보고서의 README 줄은 기존 2조건 줄 대신 2×2 줄이다: `MCP·AGENTS.md 분리(…): 사용률 평균 baseline X% · agents-only Y% · mcp-only Z% · 둘 다 W%`(토큰 사용률, 프롬프트별 반복 평균의 평균). 네 조건이 모두 있는 `complete`한 agent 결과에서만 만든다. 기존 줄 생성기는 `baseline`·`dsmith` 두 조건 결과에만 쓴다.
 - 에이전트는 stdin으로 프롬프트를 받는 명령이면 된다. 두 조건에 같은 명령을 쓴다. 에이전트에는 PATH에서 모노레포 아래 항목(`benchmarks/node_modules/.bin`, 루트 `node_modules/.bin` 등)을 뺀 환경을 준다 — baseline에서 `dsmith`가 실행되지 않는다. `dsmith` 조건의 MCP 서버는 `.mcp.json`의 `node <절대 경로>/packages/cli/dist/bin.js`로 뜬다.
 - stream-json이면 실행마다 `mcp__*` 도구 호출 수(`mcpToolCalls`)와 `permission_denials` 수를 세어 결과 JSON(`agentMeta`·`aggregate`)과 보고서(요약 행, 프롬프트별 `MCP/거부` 열)에 넣는다. dsmith 조건의 MCP 호출이 0이면 개선은 MCP 도구가 아니라 AGENTS.md·`.claude/skills`·`.dsmith/` 파일과 탐색에서 나온 것이다.
+
+## React Native 벤치마크
+
+- 레포: `rn-app`(저장소 안의 합성 Expo 앱 `fixtures/rn-app`)과 `knowing-saju`(저장소 밖의 비공개 앱). 둘 다 RN 프롬프트 12개(`prompts-rn/`, 모두 `이 앱 스타일로 `로 시작)를 쓴다. 파일은 `src/components/*.tsx` 9개와 `app/bench-*.tsx` 3개다. 웹 세트(`prompts/`)는 바뀌지 않았다.
+- 채점: dsmith 점수는 베이스 스냅샷의 토큰으로 만든 `buildTokenRefResolver`(`Base.resolveRef`)를 `extractFileStyles`에 넘겨 `colors.surface` 같은 JS 테마 참조를 토큰 사용으로 센다. 그 참조가 스냅샷 토큰으로 풀렸을 때만 `knownToken`이다(테마에 없는 `colors.warning`은 풀리지 않아 dynamic). 베이스 준비(`audit → init --all → ai`)는 init이 토큰 파일을 쓰든(테마가 없는 RN) 쓰지 않든(기존 JS 테마를 그대로 쓰는 RN) 같은 코드로 돈다 — 스냅샷은 detect가 가리키는 토큰 원천을 읽는다.
+- 독립 채점(`src/independent/rn.ts`, dsmith import 없음): `react-native`에서 import하는 파일의 스타일 문맥(`StyleSheet.create|compose|flatten` 인자, `style`·`*Style` 속성의 객체·배열·조건·논리·함수 본문, 그 안의 스프레드·`Platform.select`)에서 (a) 색 문자열, (b) RN 길이 키(웹 목록 + `paddingHorizontal`·`marginVertical`·Start/End 모서리 등)의 숫자, (f) `themeRef`를 센다. `themeRef` = 로컬 모듈(상대 경로·tsconfig `paths` 별칭)에서 import한 바인딩으로 시작하는 멤버 식(계산 접근 `colors[kind]` 포함)·스프레드이고, 그 모듈 파일이 객체 리터럴 export를 가질 때만이다 — 스냅샷이 아니라 파일 내용으로 판정한다. `style={styles.card}`처럼 같은 파일의 StyleSheet를 가리키는 참조는 세지 않는다(정의 쪽 값을 센다). 독립 사용률 = `(var 정의 + themeRefs) / (var 둘 + 색 + 길이 + Tailwind 팔레트 + themeRefs)`이고 웹 파일은 themeRefs가 0이라 웹 수치는 그대로다.
+- replay: `replay/rn-app/`의 합성 산출물(프롬프트 3개 × baseline·dsmith)을 `pnpm bench:replay`가 채점한다(`test/replay-rn.test.ts`).
+
+### 비공개 앱(`--repo knowing-saju`)
+
+```
+DSMITH_BENCH_REPO_PATH=<앱 경로> pnpm bench --repo knowing-saju --agent "claude -p" --out ~/bench/ks.json --record ~/bench/ks-out
+pnpm bench --repo knowing-saju --repo-path <앱 경로> --dry-run                 # 계획·예상 비용만(앱 경로는 출력하지 않음)
+pnpm bench:report --redact --in ~/bench/ks.json --out benchmarks/results/<날짜>-knowing-saju.md --summary-json benchmarks/results/<날짜>-knowing-saju.summary.json
+```
+
+- 앱 위치는 `--repo-path`(우선) 또는 `DSMITH_BENCH_REPO_PATH`로만 준다. 없으면 안내와 함께 종료 코드 2. 디렉터리이고 `package.json`이 있어야 하며 모노레포 밖이어야 한다(심볼릭 링크로 들어와도 막는다).
+- `--out`(과 agent 실행의 `--record`)은 필수이고 모노레포 밖이어야 한다. 어기면 종료 코드 2. 기본 산출 경로가 저장소 안에 생기지 않게 하려는 규칙이다. 원본 결과 JSON·보고서·산출물·transcript는 그곳에만 둔다.
+- 복사: `externalCopyFilter`가 `node_modules`, `.git`, `ios`, `android`, `.expo`, `dist`, `build`, `.dsmith` 디렉터리, `.env*`, `*.p8`·`*.p12`·`*.keystore`·`*.jks`·`*.mobileprovision`, `google-services.json`, `GoogleService-Info.plist`를 뺀다(이름만 보므로 어느 깊이든 걸린다). 원본은 읽기만 한다.
+- 이 레포의 원본 결과로 `bench:report`를 `--redact` 없이 돌릴 때 `--out`이 모노레포 안이면 거부한다.
+
+### 리댁션과 커밋 정책
+
+저장소에 들어가는 것은 `--redact` 결과 두 개(md, 요약 JSON)뿐이다. 구조적으로 문자열 필드를 복사하지 않는다.
+
+| 남김 | 버림 |
+| --- | --- |
+| 레포 이름, 날짜, 모드, 조건, 반복, 스냅샷 sha256 | 앱 경로, 에이전트 명령·출력·오류 메시지 |
+| 프롬프트 id·file(공개 벤치마크 프롬프트) | 바뀐 파일 이름(기대 파일 외 변경은 `otherFiles` 개수) |
+| 실행별 수치(`metrics`: token·knownToken·hardcoded·themeRefs·색/길이 리터럴·nonDs·타입 오류 수·비용), 집계, 조건 비교 통계 | 토큰 이름·값(`colors.…` 등), 코드, finding 메시지, 정의 없는 var 이름, 컴포넌트·module 이름, 타입 진단 메시지 |
+
+같은 입력이면 md·JSON이 바이트까지 같다. `test/redact.test.ts`가 표식 문자열을 심은 결과로 위 목록이 새지 않는지, `/`가 든 문자열이 프롬프트 file뿐인지 검사한다. 비공개 앱의 산출물(`outputs/`)과 transcript는 커밋하지 않는다 — 그래서 이 결과는 저장소에서 `--replay`로 다시 채점할 수 없다(리댁션 보고서의 해석 한계에 적힘).
 
 ## 결과 폴더 구조
 

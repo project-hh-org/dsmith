@@ -1,6 +1,6 @@
 /** 독립 채점기의 공용 타입 — dsmith 패키지를 import하지 않는다 */
 
-export type OccKind = "color" | "length" | "palette" | "var" | "dsComp" | "localComp";
+export type OccKind = "color" | "length" | "palette" | "var" | "dsComp" | "localComp" | "themeRef";
 
 /** 한 파일 안의 등장 하나. 같은 (kind, value)끼리 다중집합으로 비교한다 */
 export interface Occurrence {
@@ -25,6 +25,8 @@ export interface IndepCounts {
   dsComponents: number;
   /** (e) import가 DS가 아닌 로컬 경로로 풀리는 JSX 요소 */
   otherLocalComponents: number;
+  /** (f) React Native: 로컬 객체 모듈(테마)에서 import한 바인딩으로 시작하는 멤버 식·스프레드. 웹 파일은 0 */
+  themeRefs: number;
 }
 
 export interface IndepFileScore {
@@ -44,7 +46,7 @@ export interface IndependentScore {
   /** 대상 확장자가 아니라 건너뛴 경로 */
   ignored: string[];
   totals: IndepCounts & { parseFailed: number; files: number };
-  /** varDefined / (varDefined + varUndefined + colorLiterals + lengthLiterals + tailwindPalette), 분모 0이면 null, 소수 4자리 */
+  /** (varDefined + themeRefs) / (varDefined + varUndefined + colorLiterals + lengthLiterals + tailwindPalette + themeRefs), 분모 0이면 null, 소수 4자리. 웹은 themeRefs가 0이라 이전 식과 같다 */
   indepUsage: number | null;
   /** 실행 전체의 정의 없는 var 이름(중복 제거, 정렬) */
   undefinedVars: string[];
@@ -58,6 +60,7 @@ export const emptyIndepCounts = (): IndepCounts => ({
   varUndefined: 0,
   dsComponents: 0,
   otherLocalComponents: 0,
+  themeRefs: 0,
 });
 
 /** 타입 검사 결과(실행 하나) */

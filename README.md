@@ -159,6 +159,12 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 
 실행은 레포 원본이 아니라 `os.tmpdir()` 아래 임시 복사본에서 하고, 채점 코드(`benchmarks/`)는 복사본에 넣지 않는다. 에이전트에는 `CLAUDE*` 환경 변수를 넘기지 않고 모노레포 경로를 뺀 PATH를 주는 정리된 환경을 준다. 에이전트 출력에 채점 코드 경로가 보이면 그 실행에 `harnessPathSeen`을 표시하고 보고서에 경고를 쓴다. 결과 JSON·보고서·산출물은 `benchmarks/results/`에 남고, 산출물을 `--replay`로 다시 채점하면 같은 숫자가 나온다. 보고서는 dsmith 조건의 MCP 도구 호출 수와 permission denial 수도 센다. 자세한 옵션과 폴더 구조는 [benchmarks/README.md](benchmarks/README.md).
 
+### React Native와 비공개 앱
+
+- `--repo rn-app`은 저장소 안의 합성 Expo 앱(`fixtures/rn-app`)이다. RN 프롬프트 12개(`benchmarks/prompts-rn`, 모두 `이 앱 스타일로 `로 시작: 설정 행 목록·확인 시트·배지·토스트·설정/상세/검색 화면 등)를 쓴다. `pnpm bench:replay`가 이 레포의 합성 산출물(`benchmarks/replay/rn-app`)도 채점해 RN 경로(JS 테마 참조 해석, 독립 채점의 `themeRef`)를 CI에서 고정한다.
+- `--repo knowing-saju`는 저장소 밖에 있는 비공개 앱이다. 위치는 `--repo-path <디렉터리>`(또는 환경 변수 `DSMITH_BENCH_REPO_PATH`)로만 주고 커밋하지 않는다. 앱은 `.env*`·`ios/`·`android/`·`node_modules/`·서명 키·`google-services.json` 등을 뺀 임시 복사본으로만 쓰며, `--out`·`--record`(agent 실행)는 필수이고 모노레포 밖이어야 한다.
+- 비공개 앱의 원본 결과(파일 이름·토큰 이름·진단 메시지가 든다)는 저장소에 넣지 않는다. 커밋하는 것은 `pnpm bench:report --redact --in <결과.json> --out <리댁션.md> --summary-json <요약.json>`이 만든 수치뿐인 보고서와 요약이다. 리댁션본에는 프롬프트 id·파일(공개 프롬프트)과 숫자만 있고 앱 경로, 바뀐 파일 이름, 토큰 이름, 코드, finding 메시지가 없다. 자세한 것은 [benchmarks/README.md](benchmarks/README.md)의 "React Native 벤치마크".
+
 ### 지표
 
 - 토큰 준수율 = `token / (token + hardcoded)` — 에이전트가 새로 쓴 스타일 값 중 토큰을 가리킨 비율. 보고서와 README 줄에는 `12.5% (1/8)`처럼 분자/분모를 함께 쓴다. Tailwind 기본 스케일 클래스(`p-4`, `bg-blue-100`)는 분모에서 빼고 별도 행으로 센다. 변수·상수에 담은 className은 dynamic으로만 세며 준수율 분모에 들어가지 않는다
@@ -166,7 +172,7 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 - `knownToken` — token 중 베이스의 토큰 이름·프리셋 키를 실제로 가리킨 것(지어낸 변수 `var(--made-up)`는 제외)
 - DS 외 컴포넌트 — `prefer-ds-component` finding 수. 이 밖에 DS 컴포넌트 사용, deprecated, 파싱 실패, 기대 파일 없음을 센다
 - 바뀐 파일에서 새로 생긴 사용만 센다(수정 파일은 원래 있던 값을 빼고 비교 — `guard --ci`와 같은 방식)
-- 독립 사용률 = `정의된 var 참조 / (정의된 var + 정의 없는 var + 색 리터럴 + px·rem 길이 리터럴 + Tailwind 기본 팔레트·스케일)` — dsmith 엔진과 코드를 공유하지 않는 별도 채점기의 값. `typeErrors`는 바뀐 파일의 구문·의미 진단 수(의존성 타입 없이)
+- 독립 사용률 = `정의된 var 참조 / (정의된 var + 정의 없는 var + 색 리터럴 + px·rem 길이 리터럴 + Tailwind 기본 팔레트·스케일)` — dsmith 엔진과 코드를 공유하지 않는 별도 채점기의 값. React Native 레포는 분자·분모에 `JS 테마 참조`(로컬 객체 모듈에서 import한 `colors.surface` 같은 멤버 식·스프레드)를 더한다. `typeErrors`는 바뀐 파일의 구문·의미 진단 수(의존성 타입 없이)
 
 ### 주장하지 않는 것
 

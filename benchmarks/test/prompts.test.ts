@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { sha256Text } from "@dsmith-dev/core";
+import { REPOS } from "../src/base.js";
 import { BUILTIN_EXTRACTORS, extractorsFor } from "../src/extractors.js";
 import { loadPrompts, parsePrompt } from "../src/prompts.js";
 
@@ -88,6 +89,73 @@ describe("parsePrompt", () => {
   it("file이 절대 경로·.. 이면 Error", () => {
     expect(() => parsePrompt("abs.md", ok.replaceAll("src/components/A.tsx", "/etc/a.tsx"))).toThrow(/abs\.md/);
     expect(() => parsePrompt("up.md", ok.replaceAll("src/components/A.tsx", "../a.tsx"))).toThrow(/up\.md/);
+  });
+});
+
+const rnDir = path.resolve(here, "../prompts-rn");
+const RN_IDS = [
+  "01-settings-list",
+  "02-confirm-sheet",
+  "03-history-list",
+  "04-summary-card",
+  "05-profile-form",
+  "06-status-badge",
+  "07-segmented-tabs",
+  "08-toast",
+  "09-empty-view",
+  "10-settings-screen",
+  "11-detail-screen",
+  "12-search-screen",
+];
+
+describe("RN 프롬프트 세트(prompts-rn)", () => {
+  it("12개를 id 순서대로 읽는다", async () => {
+    expect((await loadPrompts(rnDir)).map((p) => p.id)).toEqual(RN_IDS);
+  });
+
+  it("본문은 '이 앱 스타일로 '로 시작해 웹 세트와 같은 꼬리로 끝나고 file을 그대로 포함한다", async () => {
+    for (const p of await loadPrompts(rnDir)) {
+      expect(p.text.startsWith("이 앱 스타일로 "), p.id).toBe(true);
+      expect(p.text.endsWith(TAIL), p.id).toBe(true);
+      expect(p.text, p.id).toContain(p.file);
+      expect(p.text, p.id).not.toContain("`");
+      expect(p.sha256).toBe(sha256Text(p.text));
+    }
+  });
+
+  it("file은 app/bench-*.tsx 또는 src/components/*.tsx뿐이고 서로 다르며 공개 RN fixture에 없다", async () => {
+    const prompts = await loadPrompts(rnDir);
+    for (const p of prompts) {
+      expect(p.file, p.id).toMatch(/^(?:app\/bench-[a-z]+|src\/components\/[A-Za-z]+)\.tsx$/);
+      expect(fs.existsSync(path.join(repoRoot, "fixtures/rn-app", p.file)), p.file).toBe(false);
+    }
+    expect(new Set(prompts.map((p) => p.file)).size).toBe(prompts.length);
+    expect(prompts.filter((p) => p.file.startsWith("app/")).map((p) => p.id)).toEqual(["10-settings-screen", "11-detail-screen", "12-search-screen"]);
+  });
+
+  it("레포별 프롬프트 세트: 웹 레포는 prompts, RN 레포는 prompts-rn", () => {
+    expect(REPOS["legacy-demo"].prompts).toBe("prompts");
+    expect(REPOS["with-ds-app"].prompts).toBe("prompts");
+    expect(REPOS["rn-app"].prompts).toBe("prompts-rn");
+    expect(REPOS["knowing-saju"].prompts).toBe("prompts-rn");
+  });
+
+  it("웹 세트 12개의 본문 sha256은 RN 세트 추가 전과 같다", async () => {
+    const shas = (await loadPrompts(promptsDir)).map((p) => `${p.id}:${p.sha256.slice(0, 12)}`);
+    expect(shas).toEqual([
+      "01-form:d28007a2b33c",
+      "02-modal:9e026c231334",
+      "03-list:ff61d2384e64",
+      "04-card:aeda48100f80",
+      "05-table:61a78b96f271",
+      "06-badge:3b4fc838e338",
+      "07-tabs:8ad0a5f787a0",
+      "08-toast:9c6ebe5e00b8",
+      "09-sidebar:98502052d2ef",
+      "10-settings:148f4f3df473",
+      "11-empty:67cc3ef9aa7e",
+      "12-pagination:316ba594e1d2",
+    ]);
   });
 });
 
