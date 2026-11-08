@@ -175,11 +175,16 @@ export async function catalogFromDir(
   dir: string,
   origin: "ds-local" | "init",
   index: Index,
+  /** 파일형 로컬 DS(`src/components/ui.tsx`): 있으면 디렉터리 대신 이 파일 하나만 본다 */
+  entry?: string,
 ): Promise<{ components: CatalogComponent[]; warnings: string[] }> {
   const base = dir === "." || dir === "" ? "" : `${dir.replace(/\/+$/, "")}/`;
-  const files = (
-    await fg(`${base}${COMPONENT_FILE_GLOB}`, { cwd: root, ignore: [...NON_COMPONENT_FILES], dot: false })
-  ).map((f) => f.split(path.sep).join("/"));
+  const files =
+    entry !== undefined
+      ? [entry]
+      : (await fg(`${base}${COMPONENT_FILE_GLOB}`, { cwd: root, ignore: [...NON_COMPONENT_FILES], dot: false })).map((f) =>
+          f.split(path.sep).join("/"),
+        );
   files.sort(compareCodeUnits);
 
   const tokensByFile = new Map<string, string[]>();
@@ -229,6 +234,7 @@ export async function catalogFromDir(
       components.push(comp);
     }
   }
-  await attachBarrelModules(root, base, components);
+  // 파일형 DS에는 배럴(index.*)이 없다 — 컴포넌트의 module은 그 파일 module 하나다
+  if (entry === undefined) await attachBarrelModules(root, base, components);
   return { components, warnings };
 }

@@ -23,6 +23,30 @@ describe("renderAgentsDsSection", () => {
     expect(text.split("\n").length).toBeLessThanOrEqual(SECTION_MAX_LINES);
   });
 
+  it("토큰이 모두 JS 테마 멤버면 토큰 줄이 객체 이름을 테마 소스 순서로 안내한다", () => {
+    const js = (exp: string, key: string) => ({
+      name: `${exp}.${key}`,
+      value: "1",
+      normalized: { kind: "length" as const, px: 1 },
+      category: "spacing" as const,
+      file: "src/theme.ts",
+      js: { module: "src/theme", export: exp, path: [key] },
+    });
+    const catalog: Catalog = {
+      version: 1,
+      dsmith: "x",
+      sources: [],
+      components: [],
+      tokens: [js("colors", "a"), js("radius", "b"), js("spacing", "c"), js("typography", "d")],
+      stats: { components: 0, propsOk: 0, deprecated: 0, tokens: 4 },
+    };
+    const text = renderAgentsDsSection(catalog, [], undefined, [{ file: "src/theme.ts", exports: ["colors", "spacing", "radius", "typography"] }]);
+    expect(text).toContain(
+      "- 토큰: `src/theme.ts`의 JS 객체 `colors`·`spacing`·`radius`·`typography` — 스타일 값은 이 객체를 import해 참조(예 `colors.<이름>`), hex·숫자 직접 쓰지 않음",
+    );
+    expect(text).not.toContain("토큰 파일:");
+  });
+
   it("컴포넌트 200개 합성 카탈로그도 80줄 이하 — 상위 20만, deprecated 10개까지", () => {
     const components: CatalogComponent[] = Array.from({ length: 200 }, (_, i) => ({
       name: `C${String(i).padStart(3, "0")}`,

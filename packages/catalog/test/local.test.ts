@@ -17,6 +17,19 @@ describe("catalogFromDir", () => {
     expect(warnings).toEqual([]);
   });
 
+  it("entry(파일형 DS)가 있으면 그 파일의 대문자 값 export만 읽고 module은 확장자 뺀 경로다", async () => {
+    const root = copyFixture("rn-app", {
+      // 같은 디렉터리의 이웃 파일은 DS가 아니다
+      "src/components/Other.tsx": "export function Other() { return null; }\n",
+      "src/components/ui.tsx": 'export const colors = { a: 1 };\nexport function Card() { return null; }\nexport const Chip = () => null;\nexport const styles = {};\n',
+    });
+    const { index } = await auditFixture(root);
+    const { components, warnings } = await catalogFromDir(root, "src/components/ui", "ds-local", index, "src/components/ui.tsx");
+    expect(components.map((c) => c.name)).toEqual(["Card", "Chip"]);
+    expect(components.every((c) => c.module === "src/components/ui" && c.file === "src/components/ui.tsx" && c.modules === undefined)).toBe(true);
+    expect(warnings).toEqual([]);
+  });
+
   it("tokensUsed는 같은 파일의 token 출처 스타일 raw(고유, ≤10)", async () => {
     const root = copyFixture("with-ds-app", overlay);
     const { index } = await auditFixture(root);

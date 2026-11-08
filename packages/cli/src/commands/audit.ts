@@ -1,16 +1,21 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  buildTokenRefResolver,
   clusterColors,
   clusterSpacing,
+  collectModuleContext,
   duplicateNames,
   findInitDir,
   indexRepo,
   isRatedUsage,
+  loadReplacementTokens,
   localDefinitionsOf,
+  readTsconfigPaths,
   summarizeComponents,
   writeIndex,
   type Index,
+  type RefResolver,
 } from "@dsmith-dev/core";
 import { detect, excludeGlobs, sharesFromIndex, writeDetect, type DetectResult } from "@dsmith-dev/detect";
 import type { AuditResult } from "../audit-result.js";
@@ -70,6 +75,7 @@ export function computeAudit(detectResult: DetectResult, index: Index): AuditRes
   const duplicates: AuditResult["duplicates"] =
     duplicateList.length === 0 ? [] : [{ names: duplicateList, reason: "same-name-different-source" }];
   const duplicateCount = duplicates.reduce((n, d) => n + d.names.length, 0);
+  const hasJsThemes = (detectResult.ds.jsThemes?.length ?? 0) > 0;
   return {
     detect: detectResult,
     index: { files: index.files, styleCount: index.styles.length, componentCount: index.components.length },
@@ -79,6 +85,7 @@ export function computeAudit(detectResult: DetectResult, index: Index): AuditRes
       byFile: byFileOf(index),
     },
     dynamicCount: index.styles.filter((u) => u.source === "dynamic").length,
+    ...(hasJsThemes ? { jsThemeRefs: index.styles.filter((u) => u.source === "token" && u.ref !== undefined).length } : {}),
     components,
     duplicates,
     localDefinitions: localDefinitionsOf(index.components),
@@ -101,8 +108,16 @@ export async function runAudit(rootArg: string, opts: RunOptions = {}): Promise<
   // init이 만든 산출 디렉터리(migrate가 치환 대상에서 빼는 것과 같은 디렉터리)는 인덱싱하지 않는다 — 감지(토큰 파일 인식)에는 그대로 쓰인다
   const initDir = await findInitDir(root);
   const initExclude = initDir === null || initDir === "." ? [] : [`${initDir}/**`];
+  // JS 테마 참조(`colors.surface`)를 토큰 사용으로 세는 해석기. JS 토큰이 없으면 만들지 않는다(웹 레포는 이전과 같다)
+  const rt = await loadReplacementTokens(root, provisional.ds.tokenFiles, { framework: provisional.framework.name });
+  let resolveRef: RefResolver | undefined;
+  if (rt.allTokens.some((t) => t.js !== undefined)) {
+    const tsPaths = await readTsconfigPaths(root);
+    resolveRef = buildTokenRefResolver(rt.allTokens, { tsPaths, moduleContext: await collectModuleContext(root, tsPaths) });
+  }
   const index = await indexRepo(root, buildExtractors(provisional.activeExtractors), {
     exclude: [...excludeGlobs(provisional.overrides, runExclude), ...initExclude],
+    ...(resolveRef === undefined ? {} : { resolveRef }),
   });
   await writeIndex(root, index);
 

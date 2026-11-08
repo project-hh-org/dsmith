@@ -38,6 +38,7 @@ export async function readCatalogTokens(root: string, tokenFiles: string[]): Pro
       normalized: t.normalized,
       category: t.category,
       ...(t.path === undefined ? {} : { path: t.path }),
+      ...(t.js === undefined ? {} : { js: t.js }),
       file: t.file,
     });
   }

@@ -25,6 +25,15 @@ describe("buildGuardSnapshot", () => {
     expect(snap.ds.modules.indexOf("@acme/icons")).toBeLessThan(snap.ds.modules.indexOf("@acme/ui"));
   });
 
+  it("파일형 로컬 DS(entry)면 ds.modules에 확장자 뺀 module(dir)이 들어간다", async () => {
+    const root = cloneRepo(prepared.root);
+    const { dir: _dir, packageName: _p, packageNames: _ps, ...ds } = prepared.detect.ds;
+    void _dir; void _p; void _ps;
+    const detect: DetectResult = { ...prepared.detect, ds: { ...ds, kind: "local", dir: "src/components/ui", entry: "src/components/ui.tsx" } };
+    const snap = await buildGuardSnapshot({ root, detect, version: "0.1.0", existing: null });
+    expect(snap.ds.modules).toEqual(["src/components/ui"]);
+  });
+
   it("packageNames 없이 packageName만 있어도 modules에 들어간다", async () => {
     const root = cloneRepo(prepared.root);
     const { packageNames: _drop, ...ds } = prepared.detect.ds;
