@@ -211,6 +211,19 @@ describe("planComponentEdits: props", () => {
     expect(ok.after).toContain('<Button variant="x" size="sm" />');
   });
 
+  it("대상 props를 모르고 값 대응만 있으면 대응에 없는 값은 보류하고 detail에 값이 나온다", () => {
+    const mapping = { "variant=a": "variant=b" };
+    const unmapped = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button variant="primary" />;\n';
+    const held = run(unmapped, [target({ props: null, mapping })]);
+    expect(held.edits).toEqual([]);
+    expect(held.held[0]).toMatchObject({ reason: "target-props-unknown", item: "Button" });
+    expect(held.held[0]?.detail).toContain('variant="primary"');
+    const mapped = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button variant="a" />;\n';
+    const ok = run(mapped, [target({ props: null, mapping })]);
+    expect(ok.held).toEqual([]);
+    expect(ok.after).toContain('<Button variant="b" />');
+  });
+
   it("props를 알면 기존대로 동작한다(없는 prop은 mapping-missing)", () => {
     const code = 'import { Button } from "../src/components/Button";\nexport const A = () => <Button whatever={1} />;\n';
     expect(run(code, [target()]).held[0]?.reason).toBe("mapping-missing");

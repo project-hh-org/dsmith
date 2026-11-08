@@ -124,6 +124,11 @@ describe("loadCommands — 실제 명령 소스", () => {
     expect(body).toContain("대응을 모르면 비워 둔다 — migrate가 그 사용을 보류한다");
   });
 
+  it("ds-decide는 recommendation.note가 있으면 그대로 보여 주라고 안내한다", async () => {
+    const body = (await loadCommands()).find((x) => x.name === "ds-decide")?.body ?? "";
+    expect(body).toContain("`recommendation.note`가 있으면 추천 옆에 그대로 보여 준다");
+  });
+
   it("ds-init·ds-ai는 dry-run 미리보기를 먼저 부르고 같은 인자로 실제 실행을 안내한다", async () => {
     const commands = await loadCommands();
     const init = commands.find((c) => c.name === "ds-init");

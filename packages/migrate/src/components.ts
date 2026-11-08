@@ -478,7 +478,13 @@ function checkAttributes(ctx: FileCtx, t: ChosenTarget, el: Opening, out: AttrOu
   if (unknownInherits.length > 0) for (const [from, to] of Object.entries(t.mapping)) asserted.add(nameOfSide(from)).add(nameOfSide(to));
   // 대상 props를 모르는 경우: mapping에 이름이 나온 prop(항등 포함)은 사용자가 확인한 것으로 본다
   const mappedNames = new Set<string>();
-  if (t.props === null) for (const [from, to] of Object.entries(t.mapping)) mappedNames.add(nameOfSide(from)).add(nameOfSide(to));
+  // 값 대응(`variant=a`)은 그 값만 확인한 것이므로 prop 이름 전체를 확인한 것으로 치지 않는다(대응된 값은 mappedValue로 통과)
+  if (t.props === null) {
+    for (const [from, to] of Object.entries(t.mapping)) {
+      if (!from.includes("=")) mappedNames.add(from);
+      if (!to.includes("=")) mappedNames.add(to);
+    }
+  }
   const finals: { from: string; to: string }[] = [];
   for (const attr of el.attributes) {
     if (attr.type === "JSXSpreadAttribute") {
@@ -509,8 +515,9 @@ function checkAttributes(ctx: FileCtx, t: ChosenTarget, el: Opening, out: AttrOu
 
     finals.push({ from: name, to: finalName });
 
-    if (t.props === null && !PASSTHROUGH.test(finalName) && finalName !== "id" && !mappedNames.has(name) && !mappedNames.has(finalName)) {
-      out.propsUnknown.push(finalName === name ? name : `${name}→${finalName}`);
+    if (t.props === null && !PASSTHROUGH.test(finalName) && finalName !== "id" && !mappedValue && !mappedNames.has(name) && !mappedNames.has(finalName)) {
+      const shown = valueKeys.has(name) && literal !== undefined ? `${name}="${literal}"` : name;
+      out.propsUnknown.push(finalName === name ? shown : `${shown}→${finalName}`);
       continue;
     }
     if (!PASSTHROUGH.test(finalName) && t.props !== null) {
@@ -712,7 +719,7 @@ function planItem(ctx: FileCtx, t: ChosenTarget, held: HeldComponentEdit[]): Ite
   }
   if (out.propsUnknown.length > 0) {
     const unknown = [...new Set(out.propsUnknown)];
-    const sample = unknown[0]!.split("→")[0]!;
+    const sample = unknown[0]!.split("→")[0]!.split("=")[0]!;
     return hold(
       "target-props-unknown",
       `대상 ${t.file ?? t.module}의 props를 읽을 수 없어 확인할 수 없는 prop: ${unknown.join(", ")} (직접 확인했다면 decide --map ${sample}:${sample}처럼 같은 이름으로 대응하거나, 패키지를 설치한 뒤 ai를 다시 실행)`,

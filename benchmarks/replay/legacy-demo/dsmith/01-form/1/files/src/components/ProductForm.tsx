@@ -13,7 +13,7 @@ export function ProductForm({ onSubmit }: { onSubmit: (name: string, price: numb
         onSubmit(name, price);
       }}
     >
-      <label className="block text-[color:var(--color-blue-900)]">
+      <label className="block text-[color:var(--color-gray-900)]">
         상품명
         <input
           className="mt-[var(--space-2)] block w-full rounded-[var(--radius-sm)] px-[var(--space-3)] py-[var(--space-2)]"
@@ -21,7 +21,7 @@ export function ProductForm({ onSubmit }: { onSubmit: (name: string, price: numb
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      <label className="block text-[color:var(--color-blue-900)]">
+      <label className="block text-[color:var(--color-gray-900)]">
         가격
         <input
           type="number"
