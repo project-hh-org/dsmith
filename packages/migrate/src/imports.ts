@@ -96,12 +96,29 @@ export type ImportPlan =
   /** 이미 값 import(별칭 포함). `local`은 이 파일에서 부르는 식(namespace import면 `t.colors`) */
   | { kind: "present"; local: string }
   /** 기존 같은 module 선언에 합치거나 새 줄(마지막 import 뒤) */
-  | { kind: "add"; local: string; patch: TextPatch }
+  | { kind: "add"; local: string; patch: TextPatch; convert?: { node: ImportDecl; keep: string } }
   /** 같은 로컬 이름이 다른 바인딩이거나 파일을 읽지 못함 */
   | { kind: "conflict"; reason: string };
 
 /** default export를 받을 로컬 이름 */
 const DEFAULT_LOCAL = "theme";
+
+/**
+ * `import type { a, b } from "m"`을 값 import로 바꾼 선언 텍스트. 선언의 `type`을 떼고, `keep`(값으로 쓸 로컬 이름들)이 아닌 지정자는
+ * 인라인 `type`을 붙여 타입 전용으로 남긴다(`import { a, type b } from "m"`).
+ */
+function valueImportText(code: string, node: ImportDecl, keep: ReadonlySet<string>): string {
+  let text = code.slice(node.start, node.end);
+  const edits: { at: number; del: number; ins: string }[] = [];
+  // `import type {` → `import {` (type 앞 공백과 type만 지우고 뒤 공백은 남긴다)
+  const kw = /^import(\s+)type(?=[\s{*])/.exec(text);
+  if (kw !== null) edits.push({ at: "import".length, del: kw[1]!.length + "type".length, ins: "" });
+  for (const s of node.specifiers) {
+    if (s.type === "ImportSpecifier" && !keep.has(s.local.name)) edits.push({ at: s.start - node.start, del: 0, ins: "type " });
+  }
+  for (const e of edits.sort((a, b) => b.at - a.at)) text = `${text.slice(0, e.at)}${e.ins}${text.slice(e.at + e.del)}`;
+  return text;
+}
 
 /** 이 로컬 이름을 가진 바인딩이 파일 어느 스코프에든 있는가(import·변수·함수·매개변수·클래스) */
 function hasBindingNamed(ast: ReturnType<typeof parseTsx>, name: string, ignore: ReadonlySet<unknown>): boolean {
@@ -143,11 +160,16 @@ export function planNamedImport(ctx: { file: string; code: string; tsPaths: TsPa
   // 이미 값 import가 있는가
   const importedNameOf = (s: Spec): string | null => (s.imported === undefined ? null : ((s.imported as Id).name ?? (s.imported as StrLit).value));
   const sameModule = new Set<unknown>();
+  let typeOnly: { node: ImportDecl; spec: Spec } | null = null;
   for (const { node, key } of decls) {
     if (key !== need.module) continue;
     for (const s of node.specifiers) {
       if (!isValueDecl(node) || !isValueSpec(s)) {
-        if (s.local.name === wanted) sameModule.add(s); // 같은 module의 타입 import는 충돌로 보지 않는다
+        if (s.local.name === wanted) {
+          sameModule.add(s); // 같은 module의 타입 import는 충돌로 보지 않는다
+          const matches = isDefault ? s.type === "ImportDefaultSpecifier" : s.type === "ImportSpecifier" && importedNameOf(s) === need.name;
+          if (matches && typeOnly === null) typeOnly = { node, spec: s };
+        }
         continue;
       }
       if (isDefault && s.type === "ImportDefaultSpecifier") return { kind: "present", local: s.local.name };
@@ -159,6 +181,18 @@ export function planNamedImport(ctx: { file: string; code: string; tsPaths: TsPa
   // 같은 로컬 이름의 다른 바인딩
   if (hasBindingNamed(ast, wanted, sameModule)) {
     return { kind: "conflict", reason: `\`${wanted}\` 이름이 이 파일에서 이미 다른 바인딩으로 쓰임` };
+  }
+
+  // 같은 module에서 같은 이름을 타입 전용으로만 import하고 있다 → 두 번째 선언을 더하지 않고 그 import를 값 import로 바꾼다
+  if (typeOnly !== null) {
+    const { node, spec: ts } = typeOnly;
+    if (!isValueDecl(node)) {
+      const patch = { start: node.start, end: node.end, replacement: valueImportText(code, node, new Set([wanted])) };
+      return { kind: "add", local: wanted, patch, convert: { node, keep: wanted } };
+    }
+    // 인라인 `type colors` 지정자: 그 지정자의 `type` 키워드만 뗀다
+    const text = code.slice(ts.start, ts.end).replace(/^type\s+/, "");
+    return { kind: "add", local: wanted, patch: { start: ts.start, end: ts.end, replacement: text } };
   }
 
   const eol = code.includes("\r\n") ? "\r\n" : "\n";
@@ -199,6 +233,18 @@ export function planNamedImports(
     const p = plans[i]!;
     if (p.kind !== "add") return;
     added.push({ module: n.module, name: n.name, local: p.local });
+    if (p.convert !== undefined) {
+      // 타입 전용 선언을 값 import로 바꾸는 편집은 선언 단위다 — 같은 선언에서 값이 필요한 이름을 모두 모아 한 번만 쓴다
+      const same = unique.flatMap((m, j) => {
+        const q = plans[j]!;
+        return q.kind === "add" && q.convert?.node.start === p.convert!.node.start ? [q.convert.keep] : [];
+      });
+      const k = `convert:${p.convert.node.start}`;
+      if (!groups.has(k)) {
+        groups.set(k, { start: p.patch.start, end: p.patch.end, text: valueImportText(ctx.code, p.convert.node, new Set(same)), lines: [] });
+      }
+      return;
+    }
     const key = `${p.patch.start}:${p.patch.end}`;
     const g = groups.get(key);
     if (g === undefined) {

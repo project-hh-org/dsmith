@@ -1,6 +1,6 @@
 import { applyPatches } from "@dsmith-dev/core";
 import { describe, expect, it } from "vitest";
-import { planNamedImport, type ImportPlan } from "../src/imports.js";
+import { planNamedImport, planNamedImports, type ImportPlan } from "../src/imports.js";
 
 const mc = { baseUrlEntries: new Set<string>(), dependencies: new Set<string>(["react-native"]) };
 const need = { module: "src/theme", name: "colors", isPath: true } as const;
@@ -48,11 +48,21 @@ describe("planNamedImport", () => {
     expect(plan(`import { spacing, colors as c } from "../theme"\n`)).toEqual({ kind: "present", local: "c" });
   });
 
-  it("import type { colors }는 값이 아니므로 add", () => {
+  it("import type { colors }는 값이 아니므로 그 import를 값 import로 바꾼다(중복 선언을 만들지 않는다)", () => {
     const code = `import type { colors } from "../theme"\nexport const A = 1\n`;
-    expect(plan(code).kind).toBe("add");
+    expect(applied(code, plan(code))).toBe(`import { colors } from "../theme"\nexport const A = 1\n`);
+    // 선언에 다른 지정자가 있으면 그것들만 타입 전용으로 남긴다
+    const multi = `import type { colors, Theme } from '../theme';\n`;
+    expect(applied(multi, plan(multi))).toBe(`import { colors, type Theme } from '../theme';\n`);
+    // 인라인 type 지정자는 그 키워드만 뗀다
     const inline = `import { type colors, spacing } from "../theme"\n`;
-    expect(plan(inline).kind).toBe("add");
+    expect(applied(inline, plan(inline))).toBe(`import { colors, spacing } from "../theme"\n`);
+  });
+
+  it("같은 선언의 이름 두 개를 모두 값으로 쓰면 선언을 한 번만 바꾼다", () => {
+    const code = `import type { colors, spacing, Theme } from "../theme"\nexport const A = 1\n`;
+    const r = planNamedImports({ file: "src/screens/Home.tsx", code, tsPaths: null, moduleContext: mc }, [need, { ...need, name: "spacing" }]);
+    expect(applyPatches(code, r.patches)).toBe(`import { colors, spacing, type Theme } from "../theme"\nexport const A = 1\n`);
   });
 
   it("같은 로컬 이름의 다른 바인딩이 있으면 conflict", () => {
