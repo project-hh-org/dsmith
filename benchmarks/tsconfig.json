@@ -14,6 +14,7 @@
     { "path": "../packages/extractor-emotion" },
     { "path": "../packages/extractor-inline-style" },
     { "path": "../packages/extractor-mui-sx" },
+    { "path": "../packages/extractor-react-native" },
     { "path": "../packages/extractor-styled" },
     { "path": "../packages/extractor-tailwind" }
   ]

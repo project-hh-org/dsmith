@@ -15,6 +15,7 @@
     "@dsmith-dev/extractor-emotion": "workspace:*",
     "@dsmith-dev/extractor-inline-style": "workspace:*",
     "@dsmith-dev/extractor-mui-sx": "workspace:*",
+    "@dsmith-dev/extractor-react-native": "workspace:*",
     "@dsmith-dev/extractor-styled": "workspace:*",
     "@dsmith-dev/extractor-tailwind": "workspace:*",
     "@dsmith-dev/guard": "workspace:*",

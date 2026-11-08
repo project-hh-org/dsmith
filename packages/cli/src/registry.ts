@@ -3,6 +3,7 @@ import { cssExtractor } from "@dsmith-dev/extractor-css";
 import { emotionExtractor } from "@dsmith-dev/extractor-emotion";
 import { inlineStyleExtractor } from "@dsmith-dev/extractor-inline-style";
 import { muiSxExtractor } from "@dsmith-dev/extractor-mui-sx";
+import { reactNativeExtractor } from "@dsmith-dev/extractor-react-native";
 import { styledExtractor } from "@dsmith-dev/extractor-styled";
 import { tailwindExtractor } from "@dsmith-dev/extractor-tailwind";
 
@@ -14,6 +15,7 @@ export const registry: Record<string, () => Extractor> = {
   styled: () => styledExtractor,
   emotion: () => emotionExtractor,
   "mui-sx": () => muiSxExtractor,
+  "react-native-stylesheet": () => reactNativeExtractor,
 };
 
 /** 이름 목록으로 Extractor를 만든다. 레지스트리에 없는 이름은 stderr에 경고하고 건너뛴다. */

@@ -92,8 +92,16 @@ describe("parsePrompt", () => {
 });
 
 describe("extractors", () => {
-  it("내장 Extractor 6종 이름이 cli registry와 같다", () => {
-    expect(Object.keys(BUILTIN_EXTRACTORS).sort()).toEqual(["css", "emotion", "inline-style", "mui-sx", "styled", "tailwind"]);
+  it("내장 Extractor 7종 이름이 cli registry와 같다", () => {
+    expect(Object.keys(BUILTIN_EXTRACTORS).sort()).toEqual([
+      "css",
+      "emotion",
+      "inline-style",
+      "mui-sx",
+      "react-native-stylesheet",
+      "styled",
+      "tailwind",
+    ]);
     for (const [name, e] of Object.entries(BUILTIN_EXTRACTORS)) expect(e.name).toBe(name);
   });
 

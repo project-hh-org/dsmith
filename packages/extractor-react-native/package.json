@@ -1,0 +1,44 @@
+{
+  "name": "@dsmith-dev/extractor-react-native",
+  "version": "0.3.0",
+  "description": "dsmith extractor for React Native StyleSheet, style arrays and Platform.select",
+  "keywords": ["design-system", "dsmith", "extractor", "react-native", "stylesheet", "expo"],
+  "license": "MIT",
+  "author": "Dahee Hwang <dahee@project-hh.com>",
+  "homepage": "https://github.com/project-hh-org/dsmith#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/project-hh-org/dsmith.git",
+    "directory": "packages/extractor-react-native"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@babel/types": "^7.29.11",
+    "@dsmith-dev/core": "workspace:*",
+    "@dsmith-dev/extractor-api": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}
