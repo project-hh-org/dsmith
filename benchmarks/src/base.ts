@@ -3,7 +3,7 @@ import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { buildTokenRefResolver, extractorMatchers, moduleContextOf, sha256Text, type GuardSnapshot, type RefResolver } from "@dsmith-dev/core";
+import { buildTokenRefResolver, extractorMatchers, loadReplacementTokens, moduleContextOf, sha256Text, type GuardSnapshot, type RefResolver } from "@dsmith-dev/core";
 import { readDetect } from "@dsmith-dev/detect";
 import { buildGuardSnapshot } from "@dsmith-dev/guard";
 import { agentEnv } from "./agent.js";
@@ -46,17 +46,17 @@ export interface Base {
 const EXTERNAL_SKIP_DIRS = new Set(["node_modules", ".git", "ios", "android", ".expo", "dist", "build", ".dsmith"]);
 /** 외부 앱 복사에서 뺄 파일 이름 */
 const EXTERNAL_SKIP_FILES = new Set(["google-services.json", "GoogleService-Info.plist"]);
-const EXTERNAL_SKIP_EXT = /\.(?:p8|p12|keystore|jks|mobileprovision)$/i;
+const EXTERNAL_SKIP_EXT = /\.(?:p8|p12|keystore|jks|mobileprovision|pem|key)$/i;
 
 /**
  * 외부(비공개) 앱 복사 필터 — 에이전트에 넘기면 안 되는 것(비밀 파일·네이티브 프로젝트·설치물·도구 작업 파일)을 뺀다.
- * node_modules, .git, ios, android, .expo, dist, build, .dsmith 디렉터리, .env* , *.p8|*.p12|*.keystore|*.jks|*.mobileprovision, google-services.json, GoogleService-Info.plist.
+ * node_modules, .git, ios, android, .expo, dist, build, .dsmith 디렉터리, .env*(.envrc 포함), *.p8|*.p12|*.keystore|*.jks|*.mobileprovision|*.pem|*.key, google-services.json, GoogleService-Info.plist.
  * 이름(basename)만 보므로 어느 깊이에서든 걸린다.
  */
 export function externalCopyFilter(src: string): boolean {
   const name = path.basename(src);
   if (EXTERNAL_SKIP_DIRS.has(name) || EXTERNAL_SKIP_FILES.has(name)) return false;
-  if (name === ".env" || name.startsWith(".env.")) return false;
+  if (name === ".env" || name === ".envrc" || name.startsWith(".env.")) return false;
   return !EXTERNAL_SKIP_EXT.test(name);
 }
 
@@ -154,7 +154,12 @@ export async function prepareBase(repo: RepoName, opts: { repoPath?: string | nu
     const snapshot = await buildGuardSnapshot({ root: dir, detect, version: "bench", existing: null });
     const extractors = extractorsFor(snapshot.extractors);
     for (const e of extractors) await e.prepare?.(dir);
-    const resolveRef = buildTokenRefResolver(snapshot.tokens, { tsPaths: snapshot.moduleContext.tsPaths, moduleContext: moduleContextOf(snapshot) });
+    // 참조 해석기는 audit과 같은 기준으로 읽은 토큰 전부(모드·JS 테마 토큰 포함)에서 만든다 — snapshot.tokens는 치환 후보뿐이다
+    const all = await loadReplacementTokens(dir, detect.ds.tokenFiles, {
+      framework: detect.framework.name,
+      jsThemeFiles: (detect.ds.jsThemes ?? []).map((t) => t.file),
+    });
+    const resolveRef = buildTokenRefResolver(all.allTokens, { tsPaths: snapshot.moduleContext.tsPaths, moduleContext: moduleContextOf(snapshot) });
     return { dir, snapshot, snapshotSha256: sha256Text(JSON.stringify(snapshot)), matchers: extractorMatchers(extractors, { dot: true }), resolveRef };
   } catch (e) {
     await fs.rm(dir, { recursive: true, force: true });

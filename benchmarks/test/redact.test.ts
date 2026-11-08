@@ -151,6 +151,62 @@ describe("리댁션 — 비공개 레포 결과", () => {
     expect(JSON.stringify(priv)).toBe(before);
   });
 
+  describe("입력 검증 — 결과 JSON의 문자열을 믿지 않는다", () => {
+    const clone = (): BenchResult => JSON.parse(JSON.stringify(priv)) as BenchResult;
+    const SECRET = "/Users/dahee/secret-app";
+
+    it("repo·date·mode·conditions가 허용 값이 아니면 거부하고, 오류 문구에 입력 값을 싣지 않는다", () => {
+      const cases: [string, (r: BenchResult) => void][] = [
+        ["repo", (r) => void (r.repo = SECRET as never)],
+        ["date", (r) => void (r.date = `2026-11-08 ${SECRET}`)],
+        ["mode", (r) => void (r.mode = SECRET as never)],
+        ["conditions", (r) => void (r.conditions = [SECRET as never])],
+      ];
+      for (const [field, mutate] of cases) {
+        const r = clone();
+        mutate(r);
+        let message = "";
+        try {
+          redactResult(r);
+        } catch (e) {
+          message = (e as Error).message;
+        }
+        expect(message, field).toContain(field);
+        expect(message, field).not.toContain("secret-app");
+      }
+    });
+
+    it("prompts는 커밋된 공개 RN 프롬프트 (id, file)과 같아야 한다 — 다른 id·file·run.prompt는 거부", () => {
+      const bad = clone();
+      bad.prompts[0] = { ...bad.prompts[0]!, file: "src/secret/PrivatePayments.tsx" };
+      expect(() => redactResult(bad)).toThrow(/prompts/);
+      const unknownId = clone();
+      unknownId.prompts[0] = { ...unknownId.prompts[0]!, id: "99-secret" };
+      expect(() => redactResult(unknownId)).toThrow(/prompts/);
+      const run = clone();
+      run.runs[0] = { ...run.runs[0]!, prompt: "99-secret" };
+      expect(() => redactResult(run)).toThrow(/prompt/);
+    });
+
+    it("aggregate는 알려진 숫자 키만 복사한다 — 손으로 넣은 문자열·알 수 없는 키는 버린다", () => {
+      const r = clone();
+      const agg = r.aggregate.dsmith as unknown as Record<string, unknown>;
+      agg["note"] = SECRET;
+      agg["secretCount"] = 7;
+      agg["token"] = Number(agg["token"]);
+      const out = redactResult(r);
+      const copied = out.summary.conditions.dsmith!.aggregate as unknown as Record<string, unknown>;
+      expect(copied).not.toHaveProperty("note");
+      expect(copied).not.toHaveProperty("secretCount");
+      expect(Object.values(copied).every((v) => v === null || typeof v === "number")).toBe(true);
+      expect(redactedJson(out)).not.toContain("secret-app");
+      // 알려진 키에 숫자가 아닌 값이 들어 있으면 거부한다(값은 오류에 싣지 않는다)
+      const s = clone();
+      (s.aggregate.dsmith as unknown as Record<string, unknown>)["token"] = SECRET;
+      expect(() => redactResult(s)).toThrow(/aggregate/);
+    });
+  });
+
   it("bench:report --redact: md와 --summary-json을 쓰고, 두 번 써도 같다", () => {
     const dir = tmpDir("dsmith-bench-redact-");
     const input = path.join(dir, "ks.json");

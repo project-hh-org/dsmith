@@ -1,6 +1,10 @@
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
 import { comparisons, metricOfSums, pairedAnalysis, sumsOf, type MetricId } from "./analysis.js";
+import { MONOREPO_ROOT, REPOS } from "./base.js";
+import { parsePrompt } from "./prompts.js";
 import { DASH, byCodeUnit, pct, table } from "./format.js";
-import { CONDITIONS, type Aggregate, type BenchResult, type Condition, type RunRecord } from "./model.js";
+import { CONDITIONS, type Aggregate, type BenchResult, type Condition, type RepoName, type RunRecord } from "./model.js";
 
 /**
  * 비공개 레포 결과 리댁션. 저장소에 커밋하는 것은 이 모듈이 만든 md와 요약 JSON뿐이다.
@@ -131,8 +135,57 @@ function independentSums(runs: RunRecord[]): Record<string, number | null> | nul
   };
 }
 
-/** 결과 JSON → 리댁션본. 입력을 바꾸지 않는다 */
+/** Aggregate의 알려진 키(문자열 키를 새로 만들 수 없게 화이트리스트). 키를 빠뜨리면 컴파일 오류 */
+const AGGREGATE_KEYS = Object.keys({
+  token: 0, knownToken: 0, hardcoded: 0, replaceable: 0, tailwindDefault: 0, dynamic: 0,
+  runs: 0, okRuns: 0, failedRuns: 0, missingExpected: 0, harnessPathSeen: 0, nonDs: 0, deprecated: 0, dsComponentUses: 0,
+  parseFailed: 0, files: 0, compliance: 0, tokenShareAll: 0, costUsd: 0, turns: 0, mcpToolCalls: 0, permissionDenials: 0,
+} satisfies Record<keyof Aggregate, 0>) as (keyof Aggregate)[];
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const SHA256 = /^[0-9a-f]{64}$/;
+const MODES = ["agent", "replay"] as const;
+
+/** 입력 값을 오류 문구에 싣지 않는다(필드 이름만) */
+function reject(field: string): never {
+  throw new Error(`리댁션 거부: ${field} 값이 허용 범위 밖입니다`);
+}
+
+/** 레포의 커밋된 공개 프롬프트 (id → file) */
+function publicPromptsOf(repo: RepoName): Map<string, string> {
+  const dir = path.join(MONOREPO_ROOT, "benchmarks", REPOS[repo].prompts);
+  const out = new Map<string, string>();
+  for (const name of readdirSync(dir).filter((n) => n.endsWith(".md"))) {
+    const p = parsePrompt(name, readFileSync(path.join(dir, name), "utf8"));
+    out.set(p.id, p.file);
+  }
+  return out;
+}
+
+/** 숫자(또는 null)만 남긴 집계. 알려진 키만, 값이 숫자·null이 아니면 거부 */
+function numericAggregate(agg: Aggregate): Aggregate {
+  const src = agg as unknown as Record<string, unknown>;
+  const out: Record<string, number | null> = {};
+  for (const key of AGGREGATE_KEYS) {
+    const v = src[key];
+    if (v === undefined) continue;
+    if (v === null || (typeof v === "number" && Number.isFinite(v))) out[key] = v;
+    else reject("aggregate");
+  }
+  return out as unknown as Aggregate;
+}
+
+/** 결과 JSON → 리댁션본. 입력을 바꾸지 않는다. 문자열 필드는 허용 목록·패턴·공개 프롬프트 집합과 대조하고, 어긋나면 거부한다 */
 export function redactResult(result: BenchResult): RedactedResult {
+  if (!Object.hasOwn(REPOS, result.repo)) reject("repo");
+  if (typeof result.date !== "string" || !DATE.test(result.date)) reject("date");
+  if (!(MODES as readonly unknown[]).includes(result.mode)) reject("mode");
+  if (!Array.isArray(result.conditions) || !result.conditions.every((c) => CONDITIONS.includes(c))) reject("conditions");
+  if (typeof result.base?.snapshotSha256 !== "string" || !SHA256.test(result.base.snapshotSha256)) reject("snapshotSha256");
+  const publicPrompts = publicPromptsOf(result.repo);
+  if (!result.prompts.every((p) => publicPrompts.get(p.id) === p.file)) reject("prompts");
+  if (!result.runs.every((r) => publicPrompts.has(r.prompt) && CONDITIONS.includes(r.condition) && Number.isInteger(r.rep))) reject("runs prompt/condition/rep");
+  if (!Number.isInteger(result.repeat)) reject("repeat");
   const fileOf = new Map(result.prompts.map((p) => [p.id, p.file]));
   const condIndex = (c: Condition): number => CONDITIONS.indexOf(c);
   const runs: RedactedRun[] = [...result.runs]
@@ -148,7 +201,7 @@ export function redactResult(result: BenchResult): RedactedResult {
     const sums = condRuns.map(sumsOf);
     const pooled: Record<string, number | null> = {};
     for (const [key, metric] of POOLED) pooled[key] = finite(metricOfSums(sums, metric));
-    conditions[c] = { aggregate: { ...agg }, independent: independentSums(condRuns), pooled };
+    conditions[c] = { aggregate: numericAggregate(agg), independent: independentSums(condRuns), pooled };
   }
 
   const pairs: RedactedPair[] = [];

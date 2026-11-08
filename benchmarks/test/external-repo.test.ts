@@ -116,6 +116,11 @@ describe("externalCopyFilter", () => {
     for (const rejected of [
       "/app/.env",
       "/app/.env.local",
+      "/app/.envrc",
+      "/app/certs/server.pem",
+      "/app/certs/private.key",
+      "/app/certs/sign.p12",
+      "/app/android-release.keystore",
       "/app/.env.production",
       "/app/ios",
       "/app/android",
