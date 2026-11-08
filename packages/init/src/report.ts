@@ -18,13 +18,18 @@ const pct = (rate: number | null): string => (rate === null ? "해당 없음" : 
 export function renderInitReport(r: InitResult, draft: TokenDraft): string {
   const lines: string[] = ["# DS Init", ""];
   lines.push(`- 산출 디렉터리: \`${r.outDir}\``);
+  lines.push(
+    r.naming.value === "ds"
+      ? "- 토큰 이름: `--ds-` 접두 (예: `--ds-color-blue-400`)"
+      : "- 토큰 이름: 이전 형식(접두 없음) — `dsmith migrate --rename-prefix`로 `--ds-` 접두로 바꿀 수 있음",
+  );
   const names = ["tokens.json", "tokens.css", "tokens.ts"];
   const present = names.filter((_, i) => ["created", "updated", "unchanged"].includes(r.outcomes[i]?.status ?? ""));
   lines.push(`- 토큰 파일: ${present.length === 0 ? "없음(쓰지 못함)" : present.map((n) => `\`${n}\``).join(" · ")}`);
   const held = names.filter((n) => !present.includes(n));
   if (present.length > 0 && held.length > 0) {
     lines.push(
-      `- 보류·쓰지 못함: ${held.map((n) => `\`${n}\``).join(" · ")} (${r.tokenHold === "invalid" ? "쓸 수 없는 경로 — 경로를 고친 뒤 다시 실행" : "사용자 수정 — `--force`로 덮어씀"})`,
+      `- 보류·쓰지 못함: ${held.map((n) => `\`${n}\``).join(" · ")} (${r.tokenHold === "invalid" ? "쓸 수 없는 경로 — 경로를 고친 뒤 다시 실행" : r.tokenHold === "renamed" ? "값이 바뀌는 토큰 + migrate 적용 기록 — `--force`로 덮어씀" : "사용자 수정 — `--force`로 덮어씀"})`,
     );
   }
   if (present.length === 0 && r.tokenHold !== null) {
@@ -35,7 +40,9 @@ export function renderInitReport(r: InitResult, draft: TokenDraft): string {
     lines.push(
       r.tokenHold === "invalid"
         ? `- 보류 이유: 쓸 수 없는 경로(${why.join("; ")}) — 경로를 고친 뒤 다시 실행. \`--force\`로도 쓸 수 없음`
-        : "- 보류 이유: 사람이 고친 토큰 파일 — `--force`로 덮어씀",
+        : r.tokenHold === "renamed"
+          ? `- 보류 이유: migrate로 적용한 var() 참조가 있는데 토큰 ${r.renamedTokens.length}개의 값이 바뀌거나 사라짐 — \`--force\`로 덮어씀`
+          : "- 보류 이유: 사람이 고친 토큰 파일 — `--force`로 덮어씀",
     );
   }
   lines.push("");
@@ -55,7 +62,7 @@ export function renderInitReport(r: InitResult, draft: TokenDraft): string {
     lines.push("| 결정 항목 | CSS 변수 | 값 | 사용 수 | members | 결정 |", "| --- | --- | --- | --- | --- | --- |");
     for (const t of colors) {
       const decision = t.chosen !== undefined ? `선택: ${t.chosen}` : t.members.length > 1 ? "pending" : "-";
-      lines.push(`| ${t.key} | \`--${t.name}\` | ${t.value} | ${t.usageCount} | ${cell(t.members.join(", "))} | ${decision} |`);
+      lines.push(`| ${t.key} | \`${t.cssVar}\` | ${t.value} | ${t.usageCount} | ${cell(t.members.join(", "))} | ${decision} |`);
     }
     lines.push("");
   }

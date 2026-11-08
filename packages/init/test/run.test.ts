@@ -500,7 +500,8 @@ describe("runInit: 보류 이유 문구", () => {
     const report = read(root, r.report as string);
     const item = (await readDecisions(root)).items.find((i) => i.kind === "token-cluster")?.item as string;
     expect(report).toContain("| 결정 항목 | CSS 변수 | 값 | 사용 수 | members | 결정 |");
-    expect(report).toContain(`| ${item} | \`--color-${item}\` |`);
+    expect(report).toContain(`| ${item} | \`--ds-color-${item}\` |`);
+    expect(report).toContain("- 토큰 이름: `--ds-` 접두");
     expect(report).toContain("추론 토큰의 members");
   });
 });
@@ -723,12 +724,9 @@ describe("runInit: Tailwind 프리셋", () => {
     expect(first.tailwindPreset).toEqual({ version: 4, file: "design-system/tailwind.theme.css", linked: false });
     expect(read(root, "design-system/tailwind.theme.css")).toContain("@theme inline {");
     expect(formatInitSummary(first)).toContain("연결 안 됨: 진입 CSS에서 @import하면");
-    // 알려진 제한: tokens.css의 --color-*·--text-*·--radius-*가 Tailwind 4 기본 테마 변수를 가린다
-    const shadow = first.warnings.filter((w) => w.includes("--color-*") && w.includes("--ds-"));
-    expect(shadow).toEqual([
-      "Tailwind 4: tokens.css의 --color-*·--text-*·--radius-* 변수가 Tailwind 4 기본 테마 변수와 이름이 같아 기존 bg-blue-400·text-xs·rounded-sm 등의 값이 레포 전체에서 바뀔 수 있음 (--ds- 접두 적용 예정)",
-    ]);
-    expect(formatInitSummary(first)).toContain(`경고: ${shadow[0]}`);
+    // 새 init은 --ds- 접두라 Tailwind 4 기본 테마 변수와 겹치지 않아 충돌 경고가 없다
+    expect(first.warnings.filter((w) => w.includes("Tailwind 4"))).toEqual([]);
+    expect(first.naming).toEqual({ value: "ds", source: "default" });
 
     fs.writeFileSync(path.join(root, "app/globals.css"), '@import "tailwindcss";\n@import "../design-system/tailwind.theme.css";\n');
     await auditFixture(root);

@@ -6,15 +6,19 @@ import {
   buildTokenDraft,
   decisionCandidates,
   draftCoverage,
+  DEFAULT_TOKEN_NAMING,
+  detectNamingFromFiles,
   draftToTokens,
   emitTokensCss,
   emitTailwindPreset,
   emitTokensTs,
   explainDecision,
+  GENERATED_NOTICE,
   findTailwindConfig,
   findTokensStylesheetImport,
   isPresetLinked,
   listDecisions,
+  listMigrations,
   localDate,
   managedFileHash,
   presetFileName,
@@ -23,11 +27,13 @@ import {
   readCatalogTokens,
   readComponentProps,
   readDecisions,
+  readCssVariableTokens,
   readIndex,
   recordDecision,
   regionKey,
   safeWrite,
   seedDecisions,
+  semanticNameOf,
   serializeW3c,
   summarizeComponents,
   TOKENS_NOT_LOADED_NOTE,
@@ -41,6 +47,7 @@ import {
   type ScaleMapping,
   type StyleUsage,
   type TokenDraft,
+  type TokenNaming,
   type TokensStylesheetLoaded,
   type WriteOutcome,
   type WriteStatus,
@@ -64,6 +71,8 @@ export interface InitOptions {
   version: string;
   /** 리포트 파일명 날짜(테스트 주입) */
   now?: Date;
+  /** 내부용(rename 흐름) — 감지보다 우선. CLI 플래그로 노출하지 않는다 */
+  naming?: TokenNaming;
 }
 
 export interface InitScaffold {
@@ -105,7 +114,11 @@ export interface InitResult {
   /** 사람이 알아야 할 것(예: 수정된 스캐폴드가 다른 옵션 기준이라 갱신하지 않음) */
   warnings: string[];
   /** 토큰 3파일을 함께 보류한 이유: modified = 사람이 고침(--force로 덮어씀), invalid = 쓸 수 없는 경로(깨진 심볼릭 링크 등 — --force로도 못 씀), 보류 없음 = null */
-  tokenHold: "modified" | "invalid" | null;
+  tokenHold: "modified" | "invalid" | "renamed" | null;
+  /** 토큰 CSS 변수 이름 형식과 그 출처(명시 > 커밋된 토큰 파일 > .dsmith/init.json > 기본 ds) */
+  naming: { value: TokenNaming; source: "explicit" | "token-files" | "manifest" | "default" };
+  /** renamed 보류(또는 적용 기록 없을 때 경고)의 근거: 의미 이름 기준 바뀐 토큰. name = 이전 cssVar, to null = 사라짐 */
+  renamedTokens: { name: string; from: string; to: string | null }[];
   /**
    * Tailwind 프리셋(v3 `tailwind.preset.{ts,cjs}` / v4 `tailwind.theme.css`). tailwind가 아니거나 버전을 몰라 만들지 않으면 null.
    * linked = tailwind.config의 presets / 진입 CSS의 @import에 연결됨(dry-run이면 현재 파일 기준).
@@ -212,6 +225,7 @@ async function recordInitDir(
   prev: InitManifestView,
   outcomes: WriteOutcome[],
   now: Date,
+  naming: TokenNaming,
 ): Promise<void> {
   const file = path.join(root, MANIFEST);
   let parsed: Record<string, unknown>;
@@ -223,8 +237,8 @@ async function recordInitDir(
   const wrote = outcomes.some((o) => o.status === "created" || o.status === "updated");
   const updatedAt =
     wrote || prev.outDir !== outDir || prev.updatedAt === undefined ? now.toISOString() : prev.updatedAt;
-  if (parsed.outDir === outDir && parsed.updatedAt === updatedAt) return;
-  await atomicWrite(file, `${JSON.stringify({ ...parsed, outDir, updatedAt }, null, 2)}\n`);
+  if (parsed.outDir === outDir && parsed.updatedAt === updatedAt && parsed.naming === naming) return;
+  await atomicWrite(file, `${JSON.stringify({ ...parsed, outDir, updatedAt, naming }, null, 2)}\n`);
 }
 
 const DELETED_SCAFFOLD_REASON ="사용자가 삭제한 파일은 다시 만들지 않음 (--force로 재생성)";
@@ -244,15 +258,17 @@ interface InitManifestView {
   hashes: Map<string, string>;
   outDir?: string;
   updatedAt?: string;
+  naming?: TokenNaming;
 }
 
-/** `.dsmith/init.json`에서 엔트리 키와 init이 덧붙이는 `outDir`·`updatedAt`을 읽는다(없거나 깨졌으면 빈 값). */
+/** `.dsmith/init.json`에서 엔트리 키와 init이 덧붙이는 `outDir`·`updatedAt`·`naming`을 읽는다(없거나 깨졌으면 빈 값). */
 async function readInitManifest(file: string): Promise<InitManifestView> {
   try {
     const parsed = JSON.parse(await fs.readFile(file, "utf-8")) as {
       entries?: Record<string, { sha256?: unknown } | null>;
       outDir?: unknown;
       updatedAt?: unknown;
+      naming?: unknown;
     };
     const hashes = new Map<string, string>();
     for (const [key, entry] of Object.entries(parsed.entries ?? {})) {
@@ -263,10 +279,78 @@ async function readInitManifest(file: string): Promise<InitManifestView> {
       hashes,
       ...(typeof parsed.outDir === "string" ? { outDir: parsed.outDir } : {}),
       ...(typeof parsed.updatedAt === "string" ? { updatedAt: parsed.updatedAt } : {}),
+      ...(parsed.naming === "ds" || parsed.naming === "legacy" ? { naming: parsed.naming } : {}),
     };
   } catch {
     return { entries: new Set(), hashes: new Map() };
   }
+}
+
+interface OwnedTokenFiles {
+  dir: string;
+  json: string | null;
+  css: string | null;
+}
+
+/**
+ * 디렉터리의 init 소유 tokens.json·tokens.css 텍스트. "init 소유" = 매니페스트에 그 파일 엔트리가 있거나
+ * (css) 첫 줄 / (json) `$description`에 GENERATED_NOTICE가 있음. 사용자 자신의 토큰 파일은 null.
+ */
+async function readOwnedTokenFiles(root: string, dir: string, prev: InitManifestView): Promise<OwnedTokenFiles> {
+  const read = async (name: string, owned: (text: string) => boolean): Promise<string | null> => {
+    const rel = dir === "." ? name : `${dir}/${name}`;
+    const text = await fs.readFile(path.join(root, rel), "utf-8").catch(() => null);
+    if (text === null) return null;
+    return prev.entries.has(rel) || owned(text) ? text : null;
+  };
+  return {
+    dir,
+    json: await read("tokens.json", (t) => t.includes(GENERATED_NOTICE)),
+    css: await read("tokens.css", (t) => (t.split(/\r?\n/, 1)[0] ?? "").includes(GENERATED_NOTICE)),
+  };
+}
+
+/**
+ * 토큰 이름 형식 판정(순서): 명시 > 커밋된 init 소유 토큰 파일(outDir, 다음 이전 outDir) > `.dsmith/init.json`의 naming > 기본 "ds".
+ * 이전 산출을 읽을 때 쓴 디렉터리 파일도 함께 돌려준다(값 비교용).
+ */
+async function resolveNaming(
+  root: string,
+  outDir: string,
+  prev: InitManifestView,
+  explicit: TokenNaming | undefined,
+): Promise<{ naming: InitResult["naming"]; previous: OwnedTokenFiles | null }> {
+  const dirs = [outDir, ...(prev.outDir !== undefined && prev.outDir !== outDir ? [prev.outDir] : [])];
+  let previous: OwnedTokenFiles | null = null;
+  let detected: TokenNaming | null = null;
+  for (const dir of dirs) {
+    const files = await readOwnedTokenFiles(root, dir, prev);
+    if (files.css !== null && previous === null) previous = files;
+    const found = detectNamingFromFiles(files);
+    if (found !== null) {
+      detected = found;
+      previous ??= files;
+      break;
+    }
+  }
+  if (explicit !== undefined) return { naming: { value: explicit, source: "explicit" }, previous };
+  if (detected !== null) return { naming: { value: detected, source: "token-files" }, previous };
+  if (prev.naming !== undefined) return { naming: { value: prev.naming, source: "manifest" }, previous };
+  return { naming: { value: DEFAULT_TOKEN_NAMING, source: "default" }, previous };
+}
+
+const normalizedKey = (t: { normalized: unknown }): string => JSON.stringify(t.normalized);
+
+/** 이전 init 소유 tokens.css 대비 의미 이름 기준으로 값이 바뀌거나 사라진 토큰(이전 파일 순서). 접두만 다른 경우는 대상이 아님 */
+function changedTokens(previousCss: string, nextCss: string): InitResult["renamedTokens"] {
+  const next = new Map(readCssVariableTokens(nextCss, "tokens.css").map((t) => [semanticNameOf(t.name), t]));
+  const out: InitResult["renamedTokens"] = [];
+  for (const old of readCssVariableTokens(previousCss, "tokens.css")) {
+    const now = next.get(semanticNameOf(old.name));
+    if (now !== undefined && normalizedKey(now) === normalizedKey(old)) continue;
+    out.push({ name: old.name, from: old.value, to: now === undefined ? null : now.value });
+  }
+  return out;
 }
 
 /** 스캐폴드 첫 줄 `// dsmith init 스캐폴드 — Name (결정: X)` / `(추천: X, 결정 전)`에서 X(기준 옵션)를 읽는다. */
@@ -316,8 +400,11 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     if (r.kind === "token-cluster" && r.status === "decided" && r.chosen !== undefined) colorChoices[r.item] = r.chosen;
   }
 
-  // 3. 토큰 초안
-  const draft: TokenDraft = buildTokenDraft(index.styles, { excludeDirs: [outDir], colorChoices });
+  // 3. 토큰 이름 형식 판정 → 토큰 초안
+  const prevManifest = await readInitManifest(path.join(root, MANIFEST));
+  const resolved = await resolveNaming(root, outDir, prevManifest, opts.naming);
+  const naming = resolved.naming;
+  const draft: TokenDraft = buildTokenDraft(index.styles, { excludeDirs: [outDir], colorChoices, naming: naming.value });
 
   // 4. pending 결정 시드
   const clusters = draft.tokens
@@ -355,7 +442,6 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     }
   }
 
-  const prevManifest = await readInitManifest(path.join(root, MANIFEST));
   const summaries = summarizeComponents(index.components);
   const planned = new Map<string, PlannedWrite>();
   const scaffolds: Omit<InitScaffold, "status">[] = [];
@@ -479,6 +565,40 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const blocked = blockers.length > 0;
   const held = new Map<string, WriteOutcome>();
   let tokenHold: InitResult["tokenHold"] = null;
+
+  // 이전 init 소유 tokens.css 대비 값이 바뀌거나 사라지는 토큰. migrate 적용 기록이 있으면 var() 참조가 다른 값을 가리키게 되므로 묶음을 보류한다.
+  const renamedTokens =
+    resolved.previous?.css === null || resolved.previous === null
+      ? []
+      : changedTokens(resolved.previous.css, emitTokensCss(draft));
+  const hasApplied = renamedTokens.length > 0 && (await listMigrations(root)).some((m) => m.status === "applied");
+  const renamedHold = !blocked && hasApplied && opts.force !== true;
+  const renamedReason = `토큰 ${renamedTokens.length}개의 값이 바뀌거나 사라져 함께 보류 — migrate로 적용한 var() 참조가 다른 값을 가리키게 됨, 덮어쓰려면 --force`;
+  if (renamedHold) {
+    tokenHold = "renamed";
+    tokenWrites.forEach((w, i) => {
+      const o = preflight.outcomes[i] as WriteOutcome;
+      held.set(
+        w.file,
+        o.status === "created" || o.status === "updated" ? { ...o, status: "skipped-modified", reason: renamedReason } : o,
+      );
+    });
+    const shown = renamedTokens
+      .slice(0, 5)
+      .map((t) => `${t.name}: ${t.to === null ? "사라짐" : `${t.from} → ${t.to}`}`)
+      .join(", ");
+    warnings.push(
+      `토큰 묶음 보류: ${shown}${renamedTokens.length > 5 ? ` 외 ${renamedTokens.length - 5}개` : ""} — 덮어쓰려면 --force`,
+    );
+  } else if (renamedTokens.length > 0) {
+    const shown = renamedTokens
+      .slice(0, 5)
+      .map((t) => `${t.name}: ${t.to === null ? "사라짐" : `${t.from} → ${t.to}`}`)
+      .join(", ");
+    warnings.push(
+      `init 재실행으로 토큰 ${renamedTokens.length}개의 값이 바뀌거나 사라짐: ${shown}${renamedTokens.length > 5 ? ` 외 ${renamedTokens.length - 5}개` : ""} — 이 이름을 직접 쓴 코드가 있으면 확인`,
+    );
+  }
   if (blocked) {
     const names = blockers.map((w) => path.basename(w.file));
     const blockerOutcomes = blockers.map((w) => preflight.outcomes[tokenWrites.indexOf(w)] as WriteOutcome);
@@ -528,14 +648,29 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
         }
       }
     }
-    if (tailwindVersion === 4) {
+    if (tailwindVersion === 4 && naming.value === "legacy") {
       warnings.push(
-        "Tailwind 4: tokens.css의 --color-*·--text-*·--radius-* 변수가 Tailwind 4 기본 테마 변수와 이름이 같아 기존 bg-blue-400·text-xs·rounded-sm 등의 값이 레포 전체에서 바뀔 수 있음 (--ds- 접두 적용 예정)",
+        "Tailwind 4: 토큰 이름이 이전 형식(--color-*·--text-*·--radius-*)이라 Tailwind 4 기본 테마 변수를 가림 — dsmith migrate --rename-prefix로 --ds- 접두로 바꾸세요",
       );
     }
   }
 
-  const toWrite: PlannedWrite[] = [...(blocked ? [] : tokenWrites), ...planned.values(), ...(presetWrite ? [presetWrite] : [])];
+  // 값이 바뀌는 재실행 보류는 프리셋도 함께 묶는다(프리셋 값이 새 이름을 가리키므로)
+  let presetInToWrite = presetWrite;
+  if (renamedHold && presetWrite !== null) {
+    const o = (await safeWrite([presetWrite], { ...safeOpts, dryRun: true })).outcomes[0] as WriteOutcome;
+    held.set(
+      presetWrite.file,
+      o.status === "created" || o.status === "updated" ? { ...o, status: "skipped-modified", reason: renamedReason } : o,
+    );
+    presetInToWrite = null;
+  }
+
+  const toWrite: PlannedWrite[] = [
+    ...(blocked || renamedHold ? [] : tokenWrites),
+    ...planned.values(),
+    ...(presetInToWrite ? [presetInToWrite] : []),
+  ];
   const written = await safeWrite(toWrite, { ...safeOpts, dryRun });
   const outcomeOf = new Map<string, WriteOutcome>();
   toWrite.forEach((w, i) => outcomeOf.set(w.file, written.outcomes[i] as WriteOutcome));
@@ -604,6 +739,8 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     dryRun,
     warnings,
     tokenHold,
+    naming,
+    renamedTokens,
     tailwindPreset,
     tokensLoaded,
     catalog: null,
@@ -612,7 +749,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   // 8. dryRun이 아니면 결정 시드와 리포트를 쓴다(.dsmith 안은 atomicWrite).
   if (!dryRun) {
     if (seed.added.length > 0 || refreshed > 0) await writeDecisions(root, seed.file);
-    await recordInitDir(root, outDir, prevManifest, outcomes, opts.now ?? new Date());
+    await recordInitDir(root, outDir, prevManifest, outcomes, opts.now ?? new Date(), naming.value);
     result.catalog = await refreshCatalog(root, outDir, detected.ds.tokenFiles);
     const report = `.dsmith/reports/init-${localDate(opts.now ?? new Date())}.md`;
     await atomicWrite(path.join(root, report), renderInitReport(result, draft));
@@ -668,6 +805,9 @@ export function formatInitSummary(r: InitResult): string {
       `Tailwind 프리셋: ${p.file} — ${p.linked ? "연결됨" : `연결 안 됨: ${how} migrate가 클래스명(bg-ds-…)으로 치환`}`,
     );
   }
+  if (r.naming.value === "legacy" && r.tailwindPreset?.version !== 4) {
+    lines.push("토큰 이름: 이전 형식(접두 없음) — dsmith migrate --rename-prefix로 바꿀 수 있음");
+  }
   if (r.tokensLoaded !== null && !r.tokensLoaded.css) lines.push(`참고: ${TOKENS_NOT_LOADED_NOTE(r.outDir)}`);
   for (const w of r.warnings) lines.push(`경고: ${w}`);
   const stale = r.decisions.stale > 0 ? `, stale ${r.decisions.stale}건` : "";
@@ -683,6 +823,10 @@ export function formatInitSummary(r: InitResult): string {
     lines.push("사람이 고친 토큰 파일 — 세 파일을 함께 보류했습니다. 덮어쓰려면 --force");
   } else if (r.tokenHold === "invalid") {
     lines.push("토큰 파일을 쓸 수 없는 경로가 있어 세 파일을 함께 보류했습니다 (--force로도 쓸 수 없음)");
+  } else if (r.tokenHold === "renamed") {
+    lines.push(
+      `migrate로 적용한 var() 참조가 있는데 토큰 ${r.renamedTokens.length}개의 값이 바뀌거나 사라져 토큰 묶음(과 Tailwind 프리셋)을 보류했습니다. 덮어쓰려면 --force`,
+    );
   }
   for (const [i, o] of tokenOutcomes.entries()) {
     if (o.status === "skipped-invalid") {
