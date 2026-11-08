@@ -33,7 +33,7 @@
 
 `showcase/legacy-demo`(1~6단계)는 `init`이 만든 `design-system/`, `AGENTS.md`, 워크플로 파일, 강제로 추가한 `.dsmith/guard.json`(`examples/**/.dsmith/`는 gitignore)을 한 커밋에 담았다. `decisions.json` 등 나머지 `.dsmith/` 파일은 커밋하지 않는다. 따라서 4단계의 `decide`는 재현할 때 다시 실행해야 한다.
 
-7단계의 사람용 출력은 "파일 14"로, `--json`의 `plan.files`는 15개다. 토큰 치환이 없고 컴포넌트 import 치환만 있는 `app/orders/page.tsx`가 `--json`에만 더해진다. 8단계 적용 파일 15는 `--json` 기준이다.
+7단계를 기록할 당시 사람용 출력은 "파일 14"였고 `--json`의 `plan.files`는 15개였다. 토큰 치환이 없고 컴포넌트 import 치환만 있는 `app/orders/page.tsx`가 `--json`에만 더해졌다. 지금은 사람용 출력도 "파일 15 (토큰 14 · 컴포넌트만 1)"로 컴포넌트만 바뀌는 파일을 센다. 8단계 적용 파일 15는 `--json` 기준이다.
 
 ## guard 재유입 결과
 

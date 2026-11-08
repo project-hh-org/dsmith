@@ -150,7 +150,7 @@ describe("renderAuditReport", () => {
     expect(out).toContain(FORMULA);
   });
 
-  it("같은 제안 이름의 색 클러스터는 -2 접미사로 구분해 표기한다", () => {
+  it("같은 제안 이름의 색 클러스터는 접미사 없이 가까운 빈 단계로 구분해 표기한다", () => {
     const dup = fixture();
     const first = dup.hardcoded.colors[0]!;
     dup.hardcoded.colors = [
@@ -158,7 +158,8 @@ describe("renderAuditReport", () => {
       { ...first, representative: { ...first.representative, hex: "#777777" }, suggestedName: "gray-500" },
     ];
     const out = renderAuditReport(dup);
-    expect(out).toContain("| gray-500 |");
-    expect(out).toContain("| gray-500-2 |");
+    expect(out).toContain("| blue-400 |");
+    expect(out).toContain("| blue-500 |");
+    expect(out).not.toMatch(/\| \w+-\d+-\d+ \|/);
   });
 });

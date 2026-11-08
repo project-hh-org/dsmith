@@ -31,7 +31,7 @@ const dsmithJson = <T>(root: string, ...args: string[]): { status: number | null
 
 interface PlanJson {
   planned: number;
-  files: { file: string; replacements: { patch: { start: number } }[] }[];
+  files: { file: string; replacements: { patch: { start: number } }[]; components: unknown[] }[];
   skipped: Record<string, number>;
   close: unknown[];
   scope: { candidates: number; outOfRange: number };
@@ -357,6 +357,15 @@ describe("legacy-demo: tokens.css 로드 안내 · 컴포넌트 결정이 있는
 
   it("Button 결정이 계획에 들어 있다", () => {
     expect(demo.planAfter.json.plan.components.imports).toBeGreaterThan(0);
+  });
+
+  it("계획 출력의 파일 수는 컴포넌트만 바뀌는 파일까지 센다 — --json plan.files와 같다", () => {
+    const { files } = demo.planAfter.json.plan;
+    const tokenFiles = files.filter((f) => f.replacements.length > 0).length;
+    const componentOnly = files.filter((f) => f.replacements.length === 0 && f.components.length > 0).length;
+    expect(componentOnly).toBeGreaterThan(0); // Button import만 바뀌는 파일 (app/orders/page.tsx)
+    expect(tokenFiles + componentOnly).toBe(files.length);
+    expect(demo.planAfter.text).toContain(`계획: 파일 ${files.length} (토큰 ${tokenFiles} · 컴포넌트만 ${componentOnly}) · 치환 ${demo.planAfter.json.plan.planned}`);
   });
 
   it("--apply --branch: 예상 점수 == 실제 == 독립 재audit (I3)", () => {

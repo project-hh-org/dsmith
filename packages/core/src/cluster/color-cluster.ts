@@ -43,13 +43,24 @@ const LIGHTNESS_STEPS: readonly (readonly [number, number])[] = [
   [0.12, 900],
 ];
 
+/** 이름에 쓰는 단계 사다리(밝은 쪽이 앞). `LIGHTNESS_STEPS`의 단계 + 950 */
+export const COLOR_STEPS: readonly number[] = [...LIGHTNESS_STEPS.map(([, step]) => step), 950];
+
+/** 색상 계열 이름: 채도가 낮으면 gray, 아니면 hue 구간 */
+export function colorFamily(color: NormalizedColor): string {
+  return color.c < ACHROMATIC_CHROMA
+    ? "gray"
+    : (HUE_BUCKETS[Math.floor((((color.h - HUE_ORIGIN) % 360) + 360) % 360 / 30)] ?? "gray");
+}
+
+/** 밝기(OKLCH l)에 해당하는 이상적인 단계의 `COLOR_STEPS` 인덱스 */
+export function idealStepIndex(l: number): number {
+  const i = LIGHTNESS_STEPS.findIndex(([min]) => l >= min);
+  return i === -1 ? COLOR_STEPS.length - 1 : i;
+}
+
 function suggestName(color: NormalizedColor): string {
-  const hue =
-    color.c < ACHROMATIC_CHROMA
-      ? "gray"
-      : (HUE_BUCKETS[Math.floor((((color.h - HUE_ORIGIN) % 360) + 360) % 360 / 30)] ?? "gray");
-  const step = LIGHTNESS_STEPS.find(([min]) => color.l >= min)?.[1] ?? 950;
-  return `${hue}-${step}`;
+  return `${colorFamily(color)}-${COLOR_STEPS[idealStepIndex(color.l)]}`;
 }
 
 export function clusterColors(

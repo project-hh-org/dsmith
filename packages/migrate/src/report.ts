@@ -118,7 +118,11 @@ export function formatPlanSummary(
     lines.push(`인덱스가 오래됨: ${staleCount}개 파일이 audit 이후 바뀜${added} — dsmith audit을 다시 실행하세요`);
   }
   lines.push(tokenLine(plan));
-  const planned = plan.planned === 0 ? "치환할 것이 없음" : `파일 ${plan.files.filter((f) => f.replacements.length > 0).length} · 치환 ${plan.planned} (${categorySummary(plan.byCategory)})`;
+  // 파일 수는 --json의 plan.files와 같게 센다: 토큰 치환 파일 + 컴포넌트 편집만 있는 파일
+  const tokenFiles = plan.files.filter((f) => f.replacements.length > 0).length;
+  const componentOnly = plan.files.filter((f) => f.replacements.length === 0 && f.components.length > 0).length;
+  const fileCount = componentOnly === 0 ? `${tokenFiles}` : `${tokenFiles + componentOnly} (토큰 ${tokenFiles} · 컴포넌트만 ${componentOnly})`;
+  const planned = plan.planned === 0 ? "치환할 것이 없음" : `파일 ${fileCount} · 치환 ${plan.planned} (${categorySummary(plan.byCategory)})`;
   lines.push(`계획: ${planned}`);
   if (plan.planned > 0) {
     const c = plan.confidence;
