@@ -34,7 +34,7 @@ Docs: https://github.com/project-hh-org/dsmith#readme
 
 | 상황 | 결과 |
 | --- | --- |
-| 쓰이는 JS 테마가 있음(`ds.jsThemes`) | **토큰 파일을 하나도 만들지 않는다.** `tokenSource: { kind: "js-theme", files: ["src/theme.ts"] }`. 토큰 수와 커버리지는 그 테마 기준(모드 `light`/`dark` 아래 토큰은 치환 후보가 아니라 제외). 요약: `토큰: 기존 JS 테마 사용 — src/theme.ts (색 15 · 간격 6 · 모서리 4 · 글꼴 크기 7)` |
+| 쓰이는 JS 테마가 있음(`ds.jsThemes`) | **토큰 파일을 하나도 만들지 않는다.** `tokenSource: { kind: "js-theme", files: ["src/theme.ts"] }`. 토큰 수와 커버리지는 그 테마 기준(모드 `light`/`dark` 아래 토큰은 치환 후보가 아니라 제외). 요약: `토큰: 기존 JS 테마 사용 — src/theme.ts (색 7 · 간격 4 · 모서리 3 · 글꼴 크기 3)` |
 | JS 테마가 없음 | `design-system/tokens.ts`만 쓴다(`tokenSource.kind: "init-files"`). 형식은 `export const colors/spacing/radius/fontSize = { … } as const;`, 키는 식별자(`blue-400` → `blue400`, 숫자 키는 그대로 `spacing[2]`), 길이는 단위 없는 숫자(dp). `readJsThemeTokens`가 다시 읽으면 초안과 같은 토큰이 나온다. 사람이 고쳤으면 이 한 파일을 보류하고 `--force`로 덮어쓴다 |
 | 이전 init 산출(`tokens.css`·`tokens.json`)이 이미 있음 | 지우지도 다시 쓰지도 않고 경고 한 줄: `react-native 레포에서는 design-system/tokens.css·tokens.json을 쓰지 않음 — 필요 없으면 지워도 됨` |
 
