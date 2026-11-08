@@ -8,7 +8,8 @@
  * - v4: 진입 CSS에서 `@import "<경로>/tailwind.theme.css"`, 파일은 `@theme inline { --color-ds-…: var(--…); }`
  *   (네임스페이스 `--color-*`·`--spacing-*`·`--radius-*`·`--text-*`).
  * - 키는 `ds-` 접두 — 접두 없는 `bg-blue-400`·`p-2`는 Tailwind 기본 테마와 이름이 같아 기본값을 조용히 덮는다.
- * - 값은 `tokens.css` 변수 참조(`var(--color-blue-400)`)라 `tokens.css`가 전역에 로드돼 있어야 한다.
+ * - 값은 `tokens.css` 변수 참조(`var(--ds-color-blue-400)`, 이전 형식 `var(--color-blue-400)`)라 `tokens.css`가 전역에 로드돼 있어야 한다.
+ *   v4에서 접두 없는 이름은 Tailwind 기본 테마 변수를 가리므로 새 init은 `--ds-` 접두를 쓴다.
  */
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -66,7 +67,7 @@ const classKey = (key: string): string => `${TAILWIND_PRESET_PREFIX}-${key}`;
 /** 프리셋 안내 주석의 기본 산출 디렉터리 */
 const DEFAULT_OUT_DIR = "design-system";
 
-/** draft 순서(그룹 color → space → radius → text, 빈 그룹 생략). 키 = `ds-<key>`, 값 = `var(--<name>)` */
+/** draft 순서(그룹 color → space → radius → text, 빈 그룹 생략). 키 = `ds-<key>`(불변), 값 = `var(<cssVar>)` — 새 init은 `--ds-color-blue-400`, 이전 형식은 `--color-blue-400` */
 export function emitTailwindPreset(draft: TokenDraft, format: PresetFormat, opts: { outDir?: string } = {}): string {
   const dir = opts.outDir ?? DEFAULT_OUT_DIR;
   const base = dir === "." ? "." : `./${dir}`;
@@ -74,7 +75,7 @@ export function emitTailwindPreset(draft: TokenDraft, format: PresetFormat, opts
     const lines: string[] = [];
     for (const { group, ns } of SECTIONS) {
       for (const t of draft.tokens.filter((x) => x.group === group)) {
-        lines.push(`  --${ns}-${classKey(t.key)}: var(--${t.name});`);
+        lines.push(`  --${ns}-${classKey(t.key)}: var(${t.cssVar});`);
       }
     }
     return (
@@ -88,7 +89,7 @@ export function emitTailwindPreset(draft: TokenDraft, format: PresetFormat, opts
   for (const { group, v3 } of SECTIONS) {
     const entries = draft.tokens.filter((x) => x.group === group);
     if (entries.length === 0) continue;
-    const lines = entries.map((t) => `        ${JSON.stringify(classKey(t.key))}: ${JSON.stringify(`var(--${t.name})`)},`);
+    const lines = entries.map((t) => `        ${JSON.stringify(classKey(t.key))}: ${JSON.stringify(`var(${t.cssVar})`)},`);
     blocks.push(`      ${v3}: {\n${lines.join("\n")}\n      },`);
   }
   const theme = `{\n  theme: {\n    extend: {${blocks.length === 0 ? "" : `\n${blocks.join("\n")}\n    `}},\n  },\n}`;

@@ -148,6 +148,23 @@ describe("loadTokens", () => {
     expect(loaded.tokens.map((t) => t.name)).toEqual(["--color-primary", "--space-2"]);
   });
 
+  it.each(["ds", "legacy"] as const)("init 산출 쌍(%s)의 CSS 토큰에 W3C path가 실린다", async (naming) => {
+    const draft = buildTokenDraft(
+      [colorUsage("#3b82f6"), colorUsage("#3b82f6"), colorUsage("#111111"), lengthUsage("8px"), lengthUsage("8px"), lengthUsage("14px", "font-size")],
+      { naming },
+    );
+    fs.writeFileSync(path.join(dir, "tokens.css"), emitTokensCss(draft));
+    fs.writeFileSync(path.join(dir, "tokens.json"), serializeW3c(draft));
+    const loaded = await loadTokens(dir, ["tokens.css", "tokens.json", "tokens.ts"], []);
+    expect(loaded.tokens.length).toBe(draft.tokens.length);
+    expect(loaded.tokens.map((t) => t.name)).toEqual(draft.tokens.map((t) => t.cssVar));
+    for (const t of loaded.tokens) {
+      expect(t.file).toBe("tokens.css");
+      expect(t.path).toBe(t.name.replace(/^--(ds-)?/, "").replace("-", "."));
+    }
+    expect(loaded.tokens.find((t) => t.category === "font-size")).toBeDefined();
+  });
+
   it("theme.ts만 있으면 proposal이고 ignored에 남는다", async () => {
     fs.writeFileSync(path.join(dir, "theme.ts"), "export const theme = {}");
     const loaded = await loadTokens(dir, ["theme.ts"], [colorUsage("#ef4444")]);

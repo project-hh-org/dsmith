@@ -7,6 +7,7 @@ import { rankTokens } from "../match/token-matcher.js";
 import type { Token } from "../model/token.js";
 import { isRatedUsage } from "../model/style-usage.js";
 import { tokenCategoryOf } from "./category.js";
+import { DEFAULT_TOKEN_NAMING, cssVarName, type TokenNaming } from "./naming.js";
 
 export type DraftCategory = Token["category"];
 export type DraftGroup = "color" | "space" | "radius" | "text";
@@ -17,8 +18,10 @@ export interface DraftToken {
   group: DraftGroup;
   /** 그룹 안 이름: "gray-50" | "2" | "sm" | "full" | "xs" */
   key: string;
-  /** `${group}-${key}` — CSS 변수는 `--${name}` */
+  /** `${group}-${key}` — 의미 이름(접두 없음) */
   name: string;
+  /** CSS 변수 이름 — 유일한 출처. `--ds-color-blue-400` | legacy `--color-blue-400` */
+  cssVar: string;
   /** 색 "#rrggbb"(소문자 6자리), 길이 "8px" */
   value: string;
   normalized: StyleUsage["normalized"];
@@ -58,9 +61,12 @@ export interface ScaleMapping {
 export interface TokenDraft {
   tokens: DraftToken[];
   mappings: ScaleMapping[];
+  naming: TokenNaming;
 }
 
 export interface DraftOptions {
+  /** CSS 변수 이름 형식. 기본 `DEFAULT_TOKEN_NAMING`("ds") */
+  naming?: TokenNaming;
   /** root 상대 POSIX 디렉터리. 이 아래 파일의 스타일은 입력에서 뺀다 */
   excludeDirs?: string[];
   /** token-cluster 결정: 색 key(예 "blue-400") → 고른 hex. 그 클러스터의 member일 때만 반영 */
@@ -120,13 +126,14 @@ function nearestStep(px: number, ladder: readonly (readonly [string, number])[])
   return best[0];
 }
 
-function spacingToken(key: number, count: number, members: string[]): DraftToken {
+function spacingToken(key: number, count: number, members: string[], naming: TokenNaming): DraftToken {
   const px = key * SCALE_UNIT_PX;
   return {
     category: "spacing",
     group: "space",
     key: String(key),
     name: `space-${key}`,
+    cssVar: cssVarName("space", String(key), naming),
     value: `${px}px`,
     normalized: pxLength(px),
     usageCount: count,
@@ -187,6 +194,7 @@ const byCountThenPx = (a: { px: number; count: number }, b: { px: number; count:
 
 export function buildTokenDraft(styles: StyleUsage[], opts: DraftOptions = {}): TokenDraft {
   const input = filterExcluded(styles, opts.excludeDirs);
+  const naming = opts.naming ?? DEFAULT_TOKEN_NAMING;
   const limits = { ...DEFAULT_LIMITS, ...stripUndefined(opts.limits) };
   const tokens: DraftToken[] = [];
   const mappings: ScaleMapping[] = [];
@@ -213,6 +221,7 @@ export function buildTokenDraft(styles: StyleUsage[], opts: DraftOptions = {}): 
       group: "color",
       key,
       name: `color-${key}`,
+      cssVar: cssVarName("color", key, naming),
       value: chosenNormalized !== undefined && chosenNormalized.kind === "color" ? chosenNormalized.hex : cluster.representative.hex,
       normalized: chosenNormalized ?? cluster.representative,
       usageCount: cluster.total,
@@ -225,7 +234,9 @@ export function buildTokenDraft(styles: StyleUsage[], opts: DraftOptions = {}): 
   // 간격
   const spacingObserved = clusterSpacing(input).filter((c) => c.px > 0);
   const spacingKept = spacingObserved.filter((c) => c.onScale).slice(0, limits.spacing);
-  const spacingTokens: DraftToken[] = spacingKept.map((c) => spacingToken(c.px / SCALE_UNIT_PX, c.count, [`${c.px}px`]));
+  const spacingTokens: DraftToken[] = spacingKept.map((c) =>
+    spacingToken(c.px / SCALE_UNIT_PX, c.count, [`${c.px}px`], naming),
+  );
   // 오프스케일 값을 가장 가까운 4px 스텝으로 모아, 합계가 충분하면 그 스텝을 추론 토큰으로 넣는다.
   const offScaleByStep = new Map<number, { count: number; members: { px: number; count: number }[] }>();
   for (const c of spacingObserved) {
@@ -240,7 +251,7 @@ export function buildTokenDraft(styles: StyleUsage[], opts: DraftOptions = {}): 
     if (step <= 0 || entry.count < INFER_MIN_USAGE) continue;
     if (spacingTokens.some((t) => t.normalized.kind === "length" && t.normalized.px === step)) continue;
     const members = [...entry.members].sort(byCountThenPx).map((m) => `${m.px}px`);
-    spacingTokens.push({ ...spacingToken(step / SCALE_UNIT_PX, entry.count, members), inferred: true });
+    spacingTokens.push({ ...spacingToken(step / SCALE_UNIT_PX, entry.count, members, naming), inferred: true });
   }
   spacingTokens.sort((a, b) => lengthPx(a) - lengthPx(b));
   tokens.push(...spacingTokens);
@@ -259,6 +270,7 @@ export function buildTokenDraft(styles: StyleUsage[], opts: DraftOptions = {}): 
       group: "radius",
       key,
       name: `radius-${key}`,
+      cssVar: cssVarName("radius", key, naming),
       value: `${e.px}px`,
       normalized: pxLength(e.px),
       usageCount: e.count,
@@ -273,6 +285,7 @@ export function buildTokenDraft(styles: StyleUsage[], opts: DraftOptions = {}): 
       group: "radius",
       key: "full",
       name: "radius-full",
+      cssVar: cssVarName("radius", "full", naming),
       value: `${FULL_RADIUS_VALUE_PX}px`,
       normalized: pxLength(FULL_RADIUS_VALUE_PX),
       usageCount: sorted.reduce((s, e) => s + e.count, 0),
@@ -293,6 +306,7 @@ export function buildTokenDraft(styles: StyleUsage[], opts: DraftOptions = {}): 
       group: "text",
       key,
       name: `text-${key}`,
+      cssVar: cssVarName("text", key, naming),
       value: `${c.px}px`,
       normalized: pxLength(c.px),
       usageCount: c.total,
@@ -323,7 +337,7 @@ export function buildTokenDraft(styles: StyleUsage[], opts: DraftOptions = {}): 
   }
   mappings.push(...rest);
 
-  return { tokens, mappings };
+  return { tokens, mappings, naming };
 }
 
 function stripUndefined<T extends object>(obj: T | undefined): Partial<T> {
@@ -445,10 +459,10 @@ export function draftCoverage(
   };
 }
 
-/** 매칭용 Token[] — name은 `--${name}`(CSS 변수와 같은 이름) */
+/** 매칭용 Token[] — name은 `cssVar`(CSS 변수와 같은 이름) */
 export function draftToTokens(draft: TokenDraft): Token[] {
   return draft.tokens.map((t) => ({
-    name: `--${t.name}`,
+    name: t.cssVar,
     value: t.value,
     normalized: t.normalized,
     category: t.category,

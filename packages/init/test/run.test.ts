@@ -562,7 +562,7 @@ describe("runInit: Tailwind 프리셋", () => {
     expect(fs.existsSync(path.join(root, "design-system/tailwind.preset.cjs"))).toBe(false);
     const text = read(root, PRESET);
     expect(text).toContain("export default {");
-    expect(text).toMatch(/"ds-[a-z0-9-]+": "var\(--color-[a-z0-9-]+\)"/);
+    expect(text).toMatch(/"ds-[a-z0-9-]+": "var\(--ds-color-[a-z0-9-]+\)"/);
     expect(statuses(r).at(-1)).toBe("created");
     expect(r.outcomes.at(-1)?.file).toBe(PRESET);
 

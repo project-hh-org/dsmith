@@ -4,5 +4,5 @@
 `pnpm --filter dsmith-benchmarks bench:replay`가 이 디렉터리를 채점한다(네트워크·에이전트 없음). 실행기가 `--agent`로 기록하는 배치와 같은 모양이다.
 
 - baseline: Tailwind 기본 클래스 위주, 임의값 하드코딩(`py-[3px]`, `bg-[#3b82f6]`), `01-form`에서 레거시 `@/components/Button` import
-- dsmith: `var(--color-…)`·`p-[var(--space-…)]` 토큰, `@/components/ui/button` import, `12-pagination`에 지어낸 `var(--color-brand)` 1개(`knownToken`과 `token`의 차이를 보이려고)
+- dsmith: `var(--ds-color-…)`·`p-[var(--ds-space-…)]` 토큰, `@/components/ui/button` import, `12-pagination`에 지어낸 `var(--ds-color-brand)` 1개(`knownToken`과 `token`의 차이를 보이려고)
 - `run.json`은 `{ "status": "replay" }`만 — 비용·시간 없음

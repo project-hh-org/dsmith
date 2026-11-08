@@ -45,14 +45,29 @@ describe("serializeW3c", () => {
     }
   });
 
+  // 이 이름(= 스냅샷 키)은 바꾸지 않는다: 0.3.0 산출과 바이트 동일한 legacy 스냅샷이다
   it("스냅샷", () => {
+    expect(serializeW3c(buildTokenDraft(usages, { naming: "legacy" }))).toMatchSnapshot();
+  });
+
+  it("ds 형식은 루트 $description 다음에 $extensions cssPrefix를 두고 나머지는 legacy와 같다", () => {
+    const ds = JSON.parse(serializeW3c(draft)) as Record<string, unknown>;
+    const legacy = JSON.parse(serializeW3c(buildTokenDraft(usages, { naming: "legacy" }))) as Record<string, unknown>;
+    expect(Object.keys(ds).slice(0, 2)).toEqual(["$description", "$extensions"]);
+    expect(ds.$extensions).toEqual({ "dev.dsmith": { cssPrefix: "ds" } });
+    const { $extensions: _e, ...rest } = ds;
+    expect(rest).toEqual(legacy);
+    expect(Object.keys(legacy)).not.toContain("$extensions");
+  });
+
+  it("ds 스냅샷", () => {
     expect(serializeW3c(draft)).toMatchSnapshot();
   });
 });
 
 describe("readW3cTokens", () => {
-  it("직렬화 → 읽기 왕복에서 토큰이 같다", () => {
-    const draft = buildTokenDraft(usages);
+  it.each(["ds", "legacy"] as const)("직렬화 → 읽기 왕복에서 토큰이 같다 (%s)", (naming) => {
+    const draft = buildTokenDraft(usages, { naming });
     const read = readW3cTokens(serializeW3c(draft), "tokens.json");
     expect(read.warnings).toEqual([]);
     const expected = draftToTokens(draft);
@@ -129,9 +144,23 @@ describe("DTCG 경로(Token.path)", () => {
     expect(by["--space-2"]?.path).toBe("space.2");
   });
 
-  it("직렬화 → 읽기 왕복의 모든 토큰이 path를 갖고 name과 대응한다", () => {
-    const { tokens } = readW3cTokens(serializeW3c(buildTokenDraft(usages)), "tokens.json");
-    expect(tokens.length).toBeGreaterThan(0);
-    for (const t of tokens) expect(`--${t.path!.replaceAll(".", "-")}`).toBe(t.name);
+  it("직렬화 → 읽기 왕복의 모든 토큰이 path를 갖고 name과 대응한다(ds는 --ds- 접두, legacy는 접두 없음)", () => {
+    for (const [naming, prefix] of [["ds", "--ds-"], ["legacy", "--"]] as const) {
+      const { tokens, warnings } = readW3cTokens(serializeW3c(buildTokenDraft(usages, { naming })), "tokens.json");
+      expect(warnings).toEqual([]);
+      expect(tokens.length).toBeGreaterThan(0);
+      for (const t of tokens) expect(`${prefix}${t.path!.replaceAll(".", "-")}`).toBe(t.name);
+    }
+  });
+
+  it("루트 cssPrefix: 경로는 그대로, 이름만 접두. 형식이 틀리면 경고 후 접두 없이", () => {
+    const body = { color: { "blue-400": { $type: "color", $value: "#3b82f6" } } };
+    const ok = readW3cTokens(JSON.stringify({ $extensions: { "dev.dsmith": { cssPrefix: "acme" } }, ...body }), "t.json");
+    expect(ok.tokens.map((t) => [t.name, t.path])).toEqual([["--acme-color-blue-400", "color.blue-400"]]);
+    const bad = readW3cTokens(JSON.stringify({ $extensions: { "dev.dsmith": { cssPrefix: "A-b" } }, ...body }), "t.json");
+    expect(bad.tokens.map((t) => t.name)).toEqual(["--color-blue-400"]);
+    expect(bad.warnings).toEqual(["토큰 CSS 접두를 읽을 수 없음: A-b (t.json)"]);
+    const none = readW3cTokens(JSON.stringify(body), "t.json");
+    expect(none.tokens.map((t) => t.name)).toEqual(["--color-blue-400"]);
   });
 });

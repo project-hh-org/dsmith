@@ -18,7 +18,7 @@ const BARE_ZERO = /^-?0*\.?0+$/;
 const NON_SIZE_NAME =
   /blur|weight|leading|line-height|tracking|letter-spacing|^--z-|opacity|duration|breakpoint|container|perspective|border-width/i;
 const RADIUS_NAME = /radius|rounded/i;
-const FONT_SIZE_NAME = /^--(?:font-size|text|fs)-/i;
+const FONT_SIZE_NAME = /^--(?:ds-)?(?:font-size|text|fs)-/i;
 
 function colorOf(value: string) {
   const text = value.trim();

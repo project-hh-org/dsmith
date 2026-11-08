@@ -8,6 +8,7 @@ import { readCatalogTokens, withTokenFiles } from "../src/catalog/tokens.js";
 import { buildTokenDraft } from "../src/tokens/draft.js";
 import { emitTokensCss } from "../src/tokens/emit.js";
 import { serializeW3c } from "../src/tokens/w3c.js";
+import { semanticNameOf } from "../src/tokens/naming.js";
 import { normalizeColor } from "../src/normalize/color.js";
 import { loadReplacementTokens } from "../src/tokens/replacement-tokens.js";
 
@@ -59,7 +60,8 @@ describe("loadReplacementTokens", () => {
     expect(r.tokens.length).toBeGreaterThan(2);
     for (const t of r.tokens) {
       expect(t.file, t.name).toBe("design-system/tokens.css");
-      expect(t.path, t.name).toBe(t.name.slice(2).replace(/-/, "."));
+      expect(t.name, t.name).toMatch(/^--ds-/);
+      expect(t.path, t.name).toBe(semanticNameOf(t.name).replace(/-/, "."));
     }
   });
 

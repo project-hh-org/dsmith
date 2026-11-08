@@ -32,7 +32,7 @@ const DSMITH = `import { Button } from "@/components/ui/button";
 
 export function Generated() {
   return (
-    <div className="p-[var(--space-4)] text-[color:var(--color-gray-900)]">
+    <div className="p-[var(--ds-space-4)] text-[color:var(--ds-color-gray-900)]">
       <Button>저장</Button>
     </div>
   );

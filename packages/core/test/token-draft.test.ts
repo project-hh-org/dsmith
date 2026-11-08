@@ -228,11 +228,46 @@ describe("draftCoverage", () => {
 });
 
 describe("draftToTokens", () => {
-  it("name에 -- 접두사를 붙인다", () => {
+  it("name은 cssVar — 기본은 --ds- 접두", () => {
     const draft = buildTokenDraft([len(8, "padding")]);
+    expect(draftToTokens(draft)).toEqual([
+      { name: "--ds-space-2", value: "8px", normalized: { kind: "length", px: 8 }, category: "spacing" },
+    ]);
+  });
+
+  it("naming legacy면 접두 없는 --space-2", () => {
+    const draft = buildTokenDraft([len(8, "padding")], { naming: "legacy" });
     expect(draftToTokens(draft)).toEqual([
       { name: "--space-2", value: "8px", normalized: { kind: "length", px: 8 }, category: "spacing" },
     ]);
+  });
+});
+
+describe("buildTokenDraft naming", () => {
+  const usages = [
+    color("#3b82f6"), color("#3b82f6"), color("#111111"),
+    len(8, "padding"), len(8, "padding"), len(16, "gap"), len(9999, "border-radius"), len(6, "border-radius"), len(6, "border-radius"),
+    len(14, "font-size"), len(14, "font-size"), len(16, "font-size"),
+  ];
+
+  it("naming 생략 → 모든 cssVar가 --ds-${name}, legacy → --${name}", () => {
+    const ds = buildTokenDraft(usages);
+    const legacy = buildTokenDraft(usages, { naming: "legacy" });
+    expect(ds.naming).toBe("ds");
+    expect(legacy.naming).toBe("legacy");
+    expect(ds.tokens.length).toBeGreaterThan(5);
+    expect(ds.tokens.map((t) => t.cssVar)).toEqual(ds.tokens.map((t) => `--ds-${t.name}`));
+    expect(legacy.tokens.map((t) => t.cssVar)).toEqual(legacy.tokens.map((t) => `--${t.name}`));
+    expect(ds.tokens.some((t) => t.name === "radius-full")).toBe(true);
+  });
+
+  it("name·key·mappings는 두 형식에서 같다", () => {
+    const strip = (d: ReturnType<typeof buildTokenDraft>) => ({
+      tokens: d.tokens.map(({ cssVar: _c, ...rest }) => rest),
+      mappings: d.mappings,
+    });
+    const odd = [...usages, len(13, "padding")];
+    expect(strip(buildTokenDraft(odd))).toEqual(strip(buildTokenDraft(odd, { naming: "legacy" })));
   });
 });
 

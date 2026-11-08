@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DraftToken, TokenDraft } from "../src/tokens/draft.js";
+import { cssVarName, type TokenNaming } from "../src/tokens/naming.js";
 import { parseCssDeclarations } from "../src/parse/css-text.js";
 import { parseTsx } from "../src/parse/tsx.js";
 import {
@@ -17,13 +18,14 @@ import {
   type PresetFormat,
 } from "../src/tokens/tailwind-preset.js";
 
-function tok(group: DraftToken["group"], key: string, value: string): DraftToken {
+function tok(group: DraftToken["group"], key: string, value: string, naming: TokenNaming = "legacy"): DraftToken {
   const category = { color: "color", space: "spacing", radius: "radius", text: "font-size" }[group] as DraftToken["category"];
   return {
     category,
     group,
     key,
     name: `${group}-${key}`,
+    cssVar: cssVarName(group, key, naming),
     value,
     normalized: { kind: "unknown" },
     usageCount: 1,
@@ -31,10 +33,16 @@ function tok(group: DraftToken["group"], key: string, value: string): DraftToken
   };
 }
 
-const DRAFT: TokenDraft = {
-  tokens: [tok("color", "blue-400", "#3b82f6"), tok("space", "2", "8px"), tok("radius", "sm", "4px"), tok("text", "xs", "12px")],
-  mappings: [],
-};
+const tokens4 = (naming: TokenNaming): DraftToken[] => [
+  tok("color", "blue-400", "#3b82f6", naming),
+  tok("space", "2", "8px", naming),
+  tok("radius", "sm", "4px", naming),
+  tok("text", "xs", "12px", naming),
+];
+
+/** 이전 형식(0.3.0 산출) — 기존 스냅샷이 무수정으로 통과해야 한다 */
+const DRAFT: TokenDraft = { tokens: tokens4("legacy"), mappings: [], naming: "legacy" };
+const DS_DRAFT: TokenDraft = { tokens: tokens4("ds"), mappings: [], naming: "ds" };
 const KEYS = { "--color-blue-400": "ds-blue-400", "--space-2": "ds-2", "--radius-sm": "ds-sm", "--text-xs": "ds-xs" };
 const FORMATS: PresetFormat[] = ["v3-ts", "v3-cjs", "v4-css"];
 
@@ -44,16 +52,43 @@ describe("emitTailwindPreset 스냅샷", () => {
   });
 
   it("빈 그룹은 생략하고, 토큰이 없으면 빈 extend", () => {
-    const onlyColor = emitTailwindPreset({ tokens: [DRAFT.tokens[0] as DraftToken], mappings: [] }, "v3-ts");
+    const onlyColor = emitTailwindPreset({ tokens: [DRAFT.tokens[0] as DraftToken], mappings: [], naming: "legacy" }, "v3-ts");
     expect(onlyColor).not.toContain("spacing");
     expect(onlyColor).toContain("colors");
-    expect(emitTailwindPreset({ tokens: [], mappings: [] }, "v3-cjs")).toContain("extend: {}");
-    expect(emitTailwindPreset({ tokens: [], mappings: [] }, "v4-css")).toContain("@theme inline {\n\n}");
+    expect(emitTailwindPreset({ tokens: [], mappings: [], naming: "legacy" }, "v3-cjs")).toContain("extend: {}");
+    expect(emitTailwindPreset({ tokens: [], mappings: [], naming: "legacy" }, "v4-css")).toContain("@theme inline {\n\n}");
   });
 
   it("outDir를 안내 주석에 반영", () => {
     expect(emitTailwindPreset(DRAFT, "v3-ts", { outDir: "ds" })).toContain('from "./ds/tailwind.preset"');
     expect(emitTailwindPreset(DRAFT, "v4-css", { outDir: "ds" })).toContain('@import "./ds/tailwind.theme.css"');
+  });
+});
+
+describe("emitTailwindPreset — ds 형식(--ds- 접두 값)", () => {
+  it.each(FORMATS)("%s 스냅샷", (format) => {
+    expect(emitTailwindPreset(DS_DRAFT, format)).toMatchSnapshot();
+  });
+
+  it("v4는 키 규칙 불변, 값만 새 이름", () => {
+    const css = emitTailwindPreset(DS_DRAFT, "v4-css");
+    expect(css).toContain("  --color-ds-blue-400: var(--ds-color-blue-400);");
+    expect(css).toContain("  --spacing-ds-2: var(--ds-space-2);");
+    expect(css).toContain("  --radius-ds-sm: var(--ds-radius-sm);");
+    expect(css).toContain("  --text-ds-xs: var(--ds-text-xs);");
+  });
+
+  it("v3는 키 ds-… 불변, 값 var(--ds-…)", () => {
+    expect(emitTailwindPreset(DS_DRAFT, "v3-ts")).toContain('"ds-blue-400": "var(--ds-color-blue-400)"');
+  });
+
+  it.each(FORMATS)("%s 왕복: CSS 변수 이름 → 클래스 키", (format) => {
+    expect(parsePresetKeys(emitTailwindPreset(DS_DRAFT, format), format)).toEqual({
+      "--ds-color-blue-400": "ds-blue-400",
+      "--ds-space-2": "ds-2",
+      "--ds-radius-sm": "ds-sm",
+      "--ds-text-xs": "ds-xs",
+    });
   });
 });
 
