@@ -324,7 +324,7 @@ describe("dsmith migrate — fixture e2e", () => {
   it("옵션이 등록돼 있다", () => {
     const cmd = buildProgram().commands.find((c) => c.name() === "migrate");
     expect(cmd?.options.map((o) => o.long).sort()).toEqual(
-      ["--apply", "--branch", "--category", "--close", "--files", "--json", "--list", "--max-files", "--only", "--revert", "--root", "--with-tokens"].sort(),
+      ["--apply", "--branch", "--category", "--close", "--files", "--json", "--list", "--max-files", "--only", "--rename-prefix", "--revert", "--root", "--with-tokens"].sort(),
     );
   });
 });

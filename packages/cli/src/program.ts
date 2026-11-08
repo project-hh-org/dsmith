@@ -121,6 +121,7 @@ interface MigrateCliOptions {
   branch?: string;
   revert?: string;
   list?: boolean;
+  renamePrefix?: boolean;
 }
 
 /** `dsmith` 커맨드 트리. 실행(parse)은 bin.ts가 하고, 테스트는 이 트리를 직접 들여다본다. */
@@ -324,6 +325,7 @@ export function buildProgram(): Command {
     .option("--apply", "계획을 적용(파일을 쓴다)")
     .option("--branch <name>", "적용을 새 git 브랜치에 커밋(--apply와 함께). 토큰·프리셋 파일이 커밋되지 않았거나 수정됐으면 쓰기 전에 오류")
     .option("--with-tokens", "--branch 커밋에 untracked·수정된 토큰·프리셋 파일도 함께 넣는다(.dsmith/는 늘 제외)")
+    .option("--rename-prefix", "이전 형식 토큰 이름(--color-*)을 --ds- 접두로 바꾼다: 기본은 계획만, --apply가 코드의 var() 참조와 토큰 파일을 함께 바꿈(--branch·--with-tokens 가능). 되돌리기는 --revert <id>")
     .option("--revert <id>", "기록된 마이그레이션을 되돌린다(적용 뒤 고친 파일은 건너뜀)")
     .option("--list", "마이그레이션 기록 목록")
     .action(async (opts: MigrateCliOptions) => {
