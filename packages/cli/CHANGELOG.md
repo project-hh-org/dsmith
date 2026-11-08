@@ -1,5 +1,27 @@
 # dsmith
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [[`54762c2`](https://github.com/project-hh-org/dsmith/commit/54762c253aed6215db885420ccaa1eca3f070e26)]:
+  - @dsmith-dev/extractor-react-native@0.5.0
+  - @dsmith-dev/core@0.5.0
+  - @dsmith-dev/init@0.5.0
+  - @dsmith-dev/agent-skill@0.5.0
+  - @dsmith-dev/catalog@0.5.0
+  - @dsmith-dev/detect@0.5.0
+  - @dsmith-dev/extractor-css@0.5.0
+  - @dsmith-dev/extractor-inline-style@0.5.0
+  - @dsmith-dev/extractor-mui-sx@0.5.0
+  - @dsmith-dev/extractor-styled@0.5.0
+  - @dsmith-dev/extractor-tailwind@0.5.0
+  - @dsmith-dev/guard@0.5.0
+  - @dsmith-dev/mcp-server@0.5.0
+  - @dsmith-dev/migrate@0.5.0
+  - @dsmith-dev/extractor-emotion@0.5.0
+  - @dsmith-dev/extractor-api@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

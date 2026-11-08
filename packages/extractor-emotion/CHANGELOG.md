@@ -1,5 +1,13 @@
 # @dsmith-dev/extractor-emotion
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dsmith-dev/extractor-styled@0.5.0
+  - @dsmith-dev/extractor-api@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes
