@@ -161,6 +161,8 @@ pnpm bench:report --in benchmarks/results/<날짜>-legacy-demo.json   # 결과 J
 
 ### React Native와 비공개 앱
 
+**실측(2026-11-08, 비공개 Expo 앱, RN 프롬프트 12개 × 반복 3, claude -p, 기본 `install` = AGENTS.md DS 섹션만):** 이미 JS 테마를 잘 쓰는 앱이라 dsmith 없이도 토큰 사용률이 높다 — 평균 92.8% → 100.0% (차이 +7.2%p, 95% 부트스트랩 CI [+1.8, +14.2], t 구간 [−0.1, +14.5]), 하드코딩 22 → 0, DS 컴포넌트 사용 98 → 114, 독립 채점기 84.6% → 97.7% (+13.1%p, CI [+5.4, +21.5]) — [benchmarks/results/2026-11-08-knowing-saju-k3.md](benchmarks/results/2026-11-08-knowing-saju-k3.md)(수치만 남긴 리댁션본). 레거시 웹 데모(+91.8%p)보다 효과가 작은 것은 출발점이 이미 높기 때문이다. 타입 검사(의존성 타입 없이)는 두 조건 모두 오류가 있다(60 · 47) — 의존성 없이 RN 컴포넌트 props를 검사한 한계로, 품질 비교로 읽지 않는다.
+
 - `--repo rn-app`은 저장소 안의 합성 Expo 앱(`fixtures/rn-app`)이다. RN 프롬프트 12개(`benchmarks/prompts-rn`, 모두 `이 앱 스타일로 `로 시작: 설정 행 목록·확인 시트·배지·토스트·설정/상세/검색 화면 등)를 쓴다. `pnpm bench:replay`가 이 레포의 합성 산출물(`benchmarks/replay/rn-app`)도 채점해 RN 경로(JS 테마 참조 해석, 독립 채점의 `themeRef`)를 CI에서 고정한다.
 - `--repo knowing-saju`는 저장소 밖에 있는 비공개 앱이다. 위치는 `--repo-path <디렉터리>`(또는 환경 변수 `DSMITH_BENCH_REPO_PATH`)로만 주고 커밋하지 않는다. 앱은 `.env*`·`ios/`·`android/`·`node_modules/`·서명 키·`google-services.json` 등을 뺀 임시 복사본으로만 쓰며, `--out`·`--record`(agent 실행)는 필수이고 모노레포 밖이어야 한다.
 - 비공개 앱의 원본 결과(파일 이름·토큰 이름·진단 메시지가 든다)는 저장소에 넣지 않는다. 커밋하는 것은 `pnpm bench:report --redact --in <결과.json> --out <리댁션.md> --summary-json <요약.json>`이 만든 수치뿐인 보고서와 요약이다. 리댁션본에는 프롬프트 id·파일(공개 프롬프트)과 숫자만 있고 앱 경로, 바뀐 파일 이름, 토큰 이름, 코드, finding 메시지가 없다. 자세한 것은 [benchmarks/README.md](benchmarks/README.md)의 "React Native 벤치마크".
