@@ -4,6 +4,8 @@ import {
   applyPatches,
   detectNamingFromFiles,
   findInitDir,
+  GENERATED_NOTICE,
+  readInitHashes,
   listIndexableFiles,
   newMigrationId,
   readCssVariableTokens,
@@ -30,8 +32,8 @@ export interface PrefixRename {
 }
 
 export interface RenamePlan {
-  /** 현재 init 산출 형식. "ds"면 renames·files 비어 있음 */
-  naming: TokenNaming;
+  /** 현재 init 산출 형식. "ds"면 renames·files 비어 있음. null = init 소유 토큰 파일을 읽을 수 없음(없거나 사용자 파일) */
+  naming: TokenNaming | null;
   initDir: string | null;
   /** init 소유 tokens.css 선언 순서 */
   renames: PrefixRename[];
@@ -43,7 +45,7 @@ export interface RenamePlan {
 
 const NAME_CHAR = "[A-Za-z0-9_-]";
 /** `var(` 뒤 공백 허용, 이름 뒤 `\s*[,)]` — `--color-blue-400-2`가 `--color-blue-400`으로 잡히지 않는다 */
-const VAR_REF = new RegExp(`\\bvar\\(\\s*(--${NAME_CHAR}+)\\s*(?=[,)])`, "g");
+const VAR_REF = new RegExp(`\\bvar\\(\\s*(--${NAME_CHAR}+)\\s*(?=[,)])`, "gi");
 const ANY_NAME = new RegExp(`(?<!${NAME_CHAR})(--${NAME_CHAR}+)(?!${NAME_CHAR})`, "g");
 
 const lineOf = (text: string, offset: number): number => {
@@ -90,10 +92,18 @@ export async function planPrefixRename(root: string, opts: { exclude: string[] }
   const empty: RenamePlan = { naming: "ds", initDir, renames: [], files: [], mentions: [] };
   if (initDir === null) return empty;
   const at = (name: string): string => path.join(root, ...(initDir === "." ? [name] : [...initDir.split("/"), name]));
-  const json = await readIfFile(at("tokens.json"));
-  const css = await readIfFile(at("tokens.css"));
+  // init 소유 파일만 읽는다: 매니페스트에 엔트리가 있거나 GENERATED_NOTICE가 있어야 한다(init의 소유 판정과 같다)
+  const hashes = await readInitHashes(root);
+  const owned = async (name: string, isOwned: (text: string) => boolean): Promise<string | null> => {
+    const text = await readIfFile(at(name));
+    if (text === null) return null;
+    return hashes.has(initDir === "." ? name : `${initDir}/${name}`) || isOwned(text) ? text : null;
+  };
+  const json = await owned("tokens.json", (t) => t.includes(GENERATED_NOTICE));
+  const css = await owned("tokens.css", (t) => (t.split(/\r?\n/, 1)[0] ?? "").includes(GENERATED_NOTICE));
   const naming = detectNamingFromFiles({ json, css });
-  if (naming !== "legacy" || css === null) return { ...empty, naming: naming ?? "ds" };
+  if (naming === null) return { ...empty, naming: null };
+  if (naming !== "legacy" || css === null) return { ...empty, naming };
 
   const map = new Map<string, string>();
   const renames: PrefixRename[] = [];

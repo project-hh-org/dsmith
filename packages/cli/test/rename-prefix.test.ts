@@ -143,6 +143,21 @@ describe("migrate --rename-prefix --apply", { timeout: 60_000 }, () => {
     expect(treeHash(root, { includeDsmith: true })).toBe(before);
   });
 
+  it("init 산출이 아닌 사용자 design-system/은 '이미 --ds- 형식'이 아니라 '토큰 파일을 찾지 못함'", async () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "dsmith-rename-own-")));
+    tmps.push(root);
+    fs.mkdirSync(path.join(root, "design-system"));
+    fs.writeFileSync(path.join(root, "design-system/tokens.json"), `{ "mine": true }\n`);
+    fs.writeFileSync(path.join(root, "design-system/tokens.css"), `:root { --color-x: red; }\n`);
+    const before = treeHash(root, { includeDsmith: true });
+    for (const apply of [false, true]) {
+      const out = await rename(root, { apply });
+      expect(out.text).toContain("토큰 파일을 찾지 못함");
+      expect(out.text).not.toContain("이미 --ds-");
+    }
+    expect(treeHash(root, { includeDsmith: true })).toBe(before);
+  });
+
   it("토큰 파일이 사용자 수정으로 보류되면 아무것도 쓰지 않고 오류", async () => {
     const root = await legacyRepo();
     fs.appendFileSync(path.join(root, "design-system/tokens.css"), "/* mine */\n");
@@ -151,18 +166,18 @@ describe("migrate --rename-prefix --apply", { timeout: 60_000 }, () => {
     expect(treeHash(root, { includeDsmith: true })).toBe(before);
   });
 
-  it("쓰지 못한 파일이 있으면 옛 참조가 남은 곳을 알리고 종료 1", async () => {
+  it("쓰지 못한 파일이 있으면 이번 실행에서 쓴 것을 모두 되돌리고(트리 그대로) 종료 1", async () => {
     const root = await legacyRepo();
     // UTF-8이 아닌 바이트가 섞인 파일은 해시 비교 쓰기가 거부한다
     fs.mkdirSync(path.join(root, "src/rn2"), { recursive: true });
     fs.writeFileSync(path.join(root, "src/rn2/latin.css"), Buffer.concat([Buffer.from(A_CSS), Buffer.from([0xff, 0x0a])]));
+    const before = treeHash(root);
     const out = await rename(root, { apply: true });
     expect(out.exitCode).toBe(1);
-    const json = out.json as RenameJson;
-    expect(json.leftover!.length).toBeGreaterThan(0);
     expect(out.text).toContain("src/rn2/latin.css");
-    expect(out.text).toContain("옛 이름의 var() 참조가");
-    expect(json.applied!.files.find((f) => f.file === "src/rn2/latin.css")?.status).not.toBe("applied");
+    expect(out.text).toContain("모두 되돌림");
+    expect(treeHash(root)).toBe(before);
+    expect((JSON.parse(read(root, ".dsmith/init.json")) as { naming: string }).naming).toBe("legacy");
   });
 
   it("migrate 적용(var() 참조) 뒤에도 값이 바뀌지 않고, 되돌리면 바이트 동일", async () => {
@@ -180,14 +195,33 @@ describe("migrate --rename-prefix --apply", { timeout: 60_000 }, () => {
     expect(treeHash(root)).toBe(treeBefore);
   });
 
-  it("revert: 적용 뒤 참조를 고친 파일이 있으면 토큰 파일은 되돌리지 않고 종료 1", async () => {
+  it("revert: 적용 뒤 참조를 고친 파일이 있으면 아무것도 쓰지 않고 파일을 나열하며 종료 1", async () => {
     const root = await legacyRepo();
     const out = await rename(root, { apply: true });
     fs.appendFileSync(path.join(root, "src/rn/a.css"), "/* edited */\n");
+    const before = treeHash(root);
     const reverted = await runMigrateCommand({ root, revert: (out.json as RenameJson).applied!.id });
     expect(reverted.exitCode).toBe(1);
-    expect(reverted.text).toContain("토큰 파일을 이전 형식으로 되돌리지 않음");
-    expect(read(root, "design-system/tokens.css")).toContain("--ds-");
+    expect(reverted.text).toContain("src/rn/a.css");
+    expect(reverted.text).toContain("아무것도 되돌리지 않음");
+    expect(treeHash(root)).toBe(before);
+    expect(read(root, "src/rn/b.tsx")).toContain("var(--ds-color-blue-400)");
+  });
+
+  it("revert: 적용 뒤 tokens.css를 고쳤으면(init이 보류) 소스도 건드리지 않고 종료 1", async () => {
+    const root = await legacyRepo();
+    const out = await rename(root, { apply: true });
+    fs.appendFileSync(path.join(root, "design-system/tokens.css"), "/* mine */\n");
+    const before = treeHash(root);
+    const reverted = await runMigrateCommand({ root, revert: (out.json as RenameJson).applied!.id });
+    expect(reverted.exitCode).toBe(1);
+    expect(reverted.text).toContain("토큰 파일이 보류돼 되돌릴 수 없음");
+    expect(treeHash(root)).toBe(before);
+    expect(read(root, "src/rn/a.css")).toContain("var(--ds-color-blue-400)");
+    expect(read(root, "design-system/tokens.css")).toContain("/* mine */");
+    expect((JSON.parse(read(root, ".dsmith/init.json")) as { naming: string }).naming).toBe("ds");
+    const record = JSON.parse(read(root, `.dsmith/migrations/${(out.json as RenameJson).applied!.id}.json`)) as MigrationRecord;
+    expect(record.status).toBe("applied");
   });
 });
 

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { findInitDir, readIndex, readMigration, writeMigration, type MigrationRecord } from "@dsmith-dev/core";
+import { findInitDir, readIndex, readMigration, sha256Text, writeMigration, type MigrationRecord } from "@dsmith-dev/core";
 import { excludeGlobs, readDetect } from "@dsmith-dev/detect";
 import { runInit, type InitResult } from "@dsmith-dev/init";
 import {
@@ -94,6 +94,9 @@ export async function runRenamePrefix(
   const plan = await planPrefixRename(root, { exclude });
   if (plan.initDir === null) throw new Error("init 산출물(tokens.json)을 찾을 수 없음 — dsmith init을 먼저 실행하세요");
 
+  if (plan.naming === null) {
+    return { json: { plan: planJson(plan), applied: null }, text: `토큰 파일을 찾지 못함 — ${plan.initDir}/ 에 init이 만든 tokens.json·tokens.css가 없음` };
+  }
   if (plan.naming === "ds") {
     return { json: { plan: planJson(plan), applied: null }, text: "이미 --ds- 접두 형식입니다 — 바꿀 것이 없음" };
   }
@@ -124,12 +127,48 @@ export async function runRenamePrefix(
     branch = { name: opts.branch, base: check.base, baseSha: check.baseSha, commit: null };
   }
 
+  // 전부 아니면 전무: 이번 실행에서 쓴 것은 어느 단계에서 실패하든 되돌린다
+  const tokenSnapshot = await snapshot(root, [...writtenFiles(dry), INIT_MANIFEST]);
   const applied = await applyPrefixRename(root, plan, { version });
-  const init = await runInit({ root, version, outDir: initDir, naming: "ds" });
+  const rollBack = async (): Promise<void> => {
+    await revertMigration(root, applied.id);
+    await restore(root, tokenSnapshot);
+  };
+  const refuse = async (reason: string, extra: string[] = []) => {
+    await rollBack();
+    await runAudit(root);
+    return {
+      json: { plan: planJson(plan), applied, rolledBack: true, branch: branch ?? null },
+      text: [reason, ...extra, "이번 실행에서 쓴 파일을 모두 되돌림 — 아무것도 바뀌지 않음", ...(branch === undefined ? [] : [`브랜치 ${branch.name}는 변경 없이 남아 있음`])].join("\n"),
+      exitCode: 1,
+    };
+  };
+
+  const notApplied = applied.files.filter((f) => f.status !== "applied");
+  if (notApplied.length > 0) {
+    return refuse(
+      `쓰지 못한 파일이 ${notApplied.length}개 있음:`,
+      notApplied.slice(0, 10).map((f) => `  ${f.file}: ${f.status}${f.reason === undefined ? "" : ` (${f.reason})`}`),
+    );
+  }
+  let init: InitResult;
+  try {
+    init = await runInit({ root, version, outDir: initDir, naming: "ds" });
+  } catch (err) {
+    await rollBack();
+    throw err;
+  }
+  if (init.tokenHold !== null) return refuse(`토큰 파일이 보류돼 이름을 바꿀 수 없음 (${holdReason(init)})`);
   tokenFilesToCommit = writtenFiles(init);
   const leftover = await leftoverRefs(root, plan.renames, { exclude });
-  const appliedPaths = applied.files.filter((f) => f.status === "applied").map((f) => f.file);
-  const refs = applied.files.filter((f) => f.status === "applied").reduce((n, f) => n + f.replacements, 0);
+  if (leftover.length > 0) {
+    return refuse(
+      `옛 이름의 var() 참조가 ${leftover.length}개 남음:`,
+      leftover.slice(0, 10).map((l) => `  ${l.file}:${l.line} ${l.name}`),
+    );
+  }
+  const appliedPaths = applied.files.map((f) => f.file);
+  const refs = applied.files.reduce((n, f) => n + f.replacements, 0);
 
   const lines = [
     formatRenamePlan(plan, false),
@@ -137,14 +176,7 @@ export async function runRenamePrefix(
     `토큰 파일: ${tokenFilesToCommit.length > 0 ? tokenFilesToCommit.join(", ") : "변경 없음"} (naming ${init.naming.value})`,
   ];
   let exitCode = 0;
-  if (leftover.length > 0) {
-    exitCode = 1;
-    lines.push(`옛 이름의 var() 참조가 ${leftover.length}개 남음 — 확인하세요:`);
-    for (const l of leftover.slice(0, 10)) lines.push(`  ${l.file}:${l.line} ${l.name}`);
-    if (leftover.length > 10) lines.push(`  … 외 ${leftover.length - 10}개`);
-    lines.push(`되돌리려면 dsmith migrate --revert ${applied.id}`);
-    if (branch !== undefined) lines.push(`브랜치 ${branch.name}에 변경이 커밋되지 않은 채 남아 있음`);
-  } else if (branch !== undefined) {
+  if (branch !== undefined) {
     try {
       const sha = await commitFiles(root, [...new Set([...appliedPaths, ...tokenFilesToCommit])], RENAME_COMMIT_MESSAGE);
       branch.commit = sha;
@@ -178,20 +210,68 @@ export async function runRenamePrefix(
   };
 }
 
+const INIT_MANIFEST = ".dsmith/init.json";
+
+/** 파일 내용(없으면 null) 스냅샷 — 중간 실패 때 되돌리는 데 쓴다 */
+async function snapshot(root: string, files: string[]): Promise<Map<string, string | null>> {
+  const snap = new Map<string, string | null>();
+  for (const file of new Set(files)) snap.set(file, await fs.readFile(path.join(root, file), "utf-8").catch(() => null));
+  return snap;
+}
+
+async function restore(root: string, snap: Map<string, string | null>): Promise<void> {
+  for (const [file, content] of snap) {
+    const abs = path.join(root, file);
+    if (content === null) await fs.rm(abs, { force: true });
+    else await fs.writeFile(abs, content, "utf-8");
+  }
+}
+
 /**
- * `--revert <id>`가 rename-prefix 기록이면 참조를 되돌린 뒤 토큰 파일을 이전 형식으로 다시 만든다.
- * 일부 참조가 남았으면(적용 뒤 수정됨) 토큰 파일은 건드리지 않는다. 기록이 rename-prefix가 아니면 null.
+ * `--revert <id>`가 rename-prefix 기록이면 참조를 되돌린 뒤 토큰 파일을 이전 형식으로 다시 만든다. 기록이 rename-prefix가 아니면 null.
+ * 전부 아니면 전무: 무엇이든 쓰기 전에 (a) 기록된 파일이 모두 적용 직후 해시 그대로인지, (b) init이 토큰 파일을 보류하지 않는지 확인하고,
+ * 하나라도 어긋나면 아무것도 쓰지 않고 거부한다. 그 뒤 쓰는 도중 실패하면 이번 실행에서 쓴 것을 스냅샷으로 되돌린다.
  */
 export async function revertRenamePrefix(root: string, id: string): Promise<{ result: RevertResult; init: InitResult | null; text: string[]; exitCode: number } | null> {
   const record = await readMigration(root, id);
   if (record === null || record.kind !== "rename-prefix") return null;
-  const result = await revertMigration(root, id);
-  const notReverted = result.files.some((f) => f.status === "skipped-modified" || f.status === "missing");
-  if (notReverted) {
-    return { result, init: null, text: ["참조가 일부 남아 토큰 파일을 이전 형식으로 되돌리지 않음 — 남은 파일을 확인한 뒤 다시 --revert 하세요"], exitCode: 1 };
+
+  const entries = record.files.filter((e) => e.status !== "rolled-back" && e.status !== "skipped-modified");
+  const mismatched: RevertResult["files"] = [];
+  for (const entry of entries) {
+    const current = await fs.readFile(path.resolve(root, entry.file), "utf-8").catch(() => null);
+    if (current === null) mismatched.push({ file: entry.file, status: "missing", reason: "파일이 없음" });
+    else {
+      const sha = sha256Text(current);
+      if (sha !== entry.after && sha !== entry.before) mismatched.push({ file: entry.file, status: "skipped-modified", reason: "적용 뒤 수정됨" });
+    }
   }
+  if (mismatched.length > 0) {
+    return { result: { id, files: mismatched }, init: null, text: ["아무것도 되돌리지 않음 — 위 파일이 적용 뒤 바뀌어 일부만 되돌리면 토큰 이름과 어긋남. 직접 고친 뒤 다시 --revert 하세요"], exitCode: 1 };
+  }
+
+  const version = cliVersion();
   const initDir = (await findInitDir(root)) ?? undefined;
-  const init = await runInit({ root, version: cliVersion(), ...(initDir === undefined ? {} : { outDir: initDir }), naming: "legacy" });
-  const written = writtenFiles(init);
-  return { result, init, text: [`토큰 파일을 이전 형식으로 되돌림: ${written.length > 0 ? written.join(", ") : "변경 없음"}`], exitCode: init.tokenHold === null ? 0 : 1 };
+  const initOpts = { root, version, ...(initDir === undefined ? {} : { outDir: initDir }), naming: "legacy" as const };
+  const dry = await runInit({ ...initOpts, dryRun: true });
+  if (dry.tokenHold !== null) {
+    return { result: { id, files: [] }, init: null, text: [`토큰 파일이 보류돼 되돌릴 수 없음 (${holdReason(dry)}) — 아무것도 되돌리지 않음`], exitCode: 1 };
+  }
+
+  const snap = await snapshot(root, [...entries.map((e) => e.file), `.dsmith/migrations/${id}.json`, INIT_MANIFEST, ...writtenFiles(dry)]);
+  const abort = async (text: string, result: RevertResult): Promise<{ result: RevertResult; init: null; text: string[]; exitCode: number }> => {
+    await restore(root, snap);
+    return { result, init: null, text: [`${text} — 이번 실행에서 쓴 파일을 모두 되돌림`], exitCode: 1 };
+  };
+  try {
+    const result = await revertMigration(root, id);
+    if (result.files.some((f) => f.status === "skipped-modified" || f.status === "missing")) return await abort("되돌리는 도중 파일이 바뀜", result);
+    const init = await runInit(initOpts);
+    if (init.tokenHold !== null) return await abort(`토큰 파일이 보류됨 (${holdReason(init)})`, result);
+    const written = writtenFiles(init);
+    return { result, init, text: [`토큰 파일을 이전 형식으로 되돌림: ${written.length > 0 ? written.join(", ") : "변경 없음"}`], exitCode: 0 };
+  } catch (err) {
+    await restore(root, snap);
+    throw err;
+  }
 }

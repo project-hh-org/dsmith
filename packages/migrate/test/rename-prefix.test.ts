@@ -91,6 +91,40 @@ describe("planPrefixRename", () => {
     expect(plan.files).toEqual([]);
   });
 
+  it("var()를 대소문자 구분 없이 바꾸고 남은 참조로도 센다", async () => {
+    const root = repo({ "src/u.css": `.u { color: VAR(--color-blue-400); margin: Var( --space-2 , 1px); }\n` });
+    const plan = await planPrefixRename(root, { exclude: [] });
+    expect(plan.files.map((f) => [f.file, f.refs])).toEqual([["src/u.css", 2]]);
+    const before = await leftoverRefs(root, plan.renames, { exclude: [] });
+    expect(before.map((l) => l.name)).toEqual(["--color-blue-400", "--space-2"]);
+    await applyPrefixRename(root, plan, { version: "0.0.0-test" });
+    expect(fs.readFileSync(path.join(root, "src/u.css"), "utf-8")).toBe(`.u { color: VAR(--ds-color-blue-400); margin: Var( --ds-space-2 , 1px); }\n`);
+    expect(await leftoverRefs(root, plan.renames, { exclude: [] })).toEqual([]);
+  });
+
+  it(".dsmith/init.json 없이 사용자 자신의 design-system/은 init 산출로 보지 않는다(naming null, 바꿀 것 없음)", async () => {
+    const root = repo({ "src/a.css": A_CSS });
+    fs.writeFileSync(path.join(root, "design-system/tokens.css"), `:root {\n  --color-blue-400: #3b82f6;\n}\n`);
+    fs.writeFileSync(path.join(root, "design-system/tokens.json"), `{ "mine": true }\n`);
+    const plan = await planPrefixRename(root, { exclude: [] });
+    expect(plan.naming).toBeNull();
+    expect(plan.renames).toEqual([]);
+    expect(plan.files).toEqual([]);
+  });
+
+  it("매니페스트가 그 파일을 소유로 기록했으면 안내 문구가 없어도 대상이다", async () => {
+    const root = repo({ "src/a.css": A_CSS });
+    fs.writeFileSync(path.join(root, "design-system/tokens.css"), `:root {\n  --color-blue-400: #3b82f6;\n}\n`);
+    fs.mkdirSync(path.join(root, ".dsmith"));
+    fs.writeFileSync(
+      path.join(root, ".dsmith/init.json"),
+      JSON.stringify({ outDir: "design-system", entries: { "design-system/tokens.json": { sha256: "x" }, "design-system/tokens.css": { sha256: "y" } } }),
+    );
+    const plan = await planPrefixRename(root, { exclude: [] });
+    expect(plan.naming).toBe("legacy");
+    expect(plan.renames).toEqual([{ from: "--color-blue-400", to: "--ds-color-blue-400" }]);
+  });
+
   it("exclude glob 파일은 건드리지 않는다", async () => {
     const root = repo(SOURCES);
     const plan = await planPrefixRename(root, { exclude: ["src/b.tsx"] });

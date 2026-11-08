@@ -30,11 +30,41 @@ describe("emitTokensCss", () => {
     expect(read.find((t) => t.name === "--ds-radius-md")?.category).toBe("radius");
     expect(read.find((t) => t.name === "--ds-space-2")?.category).toBe("spacing");
   });
-  it("legacy 형식은 0.3.0과 같은 줄", () => {
-    const legacy = emitTokensCss(buildTokenDraft(draftInput, { naming: "legacy" }));
-    expect(legacy).toContain("  --space-2: 8px;\n");
-    expect(legacy).toContain("  --text-xs: 12px;\n");
-    expect(legacy).not.toContain("--ds-");
+  it("legacy 형식은 접두 도입 전(main) 출력과 한 글자도 다르지 않다", () => {
+    const legacyDraft = buildTokenDraft(draftInput, { naming: "legacy" });
+    const legacy = emitTokensCss(legacyDraft);
+    // main의 emitTokensCss·emitTokensTs를 같은 입력으로 돌려 얻은 출력
+    expect(legacy).toBe(
+      "/* dsmith init이 생성한 파일입니다. 직접 고치면 다음 init이 덮어쓰지 않습니다(--force로 덮어씀). */\n" +
+        ":root {\n" +
+        "  --color-gray-900: #111111;\n" +
+        "  --color-blue-400: #3b82f6;\n" +
+        "  --space-2: 8px;\n" +
+        "  --radius-md: 6px;\n" +
+        "  --text-xs: 12px;\n" +
+        "  --text-base: 16px;\n" +
+        "}\n",
+    );
+    expect(emitTokensTs(legacyDraft)).toBe(
+      "// dsmith init이 생성한 파일입니다. 직접 고치면 다음 init이 덮어쓰지 않습니다(--force로 덮어씀).\n" +
+        "export const tokens = {\n" +
+        "  color: {\n" +
+        '    "gray-900": "#111111",\n' +
+        '    "blue-400": "#3b82f6",\n' +
+        "  },\n" +
+        "  space: {\n" +
+        '    "2": "8px",\n' +
+        "  },\n" +
+        "  radius: {\n" +
+        '    "md": "6px",\n' +
+        "  },\n" +
+        "  text: {\n" +
+        '    "xs": "12px",\n' +
+        '    "base": "16px",\n' +
+        "  },\n" +
+        "} as const;\n\n" +
+        "export type Tokens = typeof tokens;\n",
+    );
     const read = readCssVariableTokens(legacy, "tokens.css");
     expect(read.find((t) => t.name === "--text-xs")?.category).toBe("font-size");
     expect(read.find((t) => t.name === "--radius-md")?.category).toBe("radius");
