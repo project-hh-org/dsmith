@@ -1,6 +1,6 @@
 {
   "name": "@dsmith-dev/extractor-mui-sx",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "dsmith extractor for the MUI sx prop",
   "keywords": ["design-system", "dsmith", "extractor", "mui", "sx"],
   "license": "MIT",
