@@ -17,7 +17,7 @@
     "bench:report": "pnpm --filter dsmith-benchmarks run bench:report --",
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
-    "release": "pnpm build && pnpm publish -r --access public --no-git-checks && changeset tag"
+    "release": "pnpm build && node scripts/publish.mjs && changeset tag"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",
