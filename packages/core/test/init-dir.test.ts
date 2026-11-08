@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { findInitDir, readInitHashes } from "../src/fs/init-dir.js";
+import { findInitDir, findInitTokensTs, readInitHashes } from "../src/fs/init-dir.js";
 
 let root: string;
 beforeEach(() => {
@@ -43,6 +43,25 @@ describe("findInitDir", () => {
 
   it("4. 아무것도 없으면 null", async () => {
     expect(await findInitDir(root)).toBeNull();
+  });
+});
+
+describe("findInitTokensTs", () => {
+  it("매니페스트에 있고 파일이 있고 옆에 tokens.json이 없는 tokens.ts만 돌려준다(RN init 산출)", async () => {
+    expect(await findInitTokensTs(root)).toEqual([]);
+    manifest({ entries: { "design-system/tokens.ts": { sha256: "a" } } });
+    expect(await findInitTokensTs(root)).toEqual([]); // 파일이 없다
+    put("design-system/tokens.ts", "export const colors = {} as const;\n");
+    expect(await findInitTokensTs(root)).toEqual(["design-system/tokens.ts"]);
+    put("design-system/tokens.json", "{}");
+    expect(await findInitTokensTs(root)).toEqual([]); // 웹 init 산출 쌍은 json 쪽이 정본
+  });
+
+  it("사용자가 직접 둔 tokens.ts(매니페스트에 없음)와 깨진 매니페스트는 무시", async () => {
+    put("design-system/tokens.ts", "export const colors = {} as const;\n");
+    expect(await findInitTokensTs(root)).toEqual([]);
+    put(".dsmith/init.json", "{깨짐");
+    expect(await findInitTokensTs(root)).toEqual([]);
   });
 });
 

@@ -41,6 +41,29 @@ export async function findInitDir(root: string): Promise<string | null> {
   return (await isFile(path.join(root, DEFAULT_DIR, "tokens.json"))) ? DEFAULT_DIR : null;
 }
 
+/**
+ * init이 쓴 RN 형식 `tokens.ts`(`<dir>/tokens.json` 없이 `tokens.ts`만 있는 산출). 매니페스트 엔트리에 있고 파일이 있고
+ * 옆에 `tokens.json`이 없는 것만, 경로순. 웹 init 산출(json·css·ts 한 묶음)과 사용자가 직접 둔 `tokens.ts`는 아니다.
+ */
+export async function findInitTokensTs(root: string): Promise<string[]> {
+  let keys: string[];
+  try {
+    const parsed = JSON.parse(await fs.readFile(path.join(root, ".dsmith", "init.json"), "utf-8")) as {
+      entries?: Record<string, unknown>;
+    };
+    keys = Object.keys(parsed.entries ?? {}).sort();
+  } catch {
+    return [];
+  }
+  const found: string[] = [];
+  for (const key of keys) {
+    if (key.includes("#") || !(key === "tokens.ts" || key.endsWith("/tokens.ts"))) continue;
+    const json = `${key.slice(0, -"tokens.ts".length)}tokens.json`;
+    if ((await isFile(path.join(root, key))) && !(await isFile(path.join(root, json)))) found.push(key);
+  }
+  return found;
+}
+
 /** `.dsmith/init.json` 엔트리의 키 → 마지막으로 쓴 내용의 sha256. 없거나 깨졌으면 빈 맵. */
 export async function readInitHashes(root: string): Promise<Map<string, string>> {
   const out = new Map<string, string>();

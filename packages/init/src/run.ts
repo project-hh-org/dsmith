@@ -12,6 +12,7 @@ import {
   emitTokensCss,
   emitTailwindPreset,
   emitTokensTs,
+  emitTokensTsRn,
   explainDecision,
   GENERATED_NOTICE,
   findTailwindConfig,
@@ -19,6 +20,7 @@ import {
   isPresetLinked,
   listDecisions,
   listMigrations,
+  loadReplacementTokens,
   localDate,
   managedFileHash,
   presetFileName,
@@ -55,7 +57,7 @@ import {
 } from "@dsmith-dev/core";
 import { excludeGlobs, isDsSpecifier, readDetect } from "@dsmith-dev/detect";
 import { normalizeOutDir } from "./out-dir.js";
-import { renderInitReport } from "./report.js";
+import { renderInitReport, tokenFileNames } from "./report.js";
 import { renderScaffold, type ScaffoldProp } from "./scaffold.js";
 
 export interface InitOptions {
@@ -95,6 +97,13 @@ export interface InitResult {
   outDir: string;
   /** mergedValues = Σ members.length */
   tokens: { color: number; spacing: number; radius: number; fontSize: number; total: number; mergedValues: number };
+  /**
+   * 토큰의 출처. js-theme이면(react-native + 쓰이는 JS 테마) 토큰 파일을 쓰지 않았고 `tokens`·`coverage`는 그 테마 기준이다.
+   * init-files = init이 쓰는(쓸) 토큰 파일 — 웹은 json·css·ts 세 개, react-native 테마 없음은 tokens.ts 하나.
+   */
+  tokenSource: { kind: "init-files" | "js-theme"; files: string[] };
+  /** react-native 레포로 실행했나 — 토큰 CSS·Tailwind 프리셋·웹 스캐폴드를 만들지 않는다 */
+  reactNative: boolean;
   coverage: Coverage;
   mappings: ScaleMapping[];
   scaffolds: InitScaffold[];
@@ -243,6 +252,7 @@ async function recordInitDir(
 }
 
 const DELETED_SCAFFOLD_REASON ="사용자가 삭제한 파일은 다시 만들지 않음 (--force로 재생성)";
+const RN_SCAFFOLD_REASON = "웹 스캐폴드 템플릿이라 만들지 않음";
 
 async function fileExists(abs: string): Promise<boolean> {
   try {
@@ -435,6 +445,10 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const outDir = normalizeOutDir(root, opts.outDir);
   const dryRun = opts.dryRun === true;
   const isDsModule = (m: string): boolean => isDsSpecifier(m, detected.ds);
+  // react-native: CSS 토큰·Tailwind 프리셋·웹 스캐폴드를 만들지 않는다. 쓰이는 JS 테마가 있으면 토큰 파일도 만들지 않고 그 테마를 쓴다.
+  const reactNative = detected.framework.name === "react-native";
+  const jsThemeFiles = reactNative ? (detected.ds.jsThemes ?? []).map((t) => t.file) : [];
+  const themeMode = jsThemeFiles.length > 0;
 
   // 2. 결정 읽기 → token-cluster 선택
   const decisions = await readDecisions(root);
@@ -447,10 +461,18 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const prevManifest = await readInitManifest(path.join(root, MANIFEST));
   const resolved = await resolveNaming(root, outDir, prevManifest, opts.naming);
   const naming = resolved.naming;
-  const fresh: TokenDraft = buildTokenDraft(index.styles, { excludeDirs: [outDir], colorChoices, naming: naming.value });
+  // 테마 모드는 쓸 토큰이 없다(초안 비움). 토큰 수·커버리지는 아래 themeTokens(그 테마)로 센다.
+  const fresh: TokenDraft = themeMode
+    ? { tokens: [], mappings: [], naming: naming.value }
+    : buildTokenDraft(index.styles, { excludeDirs: [outDir], colorChoices, naming: naming.value });
+  const themeTokens = themeMode
+    ? (await loadReplacementTokens(root, detected.ds.tokenFiles, { framework: detected.framework.name })).tokens.filter(
+        (t) => t.js !== undefined && t.file !== undefined && jsThemeFiles.includes(t.file),
+      )
+    : [];
   // 명시 naming으로 이전 파일과 다른 형식을 요청하는 흐름(migrate --rename-prefix·--revert)은 이름만 바꾼다: 이미 코드가 var()로 쓰는 토큰이
   // index가 바뀌어(migrate 적용 뒤) 사라지거나 값이 달라지지 않게 이전 토큰 파일의 토큰을 그대로 옮긴다
-  const draft: TokenDraft = (opts.naming !== undefined && resolved.previous !== null ? renamedDraft(resolved.previous, fresh) : null) ?? fresh;
+  const draft: TokenDraft = (!reactNative && opts.naming !== undefined && resolved.previous !== null ? renamedDraft(resolved.previous, fresh) : null) ?? fresh;
 
   // 4. pending 결정 시드
   const clusters = draft.tokens
@@ -495,7 +517,16 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const warnings: string[] = [];
   const tokensRef = `${outDir}/tokens.css`;
 
-  for (const target of targets) {
+  if (reactNative) {
+    // 스캐폴드 템플릿은 웹(div·className·tokens.css)용이다
+    skippedScaffolds.push({ item: "react-native", reason: RN_SCAFFOLD_REASON });
+    const owned = await readOwnedTokenFiles(root, outDir, prevManifest);
+    if (owned.css !== null || owned.json !== null) {
+      warnings.push(`react-native 레포에서는 ${outDir}/tokens.css·tokens.json을 쓰지 않음 — 필요 없으면 지워도 됨`);
+    }
+  }
+
+  for (const target of reactNative ? [] : targets) {
     const name = target.item;
     if (!COMPONENT_NAME.test(name)) {
       skippedScaffolds.push({ item: name, reason: "파일 이름으로 쓸 수 없는 컴포넌트 이름" });
@@ -592,9 +623,16 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     region: { kind: "file" },
     content,
   });
-  const jsonWrite = tokenWrite("tokens.json", serializeW3c(draft));
-  const cssWrite = tokenWrite("tokens.css", emitTokensCss(draft));
-  const tsWrite = tokenWrite("tokens.ts", emitTokensTs(draft));
+  // 웹: json·css·ts 한 묶음. react-native: JS 테마가 있으면 없음, 없으면 RN 형식 tokens.ts 하나
+  const tokenWrites: PlannedWrite[] = reactNative
+    ? themeMode
+      ? []
+      : [tokenWrite("tokens.ts", emitTokensTsRn(draft))]
+    : [
+        tokenWrite("tokens.json", serializeW3c(draft)),
+        tokenWrite("tokens.css", emitTokensCss(draft)),
+        tokenWrite("tokens.ts", emitTokensTs(draft)),
+      ];
   const safeOpts = {
     manifestFile,
     displayRoot: root,
@@ -605,8 +643,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   };
 
   // json·css·ts는 한 묶음이다: 하나라도 막히면(사용자 수정 등) 나머지도 쓰지 않아 세 파일이 어긋나지 않게 한다.
-  const tokenWrites = [jsonWrite, cssWrite, tsWrite];
-  const preflight = await safeWrite(tokenWrites, { ...safeOpts, dryRun: true });
+  const preflight = tokenWrites.length === 0 ? { outcomes: [] as WriteOutcome[] } : await safeWrite(tokenWrites, { ...safeOpts, dryRun: true });
   const blockers = tokenWrites.filter((_, i) => (preflight.outcomes[i] as WriteOutcome).status.startsWith("skipped"));
   const blocked = blockers.length > 0;
   const held = new Map<string, WriteOutcome>();
@@ -614,7 +651,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
 
   // 이전 init 소유 tokens.css 대비 값이 바뀌거나 사라지는 토큰. migrate 적용 기록이 있으면 var() 참조가 다른 값을 가리키게 되므로 묶음을 보류한다.
   const renamedTokens =
-    resolved.previous?.css === null || resolved.previous === null
+    reactNative || resolved.previous?.css === null || resolved.previous === null
       ? []
       : changedTokens(resolved.previous.css, emitTokensCss(draft));
   const hasApplied = renamedTokens.length > 0 && (await listMigrations(root)).some((m) => m.status === "applied");
@@ -661,7 +698,10 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
           key: o.key,
           region: o.region,
           status: "skipped-modified",
-          reason: `${names.join("·")} ${cause}으로 함께 보류 (이 파일은 수정되지 않음) — 세 토큰 파일은 함께 써야 함${allInvalid ? "" : ", 덮어쓰려면 --force"}`,
+          reason:
+            tokenWrites.length === 1
+              ? `${names.join("·")} ${cause}으로 보류 (이 파일은 수정되지 않음)${allInvalid ? "" : ", 덮어쓰려면 --force"}`
+              : `${names.join("·")} ${cause}으로 함께 보류 (이 파일은 수정되지 않음) — 세 토큰 파일은 함께 써야 함${allInvalid ? "" : ", 덮어쓰려면 --force"}`,
         });
       } else {
         held.set(w.file, brokenLink(o) ? { ...o, reason: "심볼릭 링크가 깨짐" } : o);
@@ -669,7 +709,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     });
   }
   // Tailwind 프리셋은 토큰 3파일 묶음 밖의 managed 단독 write다(사람이 고쳐도 토큰 파일은 정상 갱신).
-  const tailwindDetected = detected.styling.methods.some((m) => m.name === "tailwind");
+  const tailwindDetected = !reactNative && detected.styling.methods.some((m) => m.name === "tailwind");
   const tailwindVersion = detected.styling.tailwindVersion;
   let presetWrite: PlannedWrite | null = null;
   let presetVersion: 3 | 4 | null = null;
@@ -731,7 +771,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   }
 
   // tokens.css를 쓴(또는 이미 같은) 실행만 로드 여부를 본다 — 보류된 실행은 새로 쓴 파일이 아니다
-  const cssStatus = (outcomes[1] as WriteOutcome).status;
+  const cssStatus = reactNative ? null : (outcomes[1] as WriteOutcome).status;
   const tokensLoaded: InitResult["tokensLoaded"] =
     cssStatus === "created" || cssStatus === "updated" || cssStatus === "unchanged"
       ? await findTokensStylesheetImport(root, {
@@ -742,7 +782,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
       : null;
 
   // 7. 커버리지
-  const coverage = draftCoverage(index.styles, draftToTokens(draft), { excludeDirs: [outDir] });
+  const coverage = draftCoverage(index.styles, themeMode ? themeTokens : draftToTokens(draft), { excludeDirs: [outDir] });
 
   // 9. 결정 요약
   const after = listDecisions(index, seed.file);
@@ -757,10 +797,11 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const statusOfFile = new Map(outcomes.map((o, i) => [i, o.status] as const));
   const scaffoldResults: InitScaffold[] = scaffolds.map((s, i) => ({
     ...s,
-    status: statusOfFile.get(3 + i) as WriteStatus,
+    status: statusOfFile.get(tokenWrites.length + i) as WriteStatus,
   }));
 
-  const count = (category: string): number => draft.tokens.filter((t) => t.category === category).length;
+  const count = (category: string): number =>
+    (themeMode ? themeTokens : draft.tokens).filter((t) => t.category === category).length;
   const result: InitResult = {
     outDir,
     tokens: {
@@ -768,15 +809,19 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
       spacing: count("spacing"),
       radius: count("radius"),
       fontSize: count("font-size"),
-      total: draft.tokens.length,
-      mergedValues: draft.tokens.reduce((n, t) => n + t.members.length, 0),
+      total: themeMode ? themeTokens.length : draft.tokens.length,
+      mergedValues: themeMode ? themeTokens.length : draft.tokens.reduce((n, t) => n + t.members.length, 0),
     },
+    tokenSource: themeMode
+      ? { kind: "js-theme", files: jsThemeFiles }
+      : { kind: "init-files", files: tokenWrites.map((w) => path.posix.join(outDir, path.basename(w.file))) },
+    reactNative,
     coverage,
     mappings: draft.mappings,
     scaffolds: scaffoldResults,
     skippedScaffolds,
     decisions: decisionSummary,
-    alphaDropped: alphaDropped(index.styles, outDir),
+    alphaDropped: themeMode ? [] : alphaDropped(index.styles, outDir),
     coverageScope: coverageScope(index.styles, outDir),
     all: opts.all === true,
     outcomes,
@@ -804,16 +849,15 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   return result;
 }
 
-const TOKEN_FILE_NAMES = ["tokens.json", "tokens.css", "tokens.ts"] as const;
-
 export function formatInitSummary(r: InitResult): string {
   const t = r.tokens;
   const c = r.coverage;
   const lines: string[] = [];
   if (r.dryRun) lines.push("(dry-run — 아무것도 쓰지 않았습니다)");
   // 실제로 쓰였거나 이미 같은 내용인 토큰 파일만 "→ …"에 적는다.
-  const tokenOutcomes = r.outcomes.slice(0, 3);
-  const ok = TOKEN_FILE_NAMES.filter((_, i) => {
+  const fileNames = tokenFileNames(r);
+  const tokenOutcomes = r.outcomes.slice(0, fileNames.length);
+  const ok = fileNames.filter((_, i) => {
     const s = tokenOutcomes[i]?.status;
     return s === "created" || s === "updated" || s === "unchanged";
   });
@@ -823,9 +867,15 @@ export function formatInitSummary(r: InitResult): string {
       : ok.length === 3
         ? ` → ${r.outDir}/tokens.{json,css,ts}`
         : ` → ${ok.map((n) => `${r.outDir}/${n}`).join(", ")}`;
-  lines.push(
-    `토큰: 색 ${t.color} · 간격 ${t.spacing} · 모서리 ${t.radius} · 글꼴 크기 ${t.fontSize} (병합된 원값 ${t.mergedValues})${target}`,
-  );
+  if (r.tokenSource.kind === "js-theme") {
+    lines.push(
+      `토큰: 기존 JS 테마 사용 — ${r.tokenSource.files.join(", ")} (색 ${t.color} · 간격 ${t.spacing} · 모서리 ${t.radius} · 글꼴 크기 ${t.fontSize})`,
+    );
+  } else {
+    lines.push(
+      `토큰: 색 ${t.color} · 간격 ${t.spacing} · 모서리 ${t.radius} · 글꼴 크기 ${t.fontSize} (병합된 원값 ${t.mergedValues})${target}`,
+    );
+  }
   const rate = c.rate === null ? "해당 없음" : `${(c.rate * 100).toFixed(1)}%`;
   const alphaCount = r.alphaDropped.reduce((n, a) => n + a.count, 0);
   const alphaNote = alphaCount > 0 ? `, 알파 ${alphaCount}건 포함` : "";
@@ -843,7 +893,11 @@ export function formatInitSummary(r: InitResult): string {
   const skipped = r.skippedScaffolds.length;
   const skippedDetail =
     skipped === 0 ? "" : ` (${r.skippedScaffolds.map((s) => `${s.item} — ${s.reason}`).join("; ")})`;
-  lines.push(`스캐폴드: 생성 ${created}${updated > 0 ? ` · 갱신 ${updated}` : ""} · 유지 ${kept} · 건너뜀 ${skipped}${skippedDetail}`);
+  if (r.reactNative) {
+    lines.push(`스캐폴드: 만들지 않음 (${r.skippedScaffolds.map((s) => `${s.item}: ${s.reason}`).join("; ")})`);
+  } else {
+    lines.push(`스캐폴드: 생성 ${created}${updated > 0 ? ` · 갱신 ${updated}` : ""} · 유지 ${kept} · 건너뜀 ${skipped}${skippedDetail}`);
+  }
   if (r.tailwindPreset !== null) {
     const p = r.tailwindPreset;
     const how = p.version === 4 ? "진입 CSS에서 @import하면" : "tailwind.config의 presets에 추가하면";
@@ -851,7 +905,7 @@ export function formatInitSummary(r: InitResult): string {
       `Tailwind 프리셋: ${p.file} — ${p.linked ? "연결됨" : `연결 안 됨: ${how} migrate가 클래스명(bg-ds-…)으로 치환`}`,
     );
   }
-  if (r.naming.value === "legacy" && r.tailwindPreset?.version !== 4) {
+  if (!r.reactNative && r.naming.value === "legacy" && r.tailwindPreset?.version !== 4) {
     lines.push("토큰 이름: 이전 형식(접두 없음) — dsmith migrate --rename-prefix로 바꿀 수 있음");
   }
   if (r.tokensLoaded !== null && !r.tokensLoaded.css) lines.push(`참고: ${TOKENS_NOT_LOADED_NOTE(r.outDir)}`);
@@ -861,14 +915,24 @@ export function formatInitSummary(r: InitResult): string {
   const open = r.decisions.pending > 0 || r.decisions.stale > 0;
   const hint = !open
     ? ""
-    : r.all
+    : r.reactNative
+      ? " — /ds-decide 로 고르기"
+      : r.all
       ? " — 스캐폴드는 추천안 기준, /ds-decide 로 확정한 뒤 다시 실행"
       : " — /ds-decide 로 고르거나 --all 로 추천안 사용";
   lines.push(`결정: pending ${r.decisions.pending}건${stale}${hint}`);
   if (r.tokenHold === "modified") {
-    lines.push("사람이 고친 토큰 파일 — 세 파일을 함께 보류했습니다. 덮어쓰려면 --force");
+    lines.push(
+      r.reactNative
+        ? "사람이 고친 토큰 파일 — 보류했습니다. 덮어쓰려면 --force"
+        : "사람이 고친 토큰 파일 — 세 파일을 함께 보류했습니다. 덮어쓰려면 --force",
+    );
   } else if (r.tokenHold === "invalid") {
-    lines.push("토큰 파일을 쓸 수 없는 경로가 있어 세 파일을 함께 보류했습니다 (--force로도 쓸 수 없음)");
+    lines.push(
+      r.reactNative
+        ? "토큰 파일을 쓸 수 없는 경로라 보류했습니다 (--force로도 쓸 수 없음)"
+        : "토큰 파일을 쓸 수 없는 경로가 있어 세 파일을 함께 보류했습니다 (--force로도 쓸 수 없음)",
+    );
   } else if (r.tokenHold === "renamed") {
     lines.push(
       `migrate로 적용한 var() 참조가 있는데 토큰 ${r.renamedTokens.length}개의 값이 바뀌거나 사라져 토큰 묶음(과 Tailwind 프리셋)을 보류했습니다. 덮어쓰려면 --force`,
@@ -876,7 +940,7 @@ export function formatInitSummary(r: InitResult): string {
   }
   for (const [i, o] of tokenOutcomes.entries()) {
     if (o.status === "skipped-invalid") {
-      lines.push(`쓰지 못한 토큰 파일(skipped-invalid): ${TOKEN_FILE_NAMES[i]} — ${o.reason ?? "경로가 안전하지 않음"}`);
+      lines.push(`쓰지 못한 토큰 파일(skipped-invalid): ${fileNames[i]} — ${o.reason ?? "경로가 안전하지 않음"}`);
     }
   }
   if (r.catalog === "refreshed") lines.push("카탈로그: 토큰·토큰 파일 해시를 갱신함 (.dsmith/catalog.json) — 컴포넌트·AGENTS.md는 `dsmith ai`로 갱신");

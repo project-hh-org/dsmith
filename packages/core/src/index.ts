@@ -96,7 +96,7 @@ export { candidatesOf, decisionCandidates, listDecisions, similarItems } from ".
 export { readGitHistory } from "./decisions/git-history.js";
 export type { GitError, GitResult } from "./git/run.js";
 export { runGit } from "./git/run.js";
-export { findInitDir, readInitHashes } from "./fs/init-dir.js";
+export { findInitDir, findInitTokensTs, readInitHashes } from "./fs/init-dir.js";
 export type { PatchConflict, TextPatch } from "./patch/apply.js";
 export { applyPatches, invertPatches, invertRecordedPatches, partitionPatches } from "./patch/apply.js";
 export type { EditCheck } from "./patch/validate.js";
@@ -142,7 +142,7 @@ export type { CatalogTokensResult } from "./catalog/tokens.js";
 export { readCatalogTokens, recordedTokenFiles, staleCatalogTokenFiles, withTokenFiles } from "./catalog/tokens.js";
 export type { DsmithExtension, W3cColorValue, W3cDimensionValue, W3cReadResult } from "./tokens/w3c.js";
 export { DSMITH_EXTENSION, draftToW3c, readW3cTokens, serializeW3c } from "./tokens/w3c.js";
-export { GENERATED_NOTICE, emitTokensCss, emitTokensTs } from "./tokens/emit.js";
+export { GENERATED_NOTICE, emitTokensCss, emitTokensTs, emitTokensTsRn, rnTokenExpression } from "./tokens/emit.js";
 export type { TokenNaming } from "./tokens/naming.js";
 export {
   DEFAULT_TOKEN_NAMING,

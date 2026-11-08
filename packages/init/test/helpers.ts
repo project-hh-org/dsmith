@@ -10,18 +10,20 @@ import { cssExtractor } from "@dsmith-dev/extractor-css";
 import { emotionExtractor } from "@dsmith-dev/extractor-emotion";
 import { inlineStyleExtractor } from "@dsmith-dev/extractor-inline-style";
 import { muiSxExtractor } from "@dsmith-dev/extractor-mui-sx";
+import { reactNativeExtractor } from "@dsmith-dev/extractor-react-native";
 import { styledExtractor } from "@dsmith-dev/extractor-styled";
 import { tailwindExtractor } from "@dsmith-dev/extractor-tailwind";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
-const ALL_EXTRACTORS: Extractor[] = [
+export const ALL_EXTRACTORS: Extractor[] = [
   inlineStyleExtractor,
   tailwindExtractor,
   cssExtractor,
   styledExtractor,
   emotionExtractor,
   muiSxExtractor,
+  reactNativeExtractor,
 ];
 
 /** fixtures|examples/<name> → 임시 디렉터리 복사(.dsmith 제외). overlay = 상대 경로 → 파일 내용 */

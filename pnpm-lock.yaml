@@ -486,12 +486,18 @@ importers:
       '@dsmith-dev/extractor-mui-sx':
         specifier: workspace:*
         version: link:../extractor-mui-sx
+      '@dsmith-dev/extractor-react-native':
+        specifier: workspace:*
+        version: link:../extractor-react-native
       '@dsmith-dev/extractor-styled':
         specifier: workspace:*
         version: link:../extractor-styled
       '@dsmith-dev/extractor-tailwind':
         specifier: workspace:*
         version: link:../extractor-tailwind
+      '@dsmith-dev/migrate':
+        specifier: workspace:*
+        version: link:../migrate
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3

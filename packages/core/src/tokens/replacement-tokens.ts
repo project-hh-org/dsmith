@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { readCatalog } from "../catalog/store.js";
 import { recordedTokenFiles, staleCatalogTokenFiles } from "../catalog/tokens.js";
-import { findInitDir } from "../fs/init-dir.js";
+import { findInitDir, findInitTokensTs } from "../fs/init-dir.js";
 import { loadTokens, tokensFromCatalog, type LoadedToken } from "./load.js";
 import { replacementCandidates } from "./ref-resolver.js";
 
@@ -51,6 +51,9 @@ export async function loadReplacementTokens(
       if (!tokenFiles.includes(rel) && (await isFile(path.resolve(root, rel)))) tokenFiles.push(rel);
     }
   }
+
+  // RN init 산출(`tokens.json` 없이 `tokens.ts`만)은 JS 테마로 읽는다 — 웹 산출 쌍은 위 json·css가 정본이다
+  for (const rel of await findInitTokensTs(root)) if (!tokenFiles.includes(rel)) tokenFiles.push(rel);
 
   const loaded = await loadTokens(root, tokenFiles, []);
   // 치환 대상은 `replacementCandidates`(결정 2d): 웹 프레임워크에 CSS·DTCG 토큰이 있으면 JS 테마 토큰은 참조 해석에만 쓰이고 치환 대상이 아니다.

@@ -1,5 +1,11 @@
-import { TOKENS_NOT_LOADED_NOTE, type DraftCategory, type TokenDraft } from "@dsmith-dev/core";
+import path from "node:path";
+import { TOKENS_NOT_LOADED_NOTE, rnTokenExpression, type DraftCategory, type TokenDraft } from "@dsmith-dev/core";
 import type { InitResult } from "./run.js";
+
+/** init이 쓰는 토큰 파일 이름(웹은 json·css·ts 순, react-native는 tokens.ts). js-theme이면 쓰는 파일이 없다 */
+export function tokenFileNames(r: Pick<InitResult, "tokenSource">): string[] {
+  return r.tokenSource.kind === "init-files" ? r.tokenSource.files.map((f) => path.posix.basename(f)) : [];
+}
 
 const CATEGORY_LABEL: Record<DraftCategory, string> = {
   color: "색",
@@ -18,14 +24,20 @@ const pct = (rate: number | null): string => (rate === null ? "해당 없음" : 
 export function renderInitReport(r: InitResult, draft: TokenDraft): string {
   const lines: string[] = ["# DS Init", ""];
   lines.push(`- 산출 디렉터리: \`${r.outDir}\``);
-  lines.push(
-    r.naming.value === "ds"
-      ? "- 토큰 이름: `--ds-` 접두 (예: `--ds-color-blue-400`)"
-      : "- 토큰 이름: 이전 형식(접두 없음) — `dsmith migrate --rename-prefix`로 `--ds-` 접두로 바꿀 수 있음",
-  );
-  const names = ["tokens.json", "tokens.css", "tokens.ts"];
+  if (!r.reactNative) {
+    lines.push(
+      r.naming.value === "ds"
+        ? "- 토큰 이름: `--ds-` 접두 (예: `--ds-color-blue-400`)"
+        : "- 토큰 이름: 이전 형식(접두 없음) — `dsmith migrate --rename-prefix`로 `--ds-` 접두로 바꿀 수 있음",
+    );
+  }
+  const names = tokenFileNames(r);
   const present = names.filter((_, i) => ["created", "updated", "unchanged"].includes(r.outcomes[i]?.status ?? ""));
-  lines.push(`- 토큰 파일: ${present.length === 0 ? "없음(쓰지 못함)" : present.map((n) => `\`${n}\``).join(" · ")}`);
+  if (r.tokenSource.kind === "js-theme") {
+    lines.push(`- 토큰: 기존 JS 테마 사용 — ${r.tokenSource.files.map((f) => `\`${f}\``).join(" · ")} (토큰 파일을 만들지 않음)`);
+  } else {
+    lines.push(`- 토큰 파일: ${present.length === 0 ? "없음(쓰지 못함)" : present.map((n) => `\`${n}\``).join(" · ")}`);
+  }
   const held = names.filter((n) => !present.includes(n));
   if (present.length > 0 && held.length > 0) {
     lines.push(
@@ -34,7 +46,7 @@ export function renderInitReport(r: InitResult, draft: TokenDraft): string {
   }
   if (present.length === 0 && r.tokenHold !== null) {
     const why = r.outcomes
-      .slice(0, 3)
+      .slice(0, names.length)
       .filter((o) => o.status === "skipped-invalid")
       .map((o) => `${o.file}: ${o.reason ?? "경로가 안전하지 않음"}`);
     lines.push(
@@ -49,7 +61,17 @@ export function renderInitReport(r: InitResult, draft: TokenDraft): string {
 
   lines.push("## 토큰", "");
   lines.push("| 카테고리 | 토큰 수 | 병합된 원값 |", "| --- | --- | --- |");
+  const countOf: Record<DraftCategory, number> = {
+    color: r.tokens.color,
+    spacing: r.tokens.spacing,
+    radius: r.tokens.radius,
+    "font-size": r.tokens.fontSize,
+  };
   for (const category of ["color", "spacing", "radius", "font-size"] as const) {
+    if (r.tokenSource.kind === "js-theme") {
+      lines.push(`| ${CATEGORY_LABEL[category]} | ${countOf[category]} | ${countOf[category]} |`);
+      continue;
+    }
     const tokens = draft.tokens.filter((t) => t.category === category);
     lines.push(`| ${CATEGORY_LABEL[category]} | ${tokens.length} | ${tokens.reduce((n, t) => n + t.members.length, 0)} |`);
   }
@@ -58,11 +80,17 @@ export function renderInitReport(r: InitResult, draft: TokenDraft): string {
   const colors = draft.tokens.filter((t) => t.category === "color");
   if (colors.length > 0) {
     lines.push("### 색 토큰", "");
-    lines.push("결정 항목은 `decide --explain <결정 항목>`에 쓰는 키이고, CSS 변수는 코드에서 쓰는 이름입니다.", "");
-    lines.push("| 결정 항목 | CSS 변수 | 값 | 사용 수 | members | 결정 |", "| --- | --- | --- | --- | --- | --- |");
+    lines.push(
+      r.reactNative
+        ? "결정 항목은 `decide --explain <결정 항목>`에 쓰는 키이고, 참조는 코드에서 쓰는 식입니다."
+        : "결정 항목은 `decide --explain <결정 항목>`에 쓰는 키이고, CSS 변수는 코드에서 쓰는 이름입니다.",
+      "",
+    );
+    lines.push(`| 결정 항목 | ${r.reactNative ? "참조" : "CSS 변수"} | 값 | 사용 수 | members | 결정 |`, "| --- | --- | --- | --- | --- | --- |");
     for (const t of colors) {
       const decision = t.chosen !== undefined ? `선택: ${t.chosen}` : t.members.length > 1 ? "pending" : "-";
-      lines.push(`| ${t.key} | \`${t.cssVar}\` | ${t.value} | ${t.usageCount} | ${cell(t.members.join(", "))} | ${decision} |`);
+      const name = r.reactNative ? rnTokenExpression(t) : t.cssVar;
+      lines.push(`| ${t.key} | \`${name}\` | ${t.value} | ${t.usageCount} | ${cell(t.members.join(", "))} | ${decision} |`);
     }
     lines.push("");
   }
@@ -105,8 +133,12 @@ export function renderInitReport(r: InitResult, draft: TokenDraft): string {
   lines.push(
     `치환 가능(migrate 후보): 하드코딩 ${c.total}건 중 ${c.replaceable}건 — 같은 값/정확 ${c.byConfidence.exact}건은 migrate 기본 대상, 근사 ${c.byConfidence.close}건은 \`--close\`로만.`,
     "",
-    "숫자의 구성: 색·글꼴 크기 토큰은 이 초안이 하드코딩 값에서 직접 만든 것이라 해당 카테고리 커버리지는 구성상 높게 나옵니다. " +
-      "따라서 이 비율은 사실상 간격(4px 스케일에 걸리지 않는 값)과 모서리 커버리지를 반영합니다.",
+    ...(r.tokenSource.kind === "js-theme"
+      ? ["숫자의 구성: 토큰은 앱이 이미 가진 JS 테마의 값이므로 하드코딩 값과 얼마나 겹치는지를 그대로 보여 줍니다(init이 만든 초안이 아님)."]
+      : [
+          "숫자의 구성: 색·글꼴 크기 토큰은 이 초안이 하드코딩 값에서 직접 만든 것이라 해당 카테고리 커버리지는 구성상 높게 나옵니다. " +
+            "따라서 이 비율은 사실상 간격(4px 스케일에 걸리지 않는 값)과 모서리 커버리지를 반영합니다.",
+        ]),
   );
   if (c.zeroOrNegative > 0) {
     lines.push(`0 이하 간격(padding·margin·gap) ${c.zeroOrNegative}건은 토큰 대상이 아니라 분모에서 뺐습니다.`);
