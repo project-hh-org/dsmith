@@ -40,6 +40,7 @@
     "@dsmith-dev/extractor-mui-sx": "workspace:*",
     "@dsmith-dev/extractor-styled": "workspace:*",
     "@dsmith-dev/extractor-tailwind": "workspace:*",
+    "tailwindcss": "4.3.3",
     "vitest": "^3.0.0"
   },
   "scripts": {
