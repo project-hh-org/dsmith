@@ -97,7 +97,7 @@ describe("loadCommands — 실제 명령 소스", () => {
     expect(c?.body).toContain("`plan.tokens.loaded.css`");
     expect(c?.body).toContain("--with-tokens");
     // M5: 보류 사유를 전부 풀어 쓴다
-    for (const reason of ["decision-pending", "mapping-missing", "mapping-conflict", "non-jsx-use", "spread-props", "export-unknown", "overlap", "rolled-back"]) {
+    for (const reason of ["decision-pending", "mapping-missing", "target-props-unknown", "mapping-conflict", "non-jsx-use", "spread-props", "export-unknown", "overlap", "rolled-back"]) {
       expect(c?.body, reason).toContain(`\`${reason}\``);
     }
     expect(c?.body).toContain("JSON에 없는 숫자는 말하지 않는다");

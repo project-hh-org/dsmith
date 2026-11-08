@@ -219,6 +219,37 @@ function impactOf(built: Built[], kept: Built[]): DecisionCard["impact"] {
   return { byOption };
 }
 
+const SAME_NAME_JACCARD_MIN = 0.5;
+const LOCAL_USAGE_RATIO = 3;
+
+function jaccard(a: string[], b: string[]): number {
+  const sa = new Set(a);
+  const sb = new Set(b);
+  let inter = 0;
+  for (const x of sa) if (sb.has(x)) inter++;
+  const union = sa.size + sb.size - inter;
+  return union === 0 ? 1 : inter / union;
+}
+
+/**
+ * npm 패키지(정의 파일 없음)인 DS 옵션과 DS가 아닌 옵션이 이름만 같을 가능성.
+ * 관측 props의 Jaccard가 0.5 미만이거나 한쪽만 props를 알면(양쪽 다 관측이 없으면 반증이 없으니 제외) 확인이 필요하다고 본다.
+ * 해당하면 안내 문구, 아니면 null
+ */
+function sameNameDoubt(ds: DecisionOption, others: DecisionOption[]): string | null {
+  if (ds.file !== undefined) return null;
+  const doubtful = others.filter((o) => {
+    if (ds.props.length === 0 && o.props.length === 0) return false;
+    if (ds.props.length === 0 || o.props.length === 0) return true;
+    return jaccard(ds.props, o.props) < SAME_NAME_JACCARD_MIN;
+  });
+  if (doubtful.length === 0) return null;
+  let note = "이름만 같고 props가 달라 같은 컴포넌트인지 확인 필요";
+  const big = doubtful.filter((o) => o.usageCount >= LOCAL_USAGE_RATIO * Math.max(ds.usageCount, 1)).sort((a, b) => b.usageCount - a.usageCount)[0];
+  if (big !== undefined) note += ` (${big.label} 사용 ${big.usageCount}회 vs ${ds.label} 사용 ${ds.usageCount}회)`;
+  return note;
+}
+
 function recommend(built: Built[], useMatchRate: boolean): DecisionCard["recommendation"] {
   const options = built.map((b) => b.option);
   const rateOf = new Map(built.map((b) => [b.option.id, useMatchRate ? b.matchRate : b.tokenRate]));
@@ -226,12 +257,10 @@ function recommend(built: Built[], useMatchRate: boolean): DecisionCard["recomme
   const ds = options.filter((o) => o.isDs);
   const only = ds.length === 1 ? ds[0] : undefined;
   if (only) {
-    return {
-      optionId: only.id,
-      reason: `DS 모듈(${only.module ?? only.file ?? only.id})에서 온 옵션`,
-      confidence: "high",
-      rule: "ds-module",
-    };
+    const reason = `DS 모듈(${only.module ?? only.file ?? only.id})에서 온 옵션`;
+    const note = sameNameDoubt(only, options.filter((o) => !o.isDs));
+    if (note !== null) return { optionId: only.id, reason, confidence: "medium", rule: "ds-module", note };
+    return { optionId: only.id, reason, confidence: "high", rule: "ds-module" };
   }
   // DS 옵션이 2개 이상이면 그 옵션들로 좁혀 다음 규칙을 적용한다.
   const narrowed = ds.length >= 2;

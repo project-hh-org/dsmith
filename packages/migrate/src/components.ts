@@ -23,6 +23,7 @@ import { specifierForModule } from "./specifier.js";
 export type ComponentSkipReason =
   | "decision-pending"
   | "mapping-missing"
+  | "target-props-unknown"
   | "mapping-conflict"
   | "non-jsx-use"
   | "spread-props"
@@ -412,6 +413,8 @@ interface AttrOut {
   missing: string[];
   /** 상속 타입을 확인할 수 없어 props에서 찾지 못한 prop */
   unverifiable: string[];
+  /** 대상 props를 몰라(props === null) 확인할 수 없는 prop(안전한 passthrough·mapping에 나온 것 제외) */
+  propsUnknown: string[];
   /** 이름을 바꾸면 같은 요소에 같은 속성이 둘이 되는 경우 */
   conflicts: string[];
   spread: boolean;
@@ -473,6 +476,9 @@ function checkAttributes(ctx: FileCtx, t: ChosenTarget, el: Opening, out: AttrOu
   const unknownInherits = t.unknownInherits ?? [];
   const asserted = new Set<string>();
   if (unknownInherits.length > 0) for (const [from, to] of Object.entries(t.mapping)) asserted.add(nameOfSide(from)).add(nameOfSide(to));
+  // 대상 props를 모르는 경우: mapping에 이름이 나온 prop(항등 포함)은 사용자가 확인한 것으로 본다
+  const mappedNames = new Set<string>();
+  if (t.props === null) for (const [from, to] of Object.entries(t.mapping)) mappedNames.add(nameOfSide(from)).add(nameOfSide(to));
   const finals: { from: string; to: string }[] = [];
   for (const attr of el.attributes) {
     if (attr.type === "JSXSpreadAttribute") {
@@ -503,6 +509,10 @@ function checkAttributes(ctx: FileCtx, t: ChosenTarget, el: Opening, out: AttrOu
 
     finals.push({ from: name, to: finalName });
 
+    if (t.props === null && !PASSTHROUGH.test(finalName) && finalName !== "id" && !mappedNames.has(name) && !mappedNames.has(finalName)) {
+      out.propsUnknown.push(finalName === name ? name : `${name}→${finalName}`);
+      continue;
+    }
     if (!PASSTHROUGH.test(finalName) && t.props !== null) {
       const known = t.props.includes(finalName) || ((t.inherits?.length ?? 0) > 0 && isNativeAttr(finalName));
       if (!known && !(unknownInherits.length > 0 && asserted.has(finalName))) {
@@ -678,7 +688,7 @@ function planItem(ctx: FileCtx, t: ChosenTarget, held: HeldComponentEdit[]): Ite
   if (nonTag !== null) {
     return hold("non-jsx-use", `${nonTag.name}을(를) JSX 태그가 아닌 곳에서 사용(${lineOf(nonTag.node)}줄) — prop 대응을 확인할 수 없음`, nonTag.node);
   }
-  const out: AttrOut = { patches: [], missing: [], unverifiable: [], conflicts: [], spread: false };
+  const out: AttrOut = { patches: [], missing: [], unverifiable: [], propsUnknown: [], conflicts: [], spread: false };
   let firstSpread: Opening | null = null;
   for (const el of openingsOf(ctx)) {
     if (el.name.type !== "JSXIdentifier" || !locals.has(el.name.name as string)) continue;
@@ -699,6 +709,14 @@ function planItem(ctx: FileCtx, t: ChosenTarget, held: HeldComponentEdit[]): Ite
       parts.push(`상속 타입 확인 불가: ${(t.unknownInherits ?? []).join(", ")} — ${unverifiable.join(", ")} (직접 확인했다면 decide --map ${sample}:${sample}처럼 같은 이름으로 대응)`);
     }
     return hold("mapping-missing", `${parts.join("; ")} — decide --map으로 대응을 주세요`);
+  }
+  if (out.propsUnknown.length > 0) {
+    const unknown = [...new Set(out.propsUnknown)];
+    const sample = unknown[0]!.split("→")[0]!;
+    return hold(
+      "target-props-unknown",
+      `대상 ${t.file ?? t.module}의 props를 읽을 수 없어 확인할 수 없는 prop: ${unknown.join(", ")} (직접 확인했다면 decide --map ${sample}:${sample}처럼 같은 이름으로 대응하거나, 패키지를 설치한 뒤 ai를 다시 실행)`,
+    );
   }
   if (out.conflicts.length > 0) return hold("mapping-conflict", `속성 이름 충돌: ${[...new Set(out.conflicts)].join("; ")}`);
   return {

@@ -17,6 +17,7 @@ uses: ["cli:migrate"]
    - 컴포넌트 `plan.components`: 결정된 것만 치환한다. 바꾸지 않은 것은 `plan.componentHeld`의 `reason`으로 푼다:
      - `decision-pending`: 결정이 안 끝남. `/ds-decide`로 먼저 고르게 한다
      - `mapping-missing`: 대상에 없는 prop(또는 허용하지 않는 값). `/ds-decide`로 `--map`을 채우라고 안내한다
+     - `target-props-unknown`: 대상 컴포넌트의 props를 읽지 못해(npm 패키지 미설치·카탈로그에 props 없음) 호출부 prop을 확인할 수 없음. 패키지를 설치하고 `npx dsmith ai`를 다시 실행하거나, 직접 확인한 prop을 `/ds-decide`의 `--map`에 같은 이름으로 넣게 한다
      - `mapping-conflict`: 이름을 바꾸면 같은 요소에 같은 속성이 둘이 됨. `--map`을 고쳐야 한다
      - `non-jsx-use`: `<Name.Sub>`·`styled(Name)`·`as={Name}`·값 전달처럼 JSX 태그가 아닌 곳에서 써서 prop 대응을 확인할 수 없음. 그 파일은 사람이 손으로 바꾼다
      - `spread-props`: `{...props}` 스프레드가 있어 prop 대응을 확인할 수 없음

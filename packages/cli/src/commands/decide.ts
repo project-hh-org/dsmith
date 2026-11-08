@@ -135,6 +135,7 @@ export function formatDecideExplain(result: ExplainResult): string {
   }
   const { recommendation: r } = card;
   lines.push(`추천: ${r.optionId} (${r.rule}, ${r.confidence}) — ${r.reason}`);
+  if (r.note !== undefined) lines.push(`주의: ${r.note}`);
   if (card.decided) lines.push(`결정됨: ${card.decided.chosen} (${card.decided.decidedAt})`);
   return lines.join("\n");
 }
