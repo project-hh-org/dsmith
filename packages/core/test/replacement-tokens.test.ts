@@ -144,5 +144,29 @@ describe("loadReplacementTokens: JS 테마", () => {
     expect(r.tokens.every((t) => t.js === undefined)).toBe(true);
     expect(r.files).toEqual(["design-system/tokens.css"]);
     expect(r.excludeFiles).toEqual(["design-system/tokens.css"]);
+    // 참조 해석에는 JS 토큰도 필요하다
+    expect(r.allTokens.some((t) => t.name === "theme.primary")).toBe(true);
+    const web = await loadReplacementTokens(root, ["src/lib/theme.ts", "design-system/tokens.css"], { framework: "next" });
+    expect(web.tokens.every((t) => t.js === undefined)).toBe(true);
+    expect(web.files).toEqual(["design-system/tokens.css"]);
+  });
+
+  it("react-native면 JS 테마 토큰이 치환 대상이고 그 파일이 읽은 토큰 파일에 든다(모드 토큰은 뺌)", async () => {
+    put("src/theme.ts", `export const colors = { surface: "#ffffff", text: "#111111" } as const;\nexport const spacing = { sm: 8, md: 16 } as const;\n`);
+    put("src/constants/Colors.ts", `export const Colors = { light: { background: "#fff", tint: "#0a7ea4" }, dark: { background: "#000", tint: "#fff" } };\n`);
+    put("src/App.tsx", `import { colors, spacing } from "./theme";\nimport { Colors } from "./constants/Colors";\nexport const A = [colors, spacing, Colors];\n`);
+    const r = await loadReplacementTokens(root, ["src/theme.ts", "src/constants/Colors.ts"], { framework: "react-native" });
+    expect(r.source).toBe("token-file");
+    expect(r.tokens.map((t) => t.name).sort()).toEqual(["colors.surface", "colors.text", "spacing.md", "spacing.sm"]);
+    expect(r.allTokens.some((t) => t.js?.mode === "dark")).toBe(true);
+    expect(r.files).toContain("src/theme.ts");
+    expect(r.excludeFiles).toContain("src/theme.ts");
+  });
+
+  it("웹이어도 CSS·DTCG 토큰이 하나도 없으면 JS 테마 토큰이 치환 대상", async () => {
+    put("src/lib/theme.ts", `export const theme = { primary: "#3B82F6", muted: "#6B7280" };`);
+    const r = await loadReplacementTokens(root, ["src/lib/theme.ts"], { framework: "next" });
+    expect(r.source).toBe("token-file");
+    expect(r.tokens.map((t) => t.name)).toEqual(["theme.primary", "theme.muted"]);
   });
 });

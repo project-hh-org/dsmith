@@ -1,4 +1,4 @@
-import { extractComponentUsage, extractFileStyles, parseTsx, shorthandColorProperty, validateEdit, type ExtractorMatcher } from "@dsmith-dev/core";
+import { extractComponentUsage, extractFileStyles, parseTsx, shorthandColorProperty, validateEdit, type ExtractorMatcher, type RefResolver } from "@dsmith-dev/core";
 import type { StyleProperty, StyleUsage } from "@dsmith-dev/extractor-api";
 import type { ModuleEnv } from "./components.js";
 
@@ -62,15 +62,18 @@ export function checkEdit(
   after: string,
   expected: readonly StyleProperty[],
   matchers: ExtractorMatcher[],
+  /** JS 테마 참조 해석기 — 편집 뒤 코드(추가한 import 포함)에서 치환한 `colors.surface`가 token으로 읽히는지 확인한다 */
+  resolveRef?: RefResolver,
 ): string | null {
   const edit = validateEdit(file, before, after);
   if (!edit.ok) return edit.reason;
   const n = expected.length;
   let a: Counts;
   let b: Counts;
+  const opts = resolveRef === undefined ? {} : { resolveRef };
   try {
-    a = countSources(extractFileStyles({ root, file, code: before }, matchers).styles);
-    b = countSources(extractFileStyles({ root, file, code: after }, matchers).styles);
+    a = countSources(extractFileStyles({ root, file, code: before }, matchers, opts).styles);
+    b = countSources(extractFileStyles({ root, file, code: after }, matchers, opts).styles);
   } catch (err) {
     return `재추출 검증 실패: ${err instanceof Error ? err.message : String(err)}`;
   }

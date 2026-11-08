@@ -36,7 +36,7 @@ describe("report", () => {
     const root = syntheticRepo();
     await auditFixture(root);
     const plan = await planMigration({ root, ...(await loadState(root)), only: "components" });
-    const file = plan.files[0] ?? { file: "src/A.tsx", replacements: [], components: [] };
+    const file = plan.files[0] ?? { file: "src/A.tsx", replacements: [], imports: [], components: [] };
     const withEdit = {
       ...plan,
       planned: 0,

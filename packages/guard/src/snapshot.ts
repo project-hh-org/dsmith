@@ -59,13 +59,14 @@ function clonePolicy(p: GuardPolicy): GuardPolicy {
 export async function buildGuardSnapshot(opts: BuildGuardSnapshotOptions): Promise<GuardSnapshot> {
   const { root, detect, version, existing } = opts;
 
-  const replacement = await loadReplacementTokens(root, detect.ds.tokenFiles);
+  const replacement = await loadReplacementTokens(root, detect.ds.tokenFiles, { framework: detect.framework.name });
   const tokens = replacement.tokens.map((t) => ({
     name: t.name,
     value: t.value,
     category: t.category,
     normalized: t.normalized,
     ...(t.path !== undefined ? { path: t.path } : {}),
+    ...(t.js !== undefined ? { js: t.js } : {}),
   }));
   const tokenFiles: GuardSnapshot["tokenFiles"] = [];
   // 토큰 파일 + Tailwind 설정·프리셋 파일: 나중에 프리셋을 연결하거나 고치면 stale로 잡힌다

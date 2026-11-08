@@ -3,10 +3,13 @@ import {
   normalizeColor,
   normalizeLength,
   rankTokens,
+  replacementCandidates,
   tokenCategoryOf,
+  type LoadedToken,
+  type Token,
   type TokenSourceKind,
 } from "@dsmith-dev/core";
-import type { StyleProperty, StyleUsage } from "@dsmith-dev/extractor-api";
+import { cssVarRef, jsTokenExpression, type StyleProperty, type StyleUsage } from "@dsmith-dev/extractor-api";
 import { tokenSourceKind, type Workspace } from "../workspace.js";
 
 export interface ResolveTokenInput {
@@ -14,9 +17,14 @@ export interface ResolveTokenInput {
   property?: string | undefined;
 }
 
+/** 값 자리에 쓰는 표현: CSS 변수 참조 또는 JS 테마 식(필요한 import 포함) */
+export type TokenRef =
+  | { kind: "css"; expression: string }
+  | { kind: "js"; expression: string; import: { module: string; name: string } };
+
 export interface ResolveTokenOutput {
   input: { raw: string; property?: string };
-  token?: { name: string; value: string };
+  token?: { name: string; value: string; ref?: TokenRef };
   /** 색은 oklch ΔE_ok, 길이는 px 차이. 소수 4자리, 토큰이 없으면 null */
   distance: number | null;
   /** 색: ΔE_ok < 0.005 high · < 0.03 medium · 그 이상 low. 길이: 0px high · ≤2px medium · 그 이상 low */
@@ -33,6 +41,25 @@ const ALTERNATIVES = 3;
 const CONFIDENCE = { exact: "high", close: "medium", far: "low" } as const;
 const ERROR_RAW_CHARS = 80;
 const VAR_REF = /^var\(\s*(--[A-Za-z0-9_-]+)\s*(?:,.*)?\)$/s;
+
+/** 응답용 토큰: 이름·값 + 참조 표현(`ref`). 참조 형식이 없는 토큰(CSS 변수가 아닌 카탈로그 토큰 등)은 ref 없음 */
+function tokenOut(token: Token): NonNullable<ResolveTokenOutput["token"]> {
+  const out = { name: token.name, value: token.value };
+  const js = jsTokenExpression(token);
+  if (token.js !== undefined && js !== null) return { ...out, ref: { kind: "js", expression: js, import: { module: token.js.module, name: token.js.export } } };
+  const css = cssVarRef(token);
+  return css === null ? out : { ...out, ref: { kind: "css", expression: css } };
+}
+
+/**
+ * 제안·순위에 쓰는 토큰. 토큰 파일/카탈로그 토큰은 core `replacementCandidates`(프레임워크 규칙: 웹이 CSS·DTCG 토큰을 가지면 JS 테마 토큰 제외,
+ * 모드 토큰 제외)를 거치고, audit 제안(proposal) 토큰은 그대로 뒤에 붙는다.
+ */
+export function candidateTokens(ws: Workspace): LoadedToken[] {
+  const own = ws.tokens.tokens.filter((t) => t.source !== "proposal");
+  const proposals = ws.tokens.tokens.filter((t) => t.source === "proposal");
+  return [...replacementCandidates(own, { framework: ws.detect.framework.name }), ...proposals];
+}
 
 function round4(n: number): number {
   return Math.round(n * 10_000) / 10_000;
@@ -63,7 +90,7 @@ export function resolveNormalized(
 ): ResolveTokenOutput {
   const property: StyleProperty | undefined = input.property === undefined ? undefined : cssPropertyToStyleProperty(input.property);
   const category = property === undefined ? null : tokenCategoryOf(property);
-  const ranked = rankTokens(normalized, ws.tokens.tokens, {
+  const ranked = rankTokens(normalized, candidateTokens(ws), {
     ...(category === null ? {} : { category }),
     limit: ALTERNATIVES + 1,
   });
@@ -72,7 +99,7 @@ export function resolveNormalized(
   const [best, ...rest] = ranked;
   const out: ResolveTokenOutput = {
     input: inputEcho(input.raw, input.property),
-    ...(best === undefined ? {} : { token: { name: best.token.name, value: best.token.value } }),
+    ...(best === undefined ? {} : { token: tokenOut(best.token) }),
     distance: best === undefined ? null : round4(best.distance),
     confidence: best === undefined ? "low" : CONFIDENCE[best.confidence],
     source: best === undefined ? tokenSourceKind(ws.tokens) : sourceOf(best.token.name),
@@ -95,7 +122,7 @@ export function resolveToken(ws: Workspace, input: ResolveTokenInput): ResolveTo
     if (known !== undefined) {
       return {
         input: inputEcho(raw, input.property),
-        token: { name: known.name, value: known.value },
+        token: tokenOut(known),
         distance: 0,
         confidence: "high",
         source: ws.tokenSources.get(known.name) ?? "token-file",
@@ -103,6 +130,19 @@ export function resolveToken(ws: Workspace, input: ResolveTokenInput): ResolveTo
         ...(ws.tokens.ignored.length > 0 ? { ignoredTokenFiles: ws.tokens.ignored } : {}),
       };
     }
+  }
+  // 알려진 JS 테마 토큰 이름(`colors.surface`)
+  const knownJs = ws.tokens.tokens.find((t) => t.js !== undefined && t.name === raw);
+  if (knownJs !== undefined) {
+    return {
+      input: inputEcho(raw, input.property),
+      token: tokenOut(knownJs),
+      distance: 0,
+      confidence: "high",
+      source: ws.tokenSources.get(knownJs.name) ?? "token-file",
+      alternatives: [],
+      ...(ws.tokens.ignored.length > 0 ? { ignoredTokenFiles: ws.tokens.ignored } : {}),
+    };
   }
   const color = normalizeColor(raw);
   const px = color === null ? normalizeLength(raw) : null;

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { describe, it } from "vitest";
 import { RuleTester } from "eslint";
 import { createHash } from "node:crypto";
+import { normalizeColor } from "@dsmith-dev/core";
 import plugin from "../src/index.js";
 import { makeRoot, snapshotOf } from "./helpers.js";
 
@@ -272,6 +273,52 @@ describe("no-deprecated-component", () => {
         code: `import { Dialog } from "../components/ui/dialog";\nexport const A = () => <Dialog />;`,
         ...at(withDs, "src/dep.jsx"),
         errors: [{ message: "Dialog은 deprecated: Use Modal", line: 2, column: 24 }],
+      },
+    ],
+  });
+});
+
+const jsTheme = makeRoot(
+  "js-theme",
+  snapshotOf({
+    tokens: [
+      { name: "colors.surface", value: "#ffffff", category: "color", normalized: normalizeColor("#ffffff")!, js: { module: "src/theme", export: "colors", path: ["surface"] } },
+      { name: "spacing.sm", value: "8", category: "spacing", normalized: { kind: "length", px: 8 }, js: { module: "src/theme", export: "spacing", path: ["sm"] } },
+    ],
+  }),
+);
+
+describe("no-hardcoded-style: JS 테마 토큰", () => {
+  tester.run("no-hardcoded-style (js)", plugin.rules["no-hardcoded-style"], {
+    valid: [],
+    invalid: [
+      // 이미 import: exact면 autofix가 JS 식으로 바꾼다
+      {
+        code: `import { colors } from "../theme";\nconst A = () => <View style={{ backgroundColor: "#ffffff" }} />;`,
+        output: `import { colors } from "../theme";\nconst A = () => <View style={{ backgroundColor: colors.surface }} />;`,
+        errors: [{ messageId: "finding" }],
+        ...at(jsTheme, "src/screens/a.jsx"),
+      },
+      // 별칭 import
+      {
+        code: `import { spacing as s } from "../theme";\nconst A = () => <View style={{ padding: 8 }} />;`,
+        output: `import { spacing as s } from "../theme";\nconst A = () => <View style={{ padding: s.sm }} />;`,
+        errors: [{ messageId: "finding" }],
+        ...at(jsTheme, "src/screens/b.jsx"),
+      },
+      // import 없음: fix·suggest 없이 메시지에 import 안내
+      {
+        code: `const A = () => <View style={{ backgroundColor: "#ffffff" }} />;`,
+        output: null,
+        errors: [{ message: /\(import 필요: import \{ colors \} from "\.\.\/theme"\)/ }],
+        ...at(jsTheme, "src/screens/c.jsx"),
+      },
+      // 다른 module의 같은 이름 import는 이 테마가 아니다
+      {
+        code: `import { colors } from "../other";\nconst A = () => <View style={{ backgroundColor: "#ffffff" }} />;`,
+        output: null,
+        errors: [{ message: /import 필요/ }],
+        ...at(jsTheme, "src/screens/d.jsx"),
       },
     ],
   });

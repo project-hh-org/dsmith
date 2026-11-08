@@ -157,18 +157,19 @@ describe("planMigration", () => {
   it("CSS 변수가 아닌 카탈로그 토큰은 no-token-ref", async () => {
     const root = makeRepo({
       "package.json": JSON.stringify({ name: "x", dependencies: { react: "18" } }),
-      "src/theme.ts": "export const colors = { brand: '#3b82f6' };\n",
+      // detect가 토큰 파일로 보지 않는 이름이라 JS 테마로 읽히지 않고, 카탈로그의 토큰만 남는다(JS 테마 토큰은 js-tokens.test.ts)
+      "src/ds/brand.ts": "export const colors = { brand: '#3b82f6' };\n",
       "src/B.tsx": 'export const B = () => <div style={{ color: "#3b82f6" }} />;\n',
     });
     await auditFixture(root);
     const { createHash } = await import("node:crypto");
-    const sha = createHash("sha256").update(fs.readFileSync(path.join(root, "src/theme.ts"))).digest("hex");
+    const sha = createHash("sha256").update(fs.readFileSync(path.join(root, "src/ds/brand.ts"))).digest("hex");
     const token: Token & { file: string } = {
       name: "colors.brand",
       value: "#3b82f6",
       normalized: normalizeColor("#3b82f6")!,
       category: "color",
-      file: "src/theme.ts",
+      file: "src/ds/brand.ts",
     };
     fs.mkdirSync(path.join(root, ".dsmith"), { recursive: true });
     fs.writeFileSync(
@@ -176,7 +177,7 @@ describe("planMigration", () => {
       JSON.stringify({
         version: 1,
         dsmith: "0.0.0",
-        sources: [{ origin: "ds-local", tokenFiles: [{ file: "src/theme.ts", sha256: sha }] }],
+        sources: [{ origin: "ds-local", tokenFiles: [{ file: "src/ds/brand.ts", sha256: sha }] }],
         components: [],
         tokens: [token],
         stats: { components: 0, propsOk: 0, deprecated: 0, tokens: 1 },
