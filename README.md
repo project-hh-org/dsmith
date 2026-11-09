@@ -4,6 +4,10 @@
 
 운영 중인 코드베이스를 대상으로 디자인시스템(DS)을 진단 → 생성 → 정리 → 운영 → AI 연동까지 끌고 가는 CLI.
 
+![dsmith 흐름: 기존 코드의 하드코딩을 감지·집계하고, 토큰 초안을 만들고, AGENTS.md로 AI 에이전트에 규칙을 전달하고, CI에서 새 하드코딩을 막는다](docs/assets/dsmith-flow.gif)
+
+<sub>그림의 파일 이름과 코드는 예시다. 원본 애니메이션: [docs/assets/dsmith-flow.html](docs/assets/dsmith-flow.html)</sub>
+
 ```
 detect    # 레포를 읽어 스타일링 방식·DS 유무·시작 상태 판별 → .dsmith/detect.json
 audit     # 하드코딩 값 분포, 중복 컴포넌트, 토큰 후보 → .dsmith/reports/audit-<날짜>.md

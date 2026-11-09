@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>dsmith flow</title>
+<style>
+  html, body { margin: 0; background: #f7f5f0; }
+  body { font-family: "Noto Sans CJK KR", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif; }
+  svg { display: block; width: 1280px; height: 720px; }
+  .mono { font-family: "DejaVu Sans Mono", ui-monospace, Menlo, monospace; white-space: pre; }
+</style>
+</head>
+<body>
+<svg id="s" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+// 시간 t(초)를 받아 한 장면을 그리는 결정적 애니메이션. 브라우저에서는 rAF로 재생하고,
+// 녹화 때는 window.render(t)를 프레임마다 호출한다.
+const T = 12.0; // 모든 정보가 다 나온 8.9초 이후 약 2.6초 멈춤
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("s");
+
+const C = {
+  ink: "#1f2430", quiet: "#6b7280", line: "#b9b4aa", hard: "#f08a24", token: "#3b82f6", ok: "#16a34a",
+};
+// 컬럼은 한 가지 회색 톤. 색은 주황(하드코딩)·파랑(토큰) 두 가지에만 의미를 준다.
+const LANE = { bg: "#efece5", st: "#ddd8cd", tc: "#2b2a27" };
+const cols = [
+  { key: "code", n: "00", x: 14, w: 168, title: "codebase", cmd: "src/**", sub: "" },
+  { key: "audit", n: "01", x: 202, w: 184, title: "detect · audit", cmd: "dsmith audit", sub: "" },
+  { key: "init", n: "02", x: 406, w: 184, title: "init", cmd: "dsmith init", sub: "" },
+  { key: "install", n: "03", x: 610, w: 168, title: "install", cmd: "dsmith install", sub: "" },
+  { key: "agent", n: "04", x: 798, w: 270, title: "AI agent", cmd: "AGENTS.md → 새 코드", sub: "" },
+  { key: "guard", n: "05", x: 1088, w: 178, title: "guard", cmd: "dsmith guard --ci", sub: "" },
+].map((c) => ({ ...c, bg: LANE.bg, st: LANE.st, tc: LANE.tc }));
+// 점이 지나가는 동안 그 컬럼 테두리를 강조하는 구간(초)
+const laneActive = { code: [0, 1.0], audit: [0.9, 2.8], init: [2.7, 4.3], install: [4.2, 5.3], agent: [5.2, 7.2], guard: [7.1, 9.0] };
+const laneRects = {};
+const TOP = 104, BOT = 548, MID = 326;
+
+function el(tag, attrs = {}, parent = svg, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  parent.appendChild(e);
+  return e;
+}
+const g = (attrs = {}, parent = svg) => el("g", attrs, parent);
+function text(x, y, s, o = {}, parent = svg) {
+  return el("text", { x, y, fill: o.fill ?? C.ink, "font-size": o.size ?? 12, "font-weight": o.weight ?? 400, "text-anchor": o.anchor ?? "start", class: o.mono ? "mono" : "" }, parent, s);
+}
+function rrect(x, y, w, h, o = {}, parent = svg) {
+  return el("rect", { x, y, width: w, height: h, rx: o.rx ?? 8, fill: o.fill ?? "#fff", stroke: o.stroke ?? "#d6d3cc", "stroke-width": o.sw ?? 1, "stroke-dasharray": o.dash ?? "" }, parent);
+}
+
+// 시간 헬퍼
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const ease = (v) => { v = clamp(v); return v < 0.5 ? 2 * v * v : 1 - Math.pow(-2 * v + 2, 2) / 2; };
+const prog = (t, a, b) => ease((t - a) / (b - a));
+const anims = []; // {node, at, dur, kind}
+function appear(node, at, dur = 0.35, kind = "fade") { anims.push({ node, at, dur, kind }); return node; }
+function pulse(node, a, b) { anims.push({ node, at: a, dur: b - a, kind: "pulse" }); return node; }
+
+// ---------- 배경: 제목 줄 ----------
+rrect(14, 14, 26, 26, { fill: C.ink, stroke: "none", rx: 6 });
+text(27, 32, "ds", { size: 12, weight: 700, anchor: "middle", fill: "#f7f5f0", mono: true });
+text(50, 33, "dsmith", { size: 20, weight: 700 });
+text(124, 33, "하드코딩이 토큰이 되기까지", { size: 14, fill: C.quiet });
+
+// ---------- 컬럼 ----------
+for (const c of cols) {
+  text(c.x + 2, 66, c.n, { size: 12, weight: 700, mono: true, fill: "#a8a294" });
+  text(c.x + 26, 66, c.title, { size: 16, weight: 700, fill: c.tc });
+  const tagW = [...c.cmd].reduce((s, ch) => s + (ch.charCodeAt(0) > 255 ? 11 : 6.6), 0) + 16;
+  rrect(c.x, 76, tagW, 20, { fill: "#fff", stroke: "#ddd8cd", rx: 4 });
+  text(c.x + 8, 90, c.cmd, { size: 11, mono: true, fill: "#5f5a50" });
+  laneRects[c.key] = rrect(c.x, TOP, c.w, BOT - TOP, { fill: c.bg, stroke: c.st, sw: 1.25, rx: 10 });
+}
+const col = Object.fromEntries(cols.map((c) => [c.key, c]));
+
+// ---------- 연결선 레이어 (컬럼 위, 내용 아래) ----------
+const wires = g({ fill: "none", stroke: C.line, "stroke-width": 1.2 });
+
+// ---------- 1. Codebase: 파일 목록 ----------
+const files = ["Button.tsx", "Card.css", "Header.tsx", "Modal.tsx", "global.css", "Home.tsx · RN", "Sheet.tsx · RN", "Badge.tsx"];
+const fileDots = [];
+const hub1 = { x: col.code.x + col.code.w + 10, y: MID };
+files.forEach((name, i) => {
+  const y = 132 + i * 50;
+  const x = col.code.x + 12;
+  rrect(x, y - 15, 132, 30, { fill: "#fff", stroke: "#ddd8cd", rx: 4 });
+  text(x + 10, y + 4, name, { size: 11, mono: true });
+  const hard = el("circle", { cx: x + 120, cy: y, r: 4.5, fill: C.hard });
+  const tok = el("circle", { cx: x + 120, cy: y, r: 4.5, fill: C.token, opacity: 0 });
+  fileDots.push({ hard, tok });
+  // 직각 버스: 파일 → 오른쪽 세로 버스 → 허브
+  const bx = hub1.x - 14, dir = Math.sign(hub1.y - y), r = Math.min(6, Math.abs(hub1.y - y) / 2);
+  const d = dir === 0 ? `M${x + 132} ${y} H ${hub1.x}`
+    : `M${x + 132} ${y} H ${bx - r} Q ${bx} ${y} ${bx} ${y + dir * r} V ${hub1.y - dir * r} Q ${bx} ${hub1.y} ${bx + r} ${hub1.y} H ${hub1.x}`;
+  el("path", { d, id: `fan${i}` }, wires);
+});
+el("circle", { cx: hub1.x, cy: hub1.y, r: 3, fill: "#8d887e" }, wires);
+
+// ---------- 2. detect · audit ----------
+{
+  const c = col.audit, x = c.x + 12, w = c.w - 24;
+  rrect(x, 120, w, 96, { fill: "#fff", stroke: "#ddd8cd" });
+  text(x + 12, 142, "스타일 방식 감지", { size: 12.5, weight: 700 });
+  ["CSS", "Tailwind 4", "React Native"].forEach((s, i) => {
+    const gg = g({});
+    const cx = x + 12, cy = 154 + i * 0; // 한 줄에 배치
+    const xs = [x + 12, x + 54, x + 12][i], ys = [154, 154, 184][i], ws = [36, 78, 92][i];
+    rrect(xs, ys, ws, 22, { fill: "#2b2a27", stroke: "#2b2a27", rx: 4 }, gg);
+    text(xs + ws / 2, ys + 15, s, { size: 11, anchor: "middle", fill: "#f7f5f0", weight: 600 }, gg);
+    appear(gg, 1.0 + i * 0.22, 0.3, "pop");
+  });
+
+  rrect(x, 230, w, 196, { fill: "#fff", stroke: "#ddd8cd" });
+  text(x + 12, 252, "하드코딩 집계", { size: 12.5, weight: 700 });
+  ["#3b82f6", "13px", "#ffffff", "rgba(0,0,0,.5)", "24px"].forEach((s, i) => {
+    const gg = g({});
+    const y = 264 + i * 30;
+    rrect(x + 12, y, w - 24, 24, { fill: "#fff4e8", stroke: "#f3c08c", rx: 6 }, gg);
+    el("circle", { cx: x + 26, cy: y + 12, r: 4, fill: C.hard }, gg);
+    text(x + 38, y + 16, s, { size: 11.5, mono: true }, gg);
+    appear(gg, 1.45 + i * 0.2, 0.3, "slide");
+  });
+
+  const mg = g({});
+  rrect(x, 440, w, 92, { fill: "#fff", stroke: "#ddd8cd", dash: "4 3" }, mg);
+  text(x + 12, 462, "migrate", { size: 12.5, weight: 700 }, mg);
+  text(x + 12, 482, "기존 하드코딩을", { size: 11.5, fill: C.quiet }, mg);
+  text(x + 12, 499, "토큰 참조로 치환", { size: 11.5, fill: C.quiet }, mg);
+  text(x + 12, 520, "--apply 전엔 계획만", { size: 10.5, fill: C.quiet }, mg);
+  pulse(mg, 3.0, 3.8);
+}
+
+// ---------- 3. init ----------
+{
+  const c = col.init, x = c.x + 12, w = c.w - 24;
+  rrect(x, 120, w, 262, { fill: "#fff", stroke: "#ddd8cd" });
+  text(x + 12, 142, "토큰 초안", { size: 12.5, weight: 700 });
+  const toks = [["color.blue-400", "#3b82f6"], ["color.gray-900", "#1f2430"], ["color.surface", "#ffffff"], ["space.300", null], ["radius.md", null]];
+  toks.forEach(([name, sw], i) => {
+    const gg = g({});
+    const y = 156 + i * 42;
+    rrect(x + 12, y, w - 24, 32, { fill: "#eef4ff", stroke: "#a9c3ef", rx: 6 }, gg);
+    if (sw) rrect(x + 22, y + 9, 14, 14, { fill: sw, stroke: "#9fb6dc", rx: 3 }, gg);
+    else el("path", { d: `M${x + 22} ${y + 16}h14M${x + 22} ${y + 12}v8M${x + 36} ${y + 12}v8`, stroke: "#4f73b6", "stroke-width": 1.4, fill: "none" }, gg);
+    text(x + 44, y + 20, name, { size: 11.5, mono: true, fill: "#1d4fb8" }, gg);
+    appear(gg, 3.05 + i * 0.2, 0.3, "slide");
+  });
+  text(x + 12, 404, "산출물", { size: 11.5, weight: 700, fill: C.quiet });
+  ["W3C 토큰 JSON", "CSS 변수 --ds-*", "TS 상수 · RN 테마"].forEach((s, i) => {
+    const gg = g({});
+    const y = 414 + i * 38;
+    rrect(x + 12, y, w - 24, 28, { fill: "#fff", stroke: "#ddd8cd", rx: 4 }, gg);
+    text(x + w / 2, y + 18, s, { size: 11, anchor: "middle", fill: "#5f5a50", weight: 600 }, gg);
+    appear(gg, 4.0 + i * 0.15, 0.3, "pop");
+  });
+}
+
+// ---------- 4. install ----------
+let agentsBox;
+{
+  const c = col.install, x = c.x + 12, w = c.w - 24;
+  agentsBox = g({});
+  rrect(x, 150, w, 120, { fill: "#fff", stroke: "#2b2a27", sw: 1.4 }, agentsBox);
+  text(x + 12, 174, "AGENTS.md", { size: 13, weight: 700, mono: true }, agentsBox);
+  text(x + 12, 194, "DS 섹션 (기본)", { size: 11.5, fill: "#5f5a50", weight: 600 }, agentsBox);
+  ["· 토큰만 쓴다", "· DS 컴포넌트 먼저", "· 새 값은 토큰 추가"].forEach((s, i) => text(x + 12, 216 + i * 18, s, { size: 11, fill: C.quiet }, agentsBox));
+  pulse(agentsBox, 4.65, 5.4);
+  const opt = g({});
+  rrect(x, 300, w, 40, { fill: "none", stroke: "#b9b2a4", dash: "4 3" }, opt);
+  text(x + w / 2, 325, "--mcp (선택)", { size: 11.5, anchor: "middle", fill: "#5f5a50", mono: true }, opt);
+  rrect(x, 352, w, 40, { fill: "none", stroke: "#b9b2a4", dash: "4 3" }, opt);
+  text(x + w / 2, 377, "--skills (선택)", { size: 11.5, anchor: "middle", fill: "#5f5a50", mono: true }, opt);
+  text(x + 4, 420, "실측: 기본 설치만으로", { size: 10.5, fill: C.quiet });
+  text(x + 4, 437, "토큰 사용률이 가장 높음", { size: 10.5, fill: C.quiet });
+}
+
+// ---------- 5. AI 에이전트 ----------
+let codeLines = [];
+{
+  const c = col.agent, x = c.x + 14, w = c.w - 28;
+  ["Claude Code", "Codex", "Cursor"].forEach((s, i) => {
+    const gg = g({});
+    const xs = [x, x + 98, x + 160][i], ws = [92, 56, 60][i];
+    rrect(xs, 122, ws, 26, { fill: "#fff", stroke: "#ddd8cd", rx: 4 }, gg);
+    text(xs + ws / 2, 139, s, { size: 11, anchor: "middle", fill: "#2b2a27", weight: 600 }, gg);
+    pulse(gg, 5.7 + i * 0.12, 6.3 + i * 0.12);
+  });
+  const panel = rrect(x, 164, w, 214, { fill: "#ffffff", stroke: "#ddd8cd" });
+  text(x + 12, 186, "Card.tsx — 새로 작성", { size: 11, fill: C.quiet });
+  const lines = [
+    [".card {", C.ink],
+    ["  padding: var(--ds-space-300);", "#1d4fb8"],
+    ["  color: var(--ds-color-blue-400);", "#1d4fb8"],
+    ["  background:", C.ink],
+    ["    var(--ds-color-surface);", "#1d4fb8"],
+    ["  border-radius:", C.ink],
+    ["    var(--ds-radius-md);", "#1d4fb8"],
+    ["}", C.ink],
+  ];
+  lines.forEach(([s, fill], i) => {
+    const tn = text(x + 12, 210 + i * 20, "", { size: 10.5, mono: true, fill });
+    codeLines.push({ node: tn, full: s, at: 5.8 + i * 0.15 });
+  });
+  const result = g({});
+  rrect(x, 392, w, 40, { fill: "#f0fdf4", stroke: "#86d19b" }, result);
+  text(x + 14, 417, "하드코딩 0 · 토큰 참조만 사용", { size: 12, fill: C.ok, weight: 700 }, result);
+  appear(result, 7.05, 0.35, "pop");
+  const rn = g({});
+  rrect(x, 444, w, 88, { fill: "#fff", stroke: "#ddd8cd", dash: "4 3" }, rn);
+  text(x + 14, 466, "React Native에서는", { size: 11, fill: C.quiet }, rn);
+  text(x + 14, 488, "style={{ color: colors.primary }}", { size: 10.5, mono: true, fill: "#1d4fb8" }, rn);
+  text(x + 14, 510, "JS 테마 객체를 토큰으로 쓴다", { size: 11, fill: C.quiet }, rn);
+  appear(rn, 7.2, 0.35, "fade");
+}
+
+// ---------- 6. guard ----------
+{
+  const c = col.guard, x = c.x + 12, w = c.w - 24;
+  rrect(x, 120, w, 70, { fill: "#fff", stroke: "#ddd8cd" });
+  text(x + 12, 144, "guard --ci", { size: 12.5, weight: 700, mono: true });
+  text(x + 12, 166, "PR diff 검사 · ESLint", { size: 11, fill: C.quiet });
+  const rows = [
+    ["새 하드코딩", "0건", C.ok],
+    ["토큰 참조", "통과", C.ok],
+    ["DS 컴포넌트", "통과", C.ok],
+  ];
+  rows.forEach(([a, b, color], i) => {
+    const gg = g({});
+    const y = 206 + i * 40;
+    rrect(x, y, w, 30, { fill: "#fff", stroke: "#ddd8cd", rx: 6 }, gg);
+    el("path", { d: `M${x + 11} ${y + 15}l4 4l8 -9`, stroke: color, "stroke-width": 2, fill: "none", "stroke-linecap": "round" }, gg);
+    text(x + 30, y + 19, a, { size: 11.5 }, gg);
+    text(x + w - 10, y + 19, b, { size: 11.5, anchor: "end", fill: color, weight: 700 }, gg);
+    appear(gg, 7.75 + i * 0.22, 0.3, "slide");
+  });
+  const pass = g({});
+  rrect(x + 10, 340, w - 20, 40, { fill: C.ok, stroke: C.ok, rx: 20 }, pass);
+  text(x + w / 2, 365, "PR 통과", { size: 13, anchor: "middle", fill: "#fff", weight: 700 }, pass);
+  appear(pass, 8.5, 0.35, "pop");
+  const blocked = g({});
+  rrect(x, 404, w, 74, { fill: "#fff", stroke: "#ddd8cd", dash: "4 3" }, blocked);
+  text(x + 12, 426, "하드코딩이 들어오면", { size: 11, fill: C.quiet }, blocked);
+  text(x + 12, 446, "color: #3b82f6", { size: 10.5, mono: true, fill: "#c2410c" }, blocked);
+  text(x + 12, 466, "→ color.blue-400 제안", { size: 10.5, mono: true, fill: "#1d4fb8" }, blocked);
+}
+
+// ---------- 컬럼 사이 연결 ----------
+const seg = (id, d) => el("path", { id, d, "marker-end": "url(#arr)" }, wires);
+el("defs", {}, svg).innerHTML = `<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${C.line}"/></marker>`;
+// 직각 연결(모서리 둥글게): (x1,y1) → 가운데 x에서 꺾어 → (x2,y2)
+function elbow(x1, y1, x2, y2) {
+  const mx = (x1 + x2) / 2, dir = Math.sign(y2 - y1), r = Math.min(6, Math.abs(y2 - y1) / 2);
+  if (dir === 0) return `M${x1} ${y1} H ${x2}`;
+  return `M${x1} ${y1} H ${mx - r} Q ${mx} ${y1} ${mx} ${y1 + dir * r} V ${y2 - dir * r} Q ${mx} ${y2} ${mx + r} ${y2} H ${x2}`;
+}
+seg("w1", elbow(hub1.x, MID, col.audit.x + 12, 250));
+seg("w2", elbow(col.audit.x + col.audit.w - 12, 250, col.init.x + 12, 200));
+seg("w3", elbow(col.init.x + col.init.w - 12, 250, col.install.x + 12, 210));
+seg("w4", elbow(col.install.x + col.install.w - 12, 210, col.agent.x + 14, 260));
+seg("w5", elbow(col.agent.x + col.agent.w - 14, 260, col.guard.x + 12, 155));
+// migrate 루프: audit 아래 → 코드베이스로 되돌아감
+const loopD = `M${col.audit.x + col.audit.w / 2} 532 V 594 Q ${col.audit.x + col.audit.w / 2} 600 ${col.audit.x + col.audit.w / 2 - 6} 600 H ${col.code.x + col.code.w / 2 + 6} Q ${col.code.x + col.code.w / 2} 600 ${col.code.x + col.code.w / 2} 594 V ${BOT + 2}`;
+el("path", { id: "loop", d: loopD, "stroke-dasharray": "5 4", stroke: C.hard, "marker-end": "url(#arr)" }, wires);
+text(col.audit.x + 10, 624, "dsmith migrate --apply  기존 코드의 하드코딩을 토큰으로 치환", { size: 11.5, fill: "#c2410c", mono: true });
+
+// ---------- 범례 ----------
+{
+  const y = 680;
+  el("circle", { cx: 22, cy: y - 4, r: 5, fill: C.hard });
+  text(32, y, "하드코딩 값", { size: 11.5, fill: C.quiet });
+  el("circle", { cx: 118, cy: y - 4, r: 5, fill: C.token });
+  text(128, y, "토큰 참조", { size: 11.5, fill: C.quiet });
+  rrect(204, y - 11, 14, 14, { fill: "none", stroke: "#999", dash: "3 2", rx: 3 });
+  text(224, y, "선택 설치", { size: 11.5, fill: C.quiet });
+  text(1266, y, "npx dsmith audit · github.com/project-hh-org/dsmith", { size: 11.5, anchor: "end", fill: C.quiet });
+}
+
+// ---------- 흐르는 점 ----------
+const dotLayer = g({});
+function mover(pathId, color, at, dur, r = 5) {
+  const p = document.getElementById(pathId);
+  const len = p.getTotalLength();
+  const c = el("circle", { r, fill: color, opacity: 0 }, dotLayer);
+  movers.push({ p, len, c, at, dur });
+}
+const movers = [];
+files.forEach((_, i) => mover(`fan${i}`, C.hard, 0.15 + i * 0.1, 0.75, 4.5));
+for (let k = 0; k < 3; k++) mover("w1", C.hard, 0.95 + k * 0.12, 0.5, 4.5);
+for (let k = 0; k < 3; k++) mover("w2", C.hard, 2.55 + k * 0.1, 0.55, 4.5);
+for (let k = 0; k < 3; k++) mover("w3", C.token, 4.15 + k * 0.1, 0.5);
+for (let k = 0; k < 3; k++) mover("w4", C.token, 5.15 + k * 0.1, 0.5);
+for (let k = 0; k < 3; k++) mover("w5", C.token, 7.1 + k * 0.1, 0.55);
+// migrate 루프를 따라가는 칩
+const loopP = document.getElementById("loop");
+const loopLen = loopP.getTotalLength();
+const chip = g({ opacity: 0 }, dotLayer);
+const chipRect = rrect(-50, -12, 100, 24, { fill: "#fff4e8", stroke: "#f3c08c", rx: 12 }, chip);
+const chipText = text(0, 4, "#3b82f6", { size: 11, mono: true, anchor: "middle", fill: "#c2410c" }, chip);
+
+// 화면 전체 페이드(루프 이음새)
+const veil = rrect(0, 0, 1280, 720, { fill: "#fff", stroke: "none", rx: 0 });
+
+// ---------- render ----------
+function render(t) {
+  for (const [k, [a, b]] of Object.entries(laneActive)) {
+    const on = t >= a && t < b;
+    laneRects[k].setAttribute("stroke", on ? (k === "code" || k === "audit" ? C.hard : C.token) : LANE.st);
+    laneRects[k].setAttribute("stroke-width", on ? 2 : 1.25);
+  }
+  // 루프 이음새: 화면 전체를 덮지 않고, 나타난 요소만 마지막 0.5초에 처음 상태로 되돌린다
+  const out = 1 - prog(t, T - 0.5, T);
+  for (const a of anims) {
+    const v = prog(t, a.at, a.at + a.dur) * out;
+    if (a.kind === "pulse") {
+      const mid = (a.at + a.at + a.dur) / 2;
+      const k = t < a.at || t > a.at + a.dur ? 0 : 1 - Math.abs(t - mid) / (a.dur / 2);
+      a.node.setAttribute("style", `filter: drop-shadow(0 0 ${8 * k}px rgba(59,130,246,${0.8 * k}))`);
+      continue;
+    }
+    a.node.setAttribute("opacity", v.toFixed(3));
+    if (a.kind === "slide") a.node.setAttribute("transform", `translate(${(-10 * (1 - v)).toFixed(2)} 0)`);
+    if (a.kind === "pop") {
+      const bb = a.node.getBBox(), cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2, s = 0.85 + 0.15 * v;
+      a.node.setAttribute("transform", `translate(${cx} ${cy}) scale(${s.toFixed(3)}) translate(${-cx} ${-cy})`);
+    }
+  }
+  for (const m of movers) {
+    const v = (t - m.at) / m.dur;
+    if (v < 0 || v > 1) { m.c.setAttribute("opacity", 0); continue; }
+    const pt = m.p.getPointAtLength(ease(v) * m.len);
+    m.c.setAttribute("cx", pt.x.toFixed(2));
+    m.c.setAttribute("cy", pt.y.toFixed(2));
+    m.c.setAttribute("opacity", (v < 0.1 ? v / 0.1 : v > 0.9 ? (1 - v) / 0.1 : 1).toFixed(3));
+  }
+  // migrate 칩: 3.3s 출발 → 5.6s 도착, 중간에 토큰으로 바뀜
+  {
+    const v = (t - 3.3) / 2.3;
+    if (v < 0 || v > 1.08) chip.setAttribute("opacity", 0);
+    else {
+      const pt = loopP.getPointAtLength(ease(Math.min(v, 1)) * loopLen);
+      chip.setAttribute("transform", `translate(${pt.x.toFixed(2)} ${pt.y.toFixed(2)})`);
+      chip.setAttribute("opacity", (v < 0.08 ? v / 0.08 : v > 1 ? (1.08 - v) / 0.08 : 1).toFixed(3));
+      const swapped = v > 0.5;
+      chipText.textContent = swapped ? "color.blue-400" : "#3b82f6";
+      chipText.setAttribute("fill", swapped ? "#1d4fb8" : "#c2410c");
+      chipRect.setAttribute("fill", swapped ? "#eef4ff" : "#fff4e8");
+      chipRect.setAttribute("stroke", swapped ? "#a9c3ef" : "#f3c08c");
+    }
+  }
+  // 코드베이스 파일 점: 도착 후 하드코딩 → 토큰
+  fileDots.forEach((d, i) => {
+    const v = prog(t, 5.6 + i * 0.09, 5.9 + i * 0.09) * out;
+    d.hard.setAttribute("opacity", (1 - v).toFixed(3));
+    d.tok.setAttribute("opacity", v.toFixed(3));
+  });
+  // 코드 타이핑
+  for (const l of codeLines) {
+    const n = Math.round(clamp((t - l.at) / 0.25) * l.full.length);
+    l.node.textContent = l.full.slice(0, n);
+    l.node.setAttribute("opacity", out.toFixed(3));
+  }
+  veil.setAttribute("opacity", 0);
+}
+window.render = render;
+window.DURATION = T;
+
+if (!new URLSearchParams(location.search).has("record")) {
+  const start = performance.now();
+  const loop = (now) => { render(((now - start) / 1000) % T); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+} else {
+  render(0);
+}
+</script>
+</body>
+</html>
