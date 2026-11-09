@@ -16,20 +16,20 @@ migrate   # 하드코딩 값을 토큰 참조로, 결정된 중복 컴포넌트�
 guard     # 하드코딩이 다시 늘지 않게 ESLint 규칙·PR diff 검사 설정 → .dsmith/guard.json
 ```
 
-> **MVP 상태:** 구현: `detect`·`audit`·`install`·`mcp`·`decide`·`init`·`ai`·`migrate`·`guard`. 계획: `usage`(사용량 대시보드) — [설계 스펙](docs/superpowers/specs/2026-10-31-ds-cli-design.md) 참고.
+> **상태:** 구현: `detect`·`audit`·`install`·`mcp`·`decide`·`init`·`ai`·`migrate`·`guard`. 계획: `usage`(사용량 대시보드) — [설계 스펙](docs/superpowers/specs/2026-10-31-ds-cli-design.md) 참고.
 
-0.1.0 배포 전까지는 빌드한 뒤 직접 실행한다. 배포는 릴리스 PR(`chore: 버전 올림`)을 머지하면 GitHub Actions가 자동으로 하며, 절차는 [docs/release.md](docs/release.md)에 있다.
+npm에 배포돼 있어 설치 없이 실행할 수 있다.
+
+```
+npx dsmith audit        # 또는: pnpm dlx dsmith audit
+```
+
+이 레포를 개발할 때는 빌드한 바이너리를 직접 실행한다. 배포는 릴리스 PR(`chore: 버전 올림`)을 머지하면 GitHub Actions가 자동으로 하며, 절차는 [docs/release.md](docs/release.md)에 있다.
 
 ```
 pnpm install && pnpm -r build
 node packages/cli/dist/bin.js detect --root <repo>
 node packages/cli/dist/bin.js audit --root <repo>
-```
-
-0.1.0 배포 후에는 설치 없이 실행할 수 있다.
-
-```
-npx dsmith audit        # 또는: pnpm dlx dsmith audit
 ```
 
 ## DS 초안 (init · ai)
@@ -277,7 +277,7 @@ MCP 서버 `dsmith`(`npx -y dsmith@<설치된 0.x 마이너> mcp` — 0.x는 마
 
 ### 로컬 개발에서 MCP 붙이기
 
-배포 전(또는 이 레포를 개발하는 동안)에는 `npx dsmith`로 받을 패키지가 없다. 빌드한 바이너리를 `--mcp-command`로 주면 **MCP 서버 실행 명령과 슬래시 명령·`AGENTS.md` 안의 CLI 호출이 모두 그 빌드**를 쓴다. `package.json` 버전이 `0.0.0`인 로컬 빌드에서는 `--mcp-command`가 필수이고, 빠지면 이 빌드의 `dist/bin.js` 경로가 든 실행 예가 오류로 나온다.
+이 레포를 개발하는 동안에는 `npx dsmith`가 npm의 배포본을 받으므로 작업 중인 코드가 아니다. 빌드한 바이너리를 `--mcp-command`로 주면 **MCP 서버 실행 명령과 슬래시 명령·`AGENTS.md` 안의 CLI 호출이 모두 그 빌드**를 쓴다. `package.json` 버전이 `0.0.0`인 로컬 빌드에서는 `--mcp-command`가 필수이고, 빠지면 이 빌드의 `dist/bin.js` 경로가 든 실행 예가 오류로 나온다.
 
 ```
 pnpm install && pnpm -r build

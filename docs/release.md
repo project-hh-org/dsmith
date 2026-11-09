@@ -1,6 +1,6 @@
 # 릴리스 절차
 
-`dsmith`와 `@dsmith-dev/*` 패키지는 changesets의 fixed 그룹이라 항상 같은 버전으로 올라간다. 첫 게시(0.1.0)는 이미 끝났다. 대기 중인 changeset(`ai-surface`·`ds-draft`·`migrate-guard`)은 다음 릴리스를 0.2.0으로 올리고, 3b(ai-surface·ds-draft)와 4a(migrate-guard)가 한 번에 나간다. 계획마다 따로 minor를 내려면 3b를 먼저 릴리스해야 한다.
+`dsmith`와 `@dsmith-dev/*` 패키지는 changesets의 fixed 그룹이라 항상 같은 버전으로 올라간다. 현재 npm 최신은 0.5.0이고 패키지는 18개다(0.1.0 첫 게시 이후 0.2.0·0.2.1·0.3.0·0.4.0·0.5.0).
 
 ## 절차
 
@@ -8,8 +8,8 @@
 2. PR을 올린다. CI(`ci.yml`, Node 20·22)가 install(frozen)·build·test·typecheck를 돌린다.
 3. PR을 `main`에 머지한다.
 4. `release.yml`이 `chore: 버전 올림 (Version Packages)` PR을 만들거나 갱신한다. 버전·CHANGELOG 변경이 여기에 모인다. 이 PR을 머지한다.
-5. 머지된 `main`에서 `release.yml`이 `pnpm release`(`pnpm build && pnpm publish -r && changeset tag`)를 실행해 npm에 게시하고 git 태그를 만든다. `pnpm publish -r`을 쓰는 이유: `changeset publish`는 `npm publish`를 호출해 `workspace:*`를 실제 버전으로 치환하지 못한다(pnpm 공식 안내). npm 패키지 페이지에서 새 버전과 provenance 배지를 확인한다.
-6. 게시가 일어난 실행(`changesets/action`의 `published` 출력이 `true`)에서만 마지막 단계 "릴리스 태그 push"가 `git push origin --tags`로 5단계에서 만든 태그(`dsmith@0.2.0`처럼 패키지마다 하나)를 GitHub에 올린다. 워크플로의 `contents: write` 권한이 필요하다. 게시할 것이 없는 실행(Version Packages PR만 만든 실행)에서는 이 단계가 건너뛰어진다. 태그 push만 실패했다면 게시된 버전은 그대로 두고, 다시 실행하면 게시가 없어 `published`가 `false`가 되어 단계가 건너뛰어지므로 해당 커밋에서 `git tag`로 빠진 태그를 만들어 `git push origin <태그>`로 올린다.
+5. 머지된 `main`에서 `release.yml`이 `pnpm release`(`pnpm build && node scripts/publish.mjs && changeset tag`)를 실행해 npm에 게시하고 git 태그를 만든다. `scripts/publish.mjs`는 패키지마다 레지스트리에 그 버전이 이미 있는지 먼저 보고 없는 것만 `pnpm publish`로 올린다. 반영 지연으로 409(previously published)가 나도 "이미 있음"으로 넘어간다. `pnpm publish`를 쓰는 이유: `changeset publish`는 `npm publish`를 호출해 `workspace:*`를 실제 버전으로 치환하지 못한다(pnpm 공식 안내). npm 패키지 페이지에서 새 버전과 provenance 배지를 확인한다.
+6. 대기 중인 changeset이 없는 실행(`hasChangesets`가 `false`)에서 마지막 단계 "릴리스 태그 push"가 `git push origin --tags`로 5단계에서 만든 태그(`dsmith@0.5.0`처럼 패키지마다 하나)를 GitHub에 올린다. 이미 있는 태그는 그대로 두므로 게시가 없는 실행에서도 안전하다. 워크플로의 `contents: write` 권한이 필요하다. Version Packages PR만 만든 실행에서는 이 단계가 건너뛰어진다.
 
 `pnpm changeset status --verbose`로 대기 중인 changeset과 예정 버전을 미리 볼 수 있다. `changeset version`·`changeset publish`는 로컬에서 실행하지 않는다(릴리스 PR과 Actions가 한다).
 
@@ -32,11 +32,11 @@ provenance는 `NPM_CONFIG_PROVENANCE=true`와 워크플로의 `id-token: write`�
 
 ## 새 패키지의 첫 게시
 
-React Native 지원(`.changeset/react-native.md`)이 나가는 릴리스에는 npm에 아직 없는 새 패키지 `@dsmith-dev/extractor-react-native`가 처음 올라간다(fixed 그룹이라 다른 패키지와 같은 버전으로 오른다). 이때 다음을 확인한다.
+npm에 아직 없는 새 패키지(예: 0.4.0의 `@dsmith-dev/extractor-react-native`)가 처음 올라가는 릴리스에서는 다음을 확인한다. fixed 그룹이라 새 패키지도 다른 패키지와 같은 버전으로 오른다.
 
 - `NPM_TOKEN`이 `dsmith-dev` org의 **"All packages"** 권한이어야 한다. 위 "토큰 권한"처럼 기존 패키지를 하나씩 고른 토큰은 아직 없는 패키지를 만들 수 없어 5단계 게시가 권한 오류로 실패한다. 릴리스 PR을 머지하기 전에 토큰을 바꾼다.
 - trusted publishing은 패키지가 npm에 있어야 등록할 수 있다. 새 패키지는 첫 게시 뒤에 Settings → Trusted Publisher를 등록한다(아래 "trusted publishing으로 옮기기"). 모든 패키지를 trusted publishing으로 옮긴 뒤에 새 패키지를 더하는 릴리스라면 첫 게시만 `NPM_TOKEN`으로 하고, 게시 뒤 그 패키지를 등록한다.
-- 게시 전에 `npm view @dsmith-dev/extractor-react-native`가 404인지(이름이 비어 있는지) 확인한다. 첫 게시 일부만 실패해도 "게시가 실패했을 때"의 재실행으로 이어서 올릴 수 있다.
+- 게시 전에 `npm view <새 패키지>`가 404인지(이름이 비어 있는지) 확인한다. 첫 게시 일부만 실패해도 "게시가 실패했을 때"의 재실행으로 이어서 올릴 수 있다.
 
 ## 게시가 실패했을 때
 
