@@ -1,5 +1,13 @@
 # @dsmith-dev/detect
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [[`54762c2`](https://github.com/project-hh-org/dsmith/commit/54762c253aed6215db885420ccaa1eca3f070e26)]:
+  - @dsmith-dev/core@0.5.0
+  - @dsmith-dev/extractor-api@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

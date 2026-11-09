@@ -1,6 +1,6 @@
 {
   "name": "@dsmith-dev/extractor-react-native",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "dsmith extractor for React Native StyleSheet, style arrays and Platform.select",
   "keywords": ["design-system", "dsmith", "extractor", "react-native", "stylesheet", "expo"],
   "license": "MIT",
