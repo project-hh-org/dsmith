@@ -1,5 +1,12 @@
 # @dsmith-dev/agent-skill
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [[`9c14fe7`](https://github.com/project-hh-org/dsmith/commit/9c14fe7e59205d02d32cc6002e43d83b276735b0)]:
+  - @dsmith-dev/core@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes
