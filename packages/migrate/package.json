@@ -1,6 +1,6 @@
 {
   "name": "@dsmith-dev/migrate",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "dsmith migrate: replace hardcoded style values with design tokens, reversibly",
   "keywords": ["design-system", "dsmith", "migrate", "design-tokens"],
   "license": "MIT",
