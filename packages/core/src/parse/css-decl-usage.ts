@@ -152,6 +152,25 @@ function classify(prop: string, value: string): Classified {
   return { property, ...whole, normalized: UNKNOWN, source: "hardcoded" };
 }
 
+/**
+ * `classify`와 같지만, 하드코딩 길이 속성이면 길이로 읽히는 피연산자를 모두 돌려준다.
+ * `padding: 8px 16px` → 8px·16px, `margin: auto 16px` → 16px(첫 피연산자가 길이가 아니어도 뒤를 놓치지 않는다).
+ * 길이로 읽히는 피연산자가 없으면(`calc(…)`, `50%`) `classify` 결과 하나.
+ */
+function classifyAll(prop: string, value: string): Classified[] {
+  const first = classify(prop, value);
+  const property = cssPropertyToStyleProperty(prop);
+  // 축약 색 분리(border 등)나 token 판정은 classify 결과 그대로
+  if (first.source !== "hardcoded" || first.property !== property || !isLengthProperty(property)) return [first];
+  const lengths: Classified[] = [];
+  for (const t of tokenize(value)) {
+    if (OPERATOR.test(t.text) || TOKEN_REF.test(t.text)) continue;
+    const px = normalizeLength(t.text);
+    if (px !== null) lengths.push({ property, from: t.from, to: t.to, normalized: { kind: "length", px }, source: "hardcoded" });
+  }
+  return lengths.length === 0 ? [first] : lengths;
+}
+
 export interface ClassifyOptions {
   file: string;
   extractor: string;
@@ -161,6 +180,23 @@ export interface ClassifyOptions {
   lineOf(offset: number): { line: number; column: number };
 }
 
+export type ClassifiedDeclaration = { usage: StyleUsage; patch: { start: number; end: number } | null };
+
+function toResult(decl: CssDecl, opts: ClassifyOptions, c: Classified): ClassifiedDeclaration {
+  const start = decl.start + c.from;
+  const end = decl.start + c.to;
+  const usage: StyleUsage = {
+    file: opts.file,
+    ...opts.lineOf(start),
+    property: c.property,
+    raw: opts.code.slice(start, end),
+    normalized: c.normalized,
+    source: c.source,
+    extractor: opts.extractor,
+  };
+  return { usage, patch: c.source === "hardcoded" ? { start, end } : null };
+}
+
 /**
  * CSS 선언 하나를 StyleUsage로 분류한다(순수 함수).
  * - dynamic: 값 구간 전체, 패치 없음
@@ -168,11 +204,9 @@ export interface ClassifyOptions {
  * - 축약(`border: 1px solid #000`): 색 토큰 구간만, 길이 속성: 처음 나오는 하드코딩 토큰 구간만
  * - 끝의 `!important`는 떼고 판정한다. 떼고 나서 값이 비면 null.
  * 하드코딩 usage에만 `patch`(치환할 `code` 구간)를 돌려준다.
+ * 길이 축약의 모든 피연산자가 필요하면 `classifyDeclarationAll`을 쓴다(추출기는 그쪽을 쓴다).
  */
-export function classifyDeclaration(
-  decl: CssDecl,
-  opts: ClassifyOptions,
-): { usage: StyleUsage; patch: { start: number; end: number } | null } | null {
+export function classifyDeclaration(decl: CssDecl, opts: ClassifyOptions): ClassifiedDeclaration | null {
   if (decl.dynamic) {
     const usage: StyleUsage = {
       file: opts.file,
@@ -189,17 +223,19 @@ export function classifyDeclaration(
   const value = decl.value.replace(IMPORTANT, "");
   if (value === "") return null;
 
-  const c = classify(decl.property, value);
-  const start = decl.start + c.from;
-  const end = decl.start + c.to;
-  const usage: StyleUsage = {
-    file: opts.file,
-    ...opts.lineOf(start),
-    property: c.property,
-    raw: opts.code.slice(start, end),
-    normalized: c.normalized,
-    source: c.source,
-    extractor: opts.extractor,
-  };
-  return { usage, patch: c.source === "hardcoded" ? { start, end } : null };
+  return toResult(decl, opts, classify(decl.property, value));
+}
+
+/**
+ * `classifyDeclaration`과 같은 규칙이되, 하드코딩 길이 축약(`padding: 8px 16px`)은 길이 피연산자마다 usage·패치를 하나씩 낸다.
+ * 그 밖의 선언은 `classifyDeclaration` 결과 하나(값이 비면 빈 배열).
+ */
+export function classifyDeclarationAll(decl: CssDecl, opts: ClassifyOptions): ClassifiedDeclaration[] {
+  if (decl.dynamic) {
+    const one = classifyDeclaration(decl, opts);
+    return one === null ? [] : [one];
+  }
+  const value = decl.value.replace(IMPORTANT, "");
+  if (value === "") return [];
+  return classifyAll(decl.property, value).map((c) => toResult(decl, opts, c));
 }

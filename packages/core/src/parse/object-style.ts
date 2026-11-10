@@ -1,7 +1,7 @@
 import type { StyleProperty, StyleUsage } from "@dsmith-dev/extractor-api";
 import type { Expression, NumericLiteral, ObjectExpression, ObjectProperty, PatternLike, StringLiteral } from "@babel/types";
 import { cssPropertyToStyleProperty, isLengthProperty } from "../model/css-property.js";
-import { classifyDeclaration, lineLocator } from "./css-decl-usage.js";
+import { classifyDeclaration, classifyDeclarationAll, lineLocator } from "./css-decl-usage.js";
 
 function propertyKeyName(prop: ObjectProperty): string | null {
   if (prop.computed) return null;
@@ -76,19 +76,25 @@ export interface StyleObjectUsage {
  * 선언 값은 따옴표 안의 소스 텍스트다. 이스케이프가 없으면 `value.value`와 같고, 있어도 구간이 원본 오프셋과 1:1로 맞는다.
  */
 function fromString(ctx: StyleObjectContext, key: string, value: StringLiteral, start: number, end: number): StyleObjectUsage | null {
+  return fromStringAll(ctx, key, start, end, false)[0] ?? null;
+}
+
+/** `all`이면 길이 축약(`"8px 16px"`)의 피연산자마다 하나씩(`classifyDeclarationAll`), 아니면 `classifyDeclaration` 결과 하나. */
+function fromStringAll(ctx: StyleObjectContext, key: string, start: number, end: number, all: boolean): StyleObjectUsage[] {
   const inner = ctx.code.slice(start + 1, end - 1);
   const lead = inner.length - inner.trimStart().length;
   const text = inner.trim();
   const valueStart = start + 1 + lead;
-  const result = classifyDeclaration(
-    { property: key, value: text, start: valueStart, end: valueStart + text.length, dynamic: false },
-    { file: ctx.file, extractor: ctx.extractor, code: ctx.code, lineOf: locatorFor(ctx.code) },
-  );
-  if (result === null) return null;
-  if (result.patch === null) return { usage: result.usage, patch: null };
-  const patch: StyleObjectPatch = { ...result.patch, quote: false };
-  if (result.patch.start === start + 1 && result.patch.end === end - 1) patch.literal = { start, end };
-  return { usage: result.usage, patch };
+  const decl = { property: key, value: text, start: valueStart, end: valueStart + text.length, dynamic: false };
+  const opts = { file: ctx.file, extractor: ctx.extractor, code: ctx.code, lineOf: locatorFor(ctx.code) };
+  const one = all ? null : classifyDeclaration(decl, opts);
+  const results = all ? classifyDeclarationAll(decl, opts) : one === null ? [] : [one];
+  return results.map((result) => {
+    if (result.patch === null) return { usage: result.usage, patch: null };
+    const patch: StyleObjectPatch = { ...result.patch, quote: false };
+    if (result.patch.start === start + 1 && result.patch.end === end - 1) patch.literal = { start, end };
+    return { usage: result.usage, patch };
+  });
 }
 
 function buildUsage(ctx: StyleObjectContext, key: string, value: Expression | PatternLike): StyleObjectUsage | null {
@@ -158,6 +164,11 @@ export function usagesFromStyleObject(obj: ObjectExpression, ctx: StyleObjectCon
     const value = prop.value;
     const defaultClassify = (asKey: string = key): StyleObjectUsage | null => buildUsage(ctx, asKey, value);
     const override = ctx.classify?.(key, value, defaultClassify);
+    if (override === undefined && value.type === "StringLiteral" && value.start != null && value.end != null) {
+      // 기본 분류의 문자열 값은 길이 축약의 피연산자를 모두 낸다. override 훅은 usage 하나를 돌려주는 계약이라 첫 피연산자만 본다.
+      results.push(...fromStringAll(ctx, key, value.start, value.end, true));
+      continue;
+    }
     const result = override === undefined ? defaultClassify() : override;
     if (result !== null) results.push(result);
   }

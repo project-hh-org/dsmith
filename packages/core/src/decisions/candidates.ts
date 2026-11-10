@@ -38,11 +38,11 @@ export function isTokenClusterStale(hardcodedHexes: Set<string>, chosen: string,
   return !hardcodedHexes.has(chosen) && options.some((o) => o !== chosen && hardcodedHexes.has(o));
 }
 
-/** index에 hardcoded 색으로 남아 있는 hex 집합 */
+/** index에 hardcoded 불투명 색으로 남아 있는 hex 집합(반투명은 색 클러스터 밖이라 뺀다) */
 export function hardcodedColorHexes(index: Index): Set<string> {
   const hexes = new Set<string>();
   for (const u of index.styles) {
-    if (u.source === "hardcoded" && u.normalized.kind === "color") hexes.add(u.normalized.hex);
+    if (u.source === "hardcoded" && u.normalized.kind === "color" && u.normalized.alpha === undefined) hexes.add(u.normalized.hex);
   }
   return hexes;
 }

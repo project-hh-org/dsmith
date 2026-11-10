@@ -7,7 +7,7 @@ exports[`examples/legacy-demo > Tailwind·inline·CSS가 섞인 데모 어드민
 - 날짜: <date>
 - state: 1
 - provisional: false
-- 분석한 파일: 26개 (스타일 사용 213, 컴포넌트 사용 33)
+- 분석한 파일: 26개 (스타일 사용 215, 컴포넌트 사용 33)
 - 동적 값: 10
 - JS 테마 참조: 3개 (src/lib/theme.ts)
 
@@ -15,7 +15,7 @@ exports[`examples/legacy-demo > Tailwind·inline·CSS가 섞인 데모 어드민
 
 산식: 100 × (0.5×(1−hardcodedShare) + 0.3×dsImportShare + 0.2×max(0, 1−duplicateCount/10))
 
-- hardcodedShare: 0.3368
+- hardcodedShare: 0.3438
 - dsImportShare: 0.0909
 - duplicateCount: 2
 
@@ -24,7 +24,7 @@ exports[`examples/legacy-demo > Tailwind·inline·CSS가 섞인 데모 어드민
 | 대표 hex | 사용 수 | 제안 이름 | 변종 |
 | --- | --- | --- | --- |
 | #3b82f6 | 12 | blue-400 | #3b82f6 ×7, #2f7bee ×3, #3a81f5 ×1, #3c83f7 ×1 |
-| #111827 | 5 | gray-900 | #111827 ×5 |
+| #111827 | 4 | gray-900 | #111827 ×4 |
 | #e53e3e | 4 | red-500 | #e53e3e ×2, #ef4444 ×1, #f04545 ×1 |
 | #f9fafb | 4 | gray-50 | #f9fafb ×2, #ffffff ×2 |
 | #6b7280 | 3 | gray-500 | #6b7280 ×3 |
@@ -38,7 +38,8 @@ exports[`examples/legacy-demo > Tailwind·inline·CSS가 섞인 데모 어드민
 | 10 | 3 | 벗어남 |
 | 13 | 3 | 벗어남 |
 | 22 | 3 | 벗어남 |
-| 8 | 1 | 4px 배수 |
+| 8 | 2 | 4px 배수 |
+| 24 | 1 | 4px 배수 |
 | 2 | 1 | 벗어남 |
 | 3 | 1 | 벗어남 |
 | 7 | 1 | 벗어남 |
@@ -81,10 +82,10 @@ exports[`examples/legacy-demo > Tailwind·inline·CSS가 섞인 데모 어드민
 
 | 파일 | 하드코딩 수 |
 | --- | --- |
-| src/components/Topbar.tsx | 10 |
+| src/components/Topbar.tsx | 11 |
 | app/globals.css | 7 |
 | app/products/[id]/page.tsx | 5 |
-| src/components/common/StatusBadge.tsx | 4 |
+| src/components/common/StatusBadge.tsx | 5 |
 | src/components/KpiCard.tsx | 4 |
 | src/components/Modal.tsx | 4 |
 | app/settings/page.tsx | 3 |

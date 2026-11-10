@@ -53,6 +53,16 @@ describe("buildTokenDraft", () => {
     expect(ignored.chosen).toBeUndefined();
   });
 
+  it("colorChoices로 고른 색 토큰에 같은 hex의 반투명 사용처 alpha가 새지 않는다", () => {
+    // 반투명 사용처가 먼저 나와도 토큰은 불투명이어야 불투명 사용처를 모두 바꿀 수 있다
+    const usages = [color("rgba(17,24,39,0.5)"), color("#111827"), color("#111827"), color("#121828")];
+    const key = colorTokenNames(clusterColors(usages))[0]!;
+    const token = buildTokenDraft(usages, { colorChoices: { [key]: "#111827" } }).tokens[0]!;
+    expect(token.normalized).not.toHaveProperty("alpha");
+    const coverage = draftCoverage(usages.slice(1), draftToTokens(buildTokenDraft(usages, { colorChoices: { [key]: "#111827" } })));
+    expect(coverage.replaceable).toBe(3);
+  });
+
   it("간격은 4px 배수만 토큰이 되고 오프스케일은 가장 가까운 토큰으로 매핑한다", () => {
     const draft = buildTokenDraft([8, 8, 16, 13].map((px) => len(px, "padding")));
     const space = draft.tokens.filter((t) => t.group === "space");

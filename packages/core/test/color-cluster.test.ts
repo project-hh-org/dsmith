@@ -116,6 +116,15 @@ describe("clusterColors", () => {
   });
 });
 
+describe("clusterColors 반투명", () => {
+  it("반투명 사용처는 같은 hex의 불투명 색 개수에 더하지 않는다", () => {
+    const clusters = clusterColors([...repeat("#000000", 3), ...repeat("rgba(0,0,0,0.08)", 5)]);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]?.total).toBe(3);
+    expect(clusters[0]?.members).toEqual([{ hex: "#000000", count: 3 }]);
+  });
+});
+
 describe("clusterColors hue 구간", () => {
   const nameOf = (css: string) => clusterColors(repeat(css, 1))[0]?.suggestedName.split("-")[0];
 

@@ -70,6 +70,8 @@ describe("inlineStyleExtractor.write: 점수 대상이 아닌 usage", () => {
       ["other", true],
       ["other", true],
       ["width", true],
+      // "13px 8px"는 피연산자마다 usage(13px·8px)
+      ["padding", false],
       ["padding", false],
     ]);
   });

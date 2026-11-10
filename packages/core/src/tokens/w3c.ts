@@ -7,7 +7,7 @@
  * fontSize·borderRadius 타입은 없으므로 모두 dimension으로 쓴다. 확장 키는 역도메인 "dev.dsmith".
  * 읽기는 2025 이전 초안의 문자열 값("#3b82f6", "8px")도 받는다.
  */
-import { converter, parse } from "culori";
+import { converter, formatHex8, parse, parseHex } from "culori";
 import type { Token } from "../model/token.js";
 import { normalizeColor } from "../normalize/color.js";
 import { normalizeLength } from "../normalize/length.js";
@@ -115,10 +115,16 @@ function walk(node: Json, path: string[], inherited: string | undefined, out: En
   }
 }
 
+/** 색 객체의 `alpha`(0~1, 생략이면 1). 1 미만이면 정규화 결과에 싣는다 — `hex`는 명세상 불투명 6자리라 alpha를 담지 못한다. */
+function withObjectAlpha(color: ReturnType<typeof normalizeColor>, value: Json): ReturnType<typeof normalizeColor> {
+  if (color === null || typeof value.alpha !== "number" || value.alpha >= 1) return color;
+  return { ...color, alpha: Math.max(0, value.alpha) };
+}
+
 function colorFromObject(value: Json): ReturnType<typeof normalizeColor> {
   if (typeof value.hex === "string") {
     const fromHex = normalizeColor(value.hex);
-    if (fromHex !== null) return fromHex;
+    if (fromHex !== null) return withObjectAlpha(fromHex, value);
   }
   const space = value.colorSpace;
   const comps = value.components;
@@ -127,7 +133,7 @@ function colorFromObject(value: Json): ReturnType<typeof normalizeColor> {
   const css = FUNCTION_SPACES.has(space)
     ? `${space}(${nums.join(" ")})`
     : `color(${space} ${nums.join(" ")})`;
-  return parse(css) === undefined ? null : normalizeColor(css);
+  return parse(css) === undefined ? null : withObjectAlpha(normalizeColor(css), value);
 }
 
 function categoryOf(entry: Entry, kind: "color" | "length"): Token["category"] {
@@ -200,7 +206,9 @@ export function readW3cTokens(text: string, file: string): W3cReadResult {
         warnings.push(`색 값을 읽을 수 없음: ${label} (${file})`);
         continue;
       }
-      tokens.push({ name, value: normalized.hex, normalized, category: categoryOf(entry, "color"), path: label });
+      // 반투명 토큰의 value는 8자리 hex로 — 6자리면 리포트·MCP 답에서 불투명 색처럼 보인다
+      const shown = normalized.alpha === undefined ? normalized.hex : formatHex8({ ...parseHex(normalized.hex), alpha: normalized.alpha });
+      tokens.push({ name, value: shown, normalized, category: categoryOf(entry, "color"), path: label });
       continue;
     }
     let raw: string | null = null;

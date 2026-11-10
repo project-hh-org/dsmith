@@ -20,8 +20,9 @@ const only = (changes: FileChange[]) => {
 };
 
 describe("베이스 스냅샷 (부록 D.4.2)", () => {
-  it("토큰 14개, DS module 4개", () => {
-    expect(base.snapshot.tokens).toHaveLength(14);
+  it("토큰 15개, DS module 4개", () => {
+    // 이전 14 + space-6(24px, 길이 축약 뒤 피연산자를 세면서 생김)
+    expect(base.snapshot.tokens).toHaveLength(15);
     expect(base.snapshot.ds.modules).toEqual([
       "design-system/components/Badge",
       "src/components/ui",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTranslucentColor, normalizeColor } from "../src/normalize/color.js";
+import { isTranslucentColor, normalizeColor, sameAlpha } from "../src/normalize/color.js";
 
 describe("isTranslucentColor", () => {
   it.each([
@@ -64,5 +64,24 @@ describe("normalizeColor", () => {
 
   it.each(["", "not-a-color", "12px"])("파싱할 수 없는 값 %j는 null이다", (raw) => {
     expect(normalizeColor(raw)).toBeNull();
+  });
+
+  it.each([
+    ["rgba(0,0,0,0.5)", 0.5],
+    ["rgb(17 24 39 / 25%)", 0.25],
+    ["#00000080", 128 / 255],
+    ["hsla(0, 0%, 0%, 0.08)", 0.08],
+  ])("반투명 %s는 alpha를 담는다", (raw, alpha) => {
+    expect(normalizeColor(raw)?.alpha).toBeCloseTo(alpha, 4);
+  });
+
+  it("sameAlpha: 같은 불투명도의 다른 표기(50%와 8자리 hex 80)는 같고, 8자리 hex 한 단계 차이는 다르다", () => {
+    expect(sameAlpha(normalizeColor("rgb(0 0 0 / 50%)")!, normalizeColor("#00000080")!)).toBe(true);
+    expect(sameAlpha(normalizeColor("#0000007f")!, normalizeColor("#00000080")!)).toBe(false);
+    expect(sameAlpha(normalizeColor("#000")!, normalizeColor("#000000ff")!)).toBe(true);
+  });
+
+  it.each(["#000", "#000000ff", "rgba(0,0,0,1)", "rgb(0 0 0 / 100%)", "black"])("불투명 %s에는 alpha가 없다", (raw) => {
+    expect(normalizeColor(raw)).not.toHaveProperty("alpha");
   });
 });

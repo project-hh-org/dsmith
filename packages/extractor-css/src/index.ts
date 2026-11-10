@@ -1,1 +1,1 @@
-export { cssExtractor } from "./extract.js";
+export { cssExtractor, cssModulesExtractor } from "./extract.js";

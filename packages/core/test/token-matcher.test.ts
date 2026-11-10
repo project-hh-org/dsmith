@@ -144,3 +144,18 @@ describe("rankTokens", () => {
     expect(matchToken(norm("#EE4343"), colors)).toEqual(rankTokens(norm("#EE4343"), colors, { limit: 1 })[0]);
   });
 });
+
+describe("rankTokens alpha", () => {
+  // 반투명 토큰이 먼저 선언돼 있어도 불투명 값과 맞으면 안 된다(거리 0이라 순서로 이기던 경우)
+  const tokens = [colorToken("overlay", "rgba(0,0,0,0.5)"), colorToken("black", "#000000"), colorToken("scrim", "rgba(0,0,0,0.08)")];
+
+  it("불투명 값은 반투명 토큰과 매칭하지 않는다", () => {
+    expect(rankTokens(norm("#000"), tokens, { limit: 10 }).map((r) => r.token.name)).toEqual(["black"]);
+  });
+
+  it("반투명 값은 alpha가 같은 토큰하고만 매칭한다", () => {
+    expect(rankTokens(norm("rgba(0, 0, 0, .5)"), tokens, { limit: 10 }).map((r) => [r.token.name, r.confidence])).toEqual([
+      ["overlay", "exact"],
+    ]);
+  });
+});

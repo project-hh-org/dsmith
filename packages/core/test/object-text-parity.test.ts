@@ -49,6 +49,17 @@ describe("객체 문법 문자열 값과 CSS 텍스트 선언의 분류 일치",
     expect(object.patched).toBe(text.patched);
   });
 
+  it("문자열 값의 길이 축약은 피연산자마다 usage를 낸다(CSS 텍스트와 같은 규칙)", () => {
+    const code = `x({ padding: "8px 16px", margin: "0 12px" })`;
+    const rs = usagesFromStyleObject(firstObject(code), { file: "a.ts", code, extractor: "x" });
+    expect(rs.map((r) => [r.usage.property, r.usage.raw, code.slice(r.patch!.start, r.patch!.end)])).toEqual([
+      ["padding", "8px", "8px"],
+      ["padding", "16px", "16px"],
+      ["margin", "0", "0"],
+      ["margin", "12px", "12px"],
+    ]);
+  });
+
   it("문자열 값의 패치는 따옴표 안 하위 구간이고 quote: false, 숫자 값은 노드 전체에 quote: true", () => {
     const code = `x({ border: "1px solid #000", padding: 12 })`;
     const [border, padding] = usagesFromStyleObject(firstObject(code), { file: "a.ts", code, extractor: "x" });

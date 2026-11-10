@@ -43,6 +43,17 @@ describe("styledExtractor meta", () => {
   });
 });
 
+describe("styledExtractor 길이 축약", () => {
+  it("템플릿의 여러 값 축약은 피연산자마다 usage를 낸다", () => {
+    expect(summary(`${SC}const A = styled.div\`padding: 8px 16px; margin: 0 12px;\`;`)).toEqual([
+      ["padding", "8px", "hardcoded"],
+      ["padding", "16px", "hardcoded"],
+      ["margin", "0", "hardcoded"],
+      ["margin", "12px", "hardcoded"],
+    ]);
+  });
+});
+
 describe("styledExtractor conformance", () => {
   it("계약을 지킨다", () => {
     const report = runConformance("styled", () => styledExtractor, [
