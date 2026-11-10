@@ -191,8 +191,9 @@ describe("examples/legacy-demo", () => {
     expect(result.index.files).toEqual({ scanned: 26, skipped: [] });
     // css 추출기가 app/globals.css의 하드코딩 값 7건을 평가에 더해 53 → 52가 됐다.
     expect(result.hardcoded.byFile).toContainEqual({ file: "app/globals.css", count: 7 });
-    // src/lib/theme.ts의 JS 테마 직접 참조 3건(theme.primary·theme.muted)이 토큰 사용으로 세어져 rated 187 → 190, hardcodedShare 0.3422 → 0.3368. 점수는 52 그대로
-    expect(result.health).toMatchObject({ score: 52, rated: 190, hardcodedShare: 0.3368, dsImportShare: 0.0909, duplicateCount: 2 });
+    // src/lib/theme.ts의 JS 테마 직접 참조 3건(theme.primary·theme.muted)이 토큰 사용으로 세어져 rated 187 → 190.
+    // 길이 축약의 뒤 피연산자(Topbar `10px 24px`의 24px, StatusBadge `2px 8px`의 8px)를 세어 190 → 192, hardcodedShare 66/192. 점수는 52 그대로
+    expect(result.health).toMatchObject({ score: 52, rated: 192, hardcodedShare: 0.3438, dsImportShare: 0.0909, duplicateCount: 2 });
     expect(result.jsThemeRefs).toBe(3);
     expect(report).toMatchSnapshot();
   });

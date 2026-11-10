@@ -37,7 +37,8 @@ describe("prepareBase / prepareCondition / makeRunCopy", () => {
     expect(fs.existsSync(path.join(base.dir, "benchmarks"))).toBe(false);
     expect(fs.existsSync(path.join(base.dir, ".dsmith/catalog.json"))).toBe(true);
     expect(fs.existsSync(path.join(base.dir, "design-system/tokens.json"))).toBe(true);
-    expect(base.snapshot.tokens).toHaveLength(14);
+    // 15 = 이전 14 + space-6(24px). 길이 축약의 뒤 피연산자(Topbar `10px 24px`)를 세면서 init이 24px 토큰을 만든다
+    expect(base.snapshot.tokens).toHaveLength(15);
     expect(base.snapshot.ds.modules).toHaveLength(4);
     expect(base.snapshot.ds.components).toHaveLength(6);
     expect(base.snapshotSha256).toMatch(/^[0-9a-f]{64}$/);

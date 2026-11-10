@@ -18,7 +18,8 @@ function byCodeUnit(a: string, b: string): number {
 function usageByHex(index: Index, hexes: Set<string>): Map<string, Map<string, number>> {
   const byHex = new Map<string, Map<string, number>>();
   for (const u of index.styles) {
-    if (u.source !== "hardcoded" || u.normalized.kind !== "color" || !hexes.has(u.normalized.hex)) continue;
+    // 반투명 사용처는 색 클러스터에서 빠지므로 카드 사용 수에서도 뺀다(표와 숫자를 맞춘다)
+    if (u.source !== "hardcoded" || u.normalized.kind !== "color" || u.normalized.alpha !== undefined || !hexes.has(u.normalized.hex)) continue;
     const files = byHex.get(u.normalized.hex) ?? new Map<string, number>();
     files.set(u.file, (files.get(u.file) ?? 0) + 1);
     byHex.set(u.normalized.hex, files);

@@ -52,8 +52,8 @@ export {
 } from "./model/css-property.js";
 export type { CssDecl } from "./parse/css-text.js";
 export { PLACEHOLDER, parseCssDeclarations } from "./parse/css-text.js";
-export type { ClassifyOptions } from "./parse/css-decl-usage.js";
-export { classifyDeclaration, lineLocator } from "./parse/css-decl-usage.js";
+export type { ClassifiedDeclaration, ClassifyOptions } from "./parse/css-decl-usage.js";
+export { classifyDeclaration, classifyDeclarationAll, lineLocator } from "./parse/css-decl-usage.js";
 export type { StyleObjectContext, StyleObjectPatch, StyleObjectUsage } from "./parse/object-style.js";
 export { usagesFromStyleObject } from "./parse/object-style.js";
 export type { ComponentSummary, LocalDefinition } from "./component/summary.js";
@@ -124,7 +124,7 @@ export type {
   TokenDraft,
 } from "./tokens/draft.js";
 export type { Replacement } from "./tokens/draft.js";
-export { COVERAGE_PROPERTIES, bestReplacement, buildTokenDraft, draftCoverage, draftToTokens, replaceableToken } from "./tokens/draft.js";
+export { COVERAGE_PROPERTIES, bestReplacement, buildTokenDraft, candidateReplacement, draftCoverage, draftToTokens, replaceableToken } from "./tokens/draft.js";
 export type { ComponentDoc } from "./component/props.js";
 export { readComponentDoc, readTypeProps } from "./component/props.js";
 export { moduleOfFile } from "./component/definition.js";

@@ -22,7 +22,8 @@ export interface StyleUsage {
   property: StyleProperty;
   raw: string;
   normalized:
-    | { kind: "color"; hex: string; l: number; c: number; h: number }
+    /** `alpha`는 1 미만일 때만 있다(불투명 색은 생략). `hex`는 늘 6자리 불투명 hex다. */
+    | { kind: "color"; hex: string; l: number; c: number; h: number; alpha?: number }
     | { kind: "length"; px: number }
     | { kind: "unknown" };
   source: StyleSource;

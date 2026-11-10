@@ -25,7 +25,7 @@ describe("replay (합성 산출물, 네트워크·에이전트 없음)", () => {
 
     expect(r1).toMatchObject({ version: 1, date: "2026-11-01", startedAt: null, repo: "legacy-demo", mode: "replay", repeat: 1, timeoutSec: null, conditions: ["baseline", "dsmith"] });
     expect(r1.agent).toEqual({ command: null, version: null, installTool: null, models: [] });
-    expect(r1.base).toMatchObject({ tokens: 14, dsComponents: 6 });
+    expect(r1.base).toMatchObject({ tokens: 15, dsComponents: 6 });
     expect(r1.base.snapshotSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(r1.prompts.map((p) => p.id)).toEqual(PROMPTS);
 

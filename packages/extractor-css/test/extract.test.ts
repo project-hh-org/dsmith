@@ -1,7 +1,7 @@
 import type { StyleUsage } from "@dsmith-dev/extractor-api";
 import { runConformance } from "@dsmith-dev/extractor-api";
 import { describe, expect, it } from "vitest";
-import { cssExtractor } from "../src/index.js";
+import { cssExtractor, cssModulesExtractor } from "../src/index.js";
 
 function extractAll(code: string, file = "a.css"): StyleUsage[] {
   return cssExtractor.extract({ root: "/", file, code });
@@ -27,6 +27,37 @@ describe("cssExtractor meta", () => {
     expect(cssExtractor.appliesTo(ctx("src/a.module.css"))).toBe(false);
     expect(cssExtractor.appliesTo(ctx("src/a.module.scss"))).toBe(false);
     expect(cssExtractor.appliesTo(ctx("src/a.tsx"))).toBe(false);
+  });
+});
+
+describe("cssModulesExtractor", () => {
+  it("이름은 css-modules이고 .module.{css,scss}에만 적용한다", () => {
+    const ctx = (file: string) => ({ root: "/", file, code: "a{color:red}" });
+    expect(cssModulesExtractor.name).toBe("css-modules");
+    expect(cssModulesExtractor.appliesTo(ctx("src/a.module.css"))).toBe(true);
+    expect(cssModulesExtractor.appliesTo(ctx("src/a.module.scss"))).toBe(true);
+    expect(cssModulesExtractor.appliesTo(ctx("src/a.css"))).toBe(false);
+    expect(cssModulesExtractor.appliesTo(ctx("src/a.tsx"))).toBe(false);
+  });
+
+  it("CSS와 같은 규칙으로 추출하고 extractor 이름만 다르다", () => {
+    const code = ".box { color: #ef4444; padding: 8px 13px; }";
+    const usages = cssModulesExtractor.extract({ root: "/", file: "src/a.module.css", code });
+    expect(usages.map((u) => [u.property, u.raw, u.extractor])).toEqual([
+      ["color", "#ef4444", "css-modules"],
+      ["padding", "8px", "css-modules"],
+      ["padding", "13px", "css-modules"],
+    ]);
+  });
+
+  it("치환 패치를 만든다(var() 참조)", () => {
+    const code = ".box { color: #ef4444; }";
+    const [u] = cssModulesExtractor.extract({ root: "/", file: "src/a.module.css", code });
+    const ref = cssModulesExtractor.tokenRef?.({ name: "--ds-red", value: "#ef4444", category: "color" }, u!, {});
+    expect(ref).toBe("var(--ds-red)");
+    const patch = cssModulesExtractor.write(u!, ref!);
+    expect(patch).toMatchObject({ file: "src/a.module.css", replacement: "var(--ds-red)" });
+    expect(code.slice(patch!.start, patch!.end)).toBe("#ef4444");
   });
 });
 
@@ -78,9 +109,26 @@ describe("cssExtractor.extract", () => {
     expect(usage).toMatchObject({ property: "color", source: "hardcoded", normalized: { kind: "unknown" } });
   });
 
-  it("길이는 첫 공백 토큰만 정규화한다", () => {
-    const usage = find("a{padding:13px 8px}", "13px");
-    expect(usage).toMatchObject({ property: "padding", source: "hardcoded", normalized: { kind: "length", px: 13 } });
+  it("여러 값의 길이 축약은 피연산자마다 usage를 낸다", () => {
+    const usages = extractAll("a{padding:13px 8px}");
+    expect(usages.map((u) => [u.property, u.raw, u.normalized])).toEqual([
+      ["padding", "13px", { kind: "length", px: 13 }],
+      ["padding", "8px", { kind: "length", px: 8 }],
+    ]);
+    // 줄·열은 각 피연산자 위치다
+    expect(usages.map((u) => u.column)).toEqual([10, 15]);
+  });
+
+  it("첫 피연산자가 0·auto여도 뒤의 길이를 놓치지 않는다", () => {
+    expect(extractAll("a{margin:0 16px}").map((u) => u.raw)).toEqual(["0", "16px"]);
+    expect(extractAll("a{margin:auto 16px}").map((u) => u.raw)).toEqual(["16px"]);
+  });
+
+  it("토큰 참조가 섞인 축약은 하드코딩 피연산자만 낸다", () => {
+    expect(extractAll("a{padding:var(--x) 8px 12px}").map((u) => [u.raw, u.source])).toEqual([
+      ["8px", "hardcoded"],
+      ["12px", "hardcoded"],
+    ]);
   });
 
   it("길이 단위를 환산하고 모르는 값은 unknown", () => {

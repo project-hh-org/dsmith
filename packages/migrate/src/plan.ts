@@ -4,8 +4,8 @@ import path from "node:path";
 import picomatch from "picomatch";
 import {
   COVERAGE_PROPERTIES,
-  bestReplacement,
   buildTokenRefResolver,
+  candidateReplacement,
   extractFileStyles,
   extractorMatchers,
   findTokensStylesheetImport,
@@ -136,7 +136,7 @@ export interface MigratePlan {
     files: number;
     /** hardcoded && isRatedUsage && COVERAGE_PROPERTIES, 0 이하 간격 제외 */
     total: number;
-    /** total 중 bestReplacement !== null */
+    /** total 중 candidateReplacement !== null */
     candidates: number;
     /** total − candidates (가까운 토큰 없음) */
     far: number;
@@ -245,7 +245,7 @@ function underDir(file: string, dir: string): boolean {
 
 /**
  * 하드코딩 → 토큰 치환 계획. 파일을 쓰지 않는다.
- * 후보 = hardcoded ∧ isRatedUsage ∧ `bestReplacement !== null` (= core `replaceableToken`과 같은 판정).
+ * 후보 = hardcoded ∧ isRatedUsage ∧ `candidateReplacement !== null` (= core `replaceableToken`과 같은 판정).
  * 불변식: candidates + far === total, planned + Σskipped + outOfRange + close.length === candidates.
  */
 export async function planMigration(opts: MigrateOptions): Promise<MigratePlan> {
@@ -555,7 +555,8 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
       const extractor = byName.get(u.extractor);
       // JS 테마 토큰이 후보에 있으면 이 사용이 참조할 수 있는 토큰(tokenRef가 있는 것) 중에서만 최선을 고른다 — CSS 변수는 RN에 없고 JS 식은 CSS에 없다
       const pool = hasJsTokens ? rt.tokens.filter((t) => extractor?.tokenRef?.(t, u, refCtx) != null) : rt.tokens;
-      const r = bestReplacement(u, pool);
+      // init 커버리지와 같은 후보 판정. 반투명 값은 같은 색의 불투명 토큰도 후보로 세고, 아래에서 translucent-color로 건너뛴다
+      const r = candidateReplacement(u, pool);
       if (r === null) {
         scope.far += 1;
         continue;
@@ -566,7 +567,7 @@ export async function analyzeMigration(opts: MigrateOptions): Promise<{ plan: Mi
         addSkip(ref0, "binary-or-non-utf8", r.token.name);
         continue;
       }
-      // NormalizedColor는 alpha를 담지 않아 반투명 색도 불투명 토큰과 거리 0으로 맞는다 — 원문에서 직접 걸러낸다
+      // 반투명 색은 치환하지 않는다. Tailwind `/50` 수식어처럼 정규화 값에 alpha가 없는 경우도 있어 원문으로 판정한다
       if (category === "color" && isTranslucentUsage(u)) {
         addSkip(ref0, "translucent-color", r.token.name);
         continue;

@@ -1,5 +1,6 @@
 import type { StyleUsage } from "@dsmith-dev/extractor-api";
 import type { Token } from "../model/token.js";
+import { sameAlpha } from "../normalize/color.js";
 import { colorDistance, lengthDistance } from "./distance.js";
 
 /**
@@ -36,6 +37,8 @@ export function rankTokens(
   if (normalized.kind === "color") {
     for (const token of pool) {
       if (token.category !== "color" || token.normalized.kind !== "color") continue;
+      // colorDistance는 alpha를 보지 않는다. 불투명도가 다른 토큰은 후보에서 뺀다(rgba(0,0,0,.5) 토큰 ≠ #000).
+      if (!sameAlpha(normalized, token.normalized)) continue;
       const distance = colorDistance(normalized, token.normalized);
       const confidence =
         distance < COLOR_EXACT ? "exact" : distance < COLOR_CLOSE ? "close" : "far";

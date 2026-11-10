@@ -204,7 +204,13 @@ export function buildTokenDraft(styles: StyleUsage[], opts: DraftOptions = {}): 
   const colorKeys = colorTokenNames(colorClusters);
   const normalizedByHex = new Map<string, StyleUsage["normalized"]>();
   for (const u of input) {
-    if (u.source === "hardcoded" && u.normalized.kind === "color" && !normalizedByHex.has(u.normalized.hex)) {
+    // 반투명 사용처는 빼고 고른다 — 같은 hex의 alpha가 토큰에 실리면 불투명 사용처와 매칭되지 않는다(클러스터도 반투명을 뺀다)
+    if (
+      u.source === "hardcoded" &&
+      u.normalized.kind === "color" &&
+      u.normalized.alpha === undefined &&
+      !normalizedByHex.has(u.normalized.hex)
+    ) {
       normalizedByHex.set(u.normalized.hex, u.normalized);
     }
   }
@@ -452,9 +458,22 @@ export function bestReplacement(usage: StyleUsage, tokens: Token[]): Replacement
   return null;
 }
 
-/** `bestReplacement`가 토큰을 고르는가 — 판정은 그 함수 하나. */
+/**
+ * 커버리지·마이그레이션 "후보" 판정. `bestReplacement`와 같되, 반투명 값(alpha < 1)에 불투명도가 같은 토큰이 없으면
+ * 같은 색의 불투명 토큰을 찾아 돌려준다 — 음수 값처럼 "맞는 토큰은 있지만 안전상 바꾸지 않는" 후보로 세기 위해서다.
+ * migrate는 반투명 후보를 늘 `translucent-color`로 건너뛰므로 이 토큰으로 치환되지 않는다.
+ * 치환 제안(ESLint·guard·MCP)에는 `bestReplacement`를 쓴다.
+ */
+export function candidateReplacement(usage: StyleUsage, tokens: Token[]): Replacement | null {
+  const strict = bestReplacement(usage, tokens);
+  if (strict !== null || usage.normalized.kind !== "color" || usage.normalized.alpha === undefined) return strict;
+  const { alpha: _alpha, ...opaque } = usage.normalized;
+  return bestReplacement({ ...usage, normalized: opaque }, tokens);
+}
+
+/** 커버리지의 "바꿀 수 있음" — 판정은 `candidateReplacement` 하나(migrate 후보와 같다). */
 export function replaceableToken(usage: StyleUsage, tokens: Token[]): boolean {
-  return bestReplacement(usage, tokens) !== null;
+  return candidateReplacement(usage, tokens) !== null;
 }
 
 /**
@@ -488,7 +507,7 @@ export function draftCoverage(
       zeroOrNegative += 1;
       continue;
     }
-    const best = bestReplacement(u, tokens);
+    const best = candidateReplacement(u, tokens);
     total += 1;
     byCategory[category].total += 1;
     if (best !== null) {

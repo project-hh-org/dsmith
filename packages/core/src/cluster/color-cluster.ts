@@ -93,6 +93,8 @@ export function clusterColors(
   const counts = new Map<string, { color: NormalizedColor; count: number }>();
   for (const usage of usages) {
     if (usage.source !== "hardcoded" || usage.normalized.kind !== "color") continue;
+    // 반투명 사용처(그림자·오버레이)는 불투명 색 개수에 더하지 않고, 초안 토큰(불투명 hex)도 만들지 않는다
+    if (usage.normalized.alpha !== undefined) continue;
     const entry = counts.get(usage.normalized.hex);
     if (entry === undefined) counts.set(usage.normalized.hex, { color: usage.normalized, count: 1 });
     else entry.count += 1;

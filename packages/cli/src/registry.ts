@@ -1,5 +1,5 @@
 import { metaOf, type Extractor, type ExtractorMeta } from "@dsmith-dev/extractor-api";
-import { cssExtractor } from "@dsmith-dev/extractor-css";
+import { cssExtractor, cssModulesExtractor } from "@dsmith-dev/extractor-css";
 import { emotionExtractor } from "@dsmith-dev/extractor-emotion";
 import { inlineStyleExtractor } from "@dsmith-dev/extractor-inline-style";
 import { muiSxExtractor } from "@dsmith-dev/extractor-mui-sx";
@@ -12,6 +12,7 @@ export const registry: Record<string, () => Extractor> = {
   "inline-style": () => inlineStyleExtractor,
   tailwind: () => tailwindExtractor,
   css: () => cssExtractor,
+  "css-modules": () => cssModulesExtractor,
   styled: () => styledExtractor,
   emotion: () => emotionExtractor,
   "mui-sx": () => muiSxExtractor,

@@ -1,4 +1,4 @@
-import { classifyDeclaration, lineLocator, parseCssDeclarations, usagesFromStyleObject } from "@dsmith-dev/core";
+import { classifyDeclarationAll, lineLocator, parseCssDeclarations, usagesFromStyleObject } from "@dsmith-dev/core";
 import type { CssDecl } from "@dsmith-dev/core";
 import type { ExtractContext, StyleUsage } from "@dsmith-dev/extractor-api";
 import type { ObjectExpression, TemplateLiteral } from "@babel/types";
@@ -101,18 +101,19 @@ function locatorFor(code: string): (offset: number) => { line: number; column: n
   return cachedLocator.lineOf;
 }
 
-/** 템플릿 선언을 StyleUsage로(분류 규칙은 extractor-css와 같은 `classifyDeclaration`). 하드코딩 값은 치환 구간을 기록한다. */
+/** 템플릿 선언을 StyleUsage로(분류 규칙은 extractor-css와 같은 `classifyDeclarationAll`). 하드코딩 값은 치환 구간을 기록한다. */
 export function usagesFromDecls(decls: TemplateDecl[], ctx: ExtractContext, extractorName: string): StyleUsage[] {
   const lineOf = locatorFor(ctx.code);
   const usages: StyleUsage[] = [];
   for (const decl of decls) {
-    const result = classifyDeclaration(
+    const results = classifyDeclarationAll(
       { ...decl, start: decl.codeStart, end: decl.codeEnd },
       { file: ctx.file, extractor: extractorName, code: ctx.code, lineOf },
     );
-    if (result === null) continue;
-    if (result.patch !== null) registerPatchTarget(result.usage, { ...result.patch, file: ctx.file, quote: false });
-    usages.push(result.usage);
+    for (const result of results) {
+      if (result.patch !== null) registerPatchTarget(result.usage, { ...result.patch, file: ctx.file, quote: false });
+      usages.push(result.usage);
+    }
   }
   return usages;
 }

@@ -130,6 +130,21 @@ describe("readW3cTokens", () => {
     );
     expect(r.tokens[0]?.normalized).toMatchObject({ hex: "#ff0000" });
   });
+
+  it("색 객체의 alpha(1 미만)를 담는다 — hex가 있어도 무시하지 않는다", () => {
+    const r = readW3cTokens(
+      JSON.stringify({
+        overlay: { $type: "color", $value: { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.5, hex: "#000000" } },
+        black: { $type: "color", $value: { colorSpace: "srgb", components: [0, 0, 0], alpha: 1, hex: "#000000" } },
+      }),
+      "t.json",
+    );
+    expect(r.tokens.map((t) => [t.name, t.normalized.kind === "color" ? t.normalized.alpha : null])).toEqual([
+      ["--overlay", 0.5],
+      ["--black", undefined],
+    ]);
+    expect(r.tokens.map((t) => t.value)).toEqual(["#00000080", "#000000"]);
+  });
 });
 
 describe("DTCG 경로(Token.path)", () => {

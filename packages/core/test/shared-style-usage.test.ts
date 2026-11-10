@@ -1,6 +1,13 @@
 import type { ObjectExpression } from "@babel/types";
 import { describe, expect, it } from "vitest";
-import { classifyDeclaration, lineLocator, parseCssDeclarations, parseTsx, usagesFromStyleObject } from "../src/index.js";
+import {
+  classifyDeclaration,
+  classifyDeclarationAll,
+  lineLocator,
+  parseCssDeclarations,
+  parseTsx,
+  usagesFromStyleObject,
+} from "../src/index.js";
 
 describe("lineLocator", () => {
   it("오프셋을 줄(1부터)·열(0부터)로 바꾼다", () => {
@@ -31,6 +38,26 @@ describe("classifyDeclaration", () => {
     expect(token!.usage.source).toBe("token");
     expect(token!.patch).toBeNull();
     expect(empty).toBeNull();
+  });
+
+  it("classifyDeclarationAll은 길이 축약의 피연산자마다 usage·패치를 낸다", () => {
+    const code = "a{margin:0 16px auto 4px}";
+    const lineOf = lineLocator(code);
+    const rs = classifyDeclarationAll(parseCssDeclarations(code)[0]!, { file: "a.css", extractor: "x", code, lineOf });
+    expect(rs.map((r) => [r.usage.raw, r.usage.normalized, code.slice(r.patch!.start, r.patch!.end)])).toEqual([
+      ["0", { kind: "length", px: 0 }, "0"],
+      ["16px", { kind: "length", px: 16 }, "16px"],
+      ["4px", { kind: "length", px: 4 }, "4px"],
+    ]);
+  });
+
+  it("classifyDeclarationAll은 단일 값·색·토큰 선언에서 classifyDeclaration과 같다", () => {
+    const code = "a{padding:8px;color:#fff;border:1px solid #000;margin:var(--a) var(--b);width:calc(1px + 2px)}";
+    const lineOf = lineLocator(code);
+    for (const d of parseCssDeclarations(code)) {
+      const one = classifyDeclaration(d, { file: "a.css", extractor: "x", code, lineOf });
+      expect(classifyDeclarationAll(d, { file: "a.css", extractor: "x", code, lineOf })).toEqual(one === null ? [] : [one]);
+    }
   });
 
   it("dynamic 선언은 값 구간 전체를 raw로 쓰고 패치가 없다", () => {

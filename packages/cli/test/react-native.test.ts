@@ -60,13 +60,14 @@ describe("fixtures/rn-app: audit", () => {
 });
 
 describe("legacy-demo: 웹 레포의 JS 테마", () => {
-  it("theme 직접 참조 3건이 token으로 바뀌고 조건식 1건은 dynamic으로 남는다 (rated 187 → 190)", async () => {
+  it("theme 직접 참조 3건이 token으로 바뀌고 조건식 1건은 dynamic으로 남는다 (rated 187 → 190, 길이 축약 뒤 피연산자 2건으로 192)", async () => {
     const root = copyFixture("legacy-demo", "examples");
     const { result } = await runAudit(root);
     expect(result.detect.ds.jsThemes?.map((t) => t.file)).toEqual(["src/lib/theme.ts"]);
     expect(result.jsThemeRefs).toBe(3);
-    expect(result.health.rated).toBe(190);
-    expect(result.health.hardcodedShare).toBeCloseTo(64 / 190, 4);
+    // 192 = 190 + Topbar `10px 24px`의 24px + StatusBadge `2px 8px`의 8px(둘 다 하드코딩)
+    expect(result.health.rated).toBe(192);
+    expect(result.health.hardcodedShare).toBeCloseTo(66 / 192, 4);
     expect(result.health.score).toBe(52);
   });
 });

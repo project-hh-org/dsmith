@@ -181,22 +181,24 @@ describe("runAudit", () => {
     expect(result.health.duplicateCount).toBe(1);
   });
 
-  it("CSS Modules만 쓰는 레포: 평가한 스타일 값이 0이면 점수를 참고용으로 표기하고 분석하지 않은 방식을 알린다", async () => {
-    // css-modules는 detect만 하고 Extractor가 없다. 교집합이 비어 inline-style 폴백만 켜진다.
+  it("CSS Modules만 쓰는 레포: css-modules Extractor가 켜져 .module.css의 하드코딩 값을 센다", async () => {
     write("package.json", JSON.stringify({ name: "app", dependencies: { react: "^18" } }));
     write("src/A.module.css", ".box { color: #ef4444; padding: 13px; }\n");
     write("src/A.tsx", "import s from \"./A.module.css\";\nexport const A = () => <div className={s.box} />;\n");
     const { result, reportPath } = await runAudit(tmp);
-    expect(result.detect.activeExtractors).toEqual(["inline-style"]);
-    expect(result.index.files.scanned).toBe(1);
-    expect(result.health.rated).toBe(0);
-    const md = fs.readFileSync(reportPath, "utf-8");
-    expect(md).toContain(`(스타일 데이터 없음 — 참고용) 건강 점수: ${result.health.score}`);
-    expect(md).toContain("감지됐지만 분석하지 않은 방식: css-modules");
-    expect(auditWarnings(result)).toEqual([
-      `경고: (스타일 데이터 없음 — 참고용) 건강 점수: ${result.health.score}`,
-      "경고: 감지됐지만 분석하지 않은 방식: css-modules",
+    expect(result.detect.activeExtractors).toEqual(["css-modules"]);
+    expect(result.index.files.scanned).toBe(2);
+    expect(result.health.rated).toBe(2);
+    const index = JSON.parse(fs.readFileSync(path.join(tmp, ".dsmith", "index.json"), "utf-8")) as {
+      styles: { file: string; raw: string; extractor: string }[];
+    };
+    expect(index.styles.map((u) => [u.file, u.raw, u.extractor])).toEqual([
+      ["src/A.module.css", "#ef4444", "css-modules"],
+      ["src/A.module.css", "13px", "css-modules"],
     ]);
+    const md = fs.readFileSync(reportPath, "utf-8");
+    expect(md).not.toContain("감지됐지만 분석하지 않은 방식");
+    expect(auditWarnings(result)).toEqual([]);
   });
 
   it("평가한 스타일 값이 있으면 참고용 표기·경고가 없다", async () => {
